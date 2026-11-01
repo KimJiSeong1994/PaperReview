@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import './HomeWorkspace.css';
 import { useAuth } from '../../contexts/AuthContext';
 import HomeComposer from './HomeComposer';
-import { Icon, Row } from './HomeRow';
+import { Icon, Row, type IconName } from './HomeRow';
 import HomeSidebar from './HomeSidebar';
 import { relativeLabel } from './homeTime';
 import { readRecentSearches } from './recentSearches';
@@ -39,6 +39,12 @@ const describeDegradedReason = (code: string): string => (
 
 const MASCOT_SRC = '/Jiphyeonjeon_llama.webp';
 
+// Starter rows put an editable question in the composer instead of submitting it.
+const STARTER_QUESTIONS: { text: string; meta: string; icon: IconName }[] = [
+  { text: 'GraphRAG가 기존 RAG보다 나은 경우는 언제야?', meta: '비교 질문도 평소 말투 그대로 물어보면 돼요', icon: 'compare' },
+  { text: '최근 1년 사이 나온 장기 대화 기억 논문만 보여줘', meta: '기간·조건도 문장으로 적으면 돼요', icon: 'search' },
+];
+
 /**
  * The home as a research workspace: history sidebar, one question over a
  * composer with today's picks beside it, then task and continue rows.
@@ -50,10 +56,18 @@ function HomeWorkspace({
   guidanceSticky,
   onQueryChange,
 }: HomeWorkspaceProps) {
-  const { isAuthenticated, setShowLoginModal } = useAuth();
+  const { isAuthenticated } = useAuth();
   const data = useHomeData(isAuthenticated);
   const [recentSearches] = useState(readRecentSearches);
   const [resetKey, setResetKey] = useState(0);
+  // What the composer starts with: the last submitted query, or a starter row's question,
+  // whichever changed last.
+  const [draft, setDraft] = useState(attemptedQuery);
+  const [seenAttempt, setSeenAttempt] = useState(attemptedQuery);
+  if (seenAttempt !== attemptedQuery) {
+    setSeenAttempt(attemptedQuery);
+    setDraft(attemptedQuery);
+  }
   const now = useMemo(() => new Date(), []);
 
   const lastSearch = recentSearches[0] ?? null;
@@ -71,7 +85,12 @@ function HomeWorkspace({
     ? `${relativeLabel(data.recommendations.latest_run_at, now)} 갱신`
     : null;
 
-  const startNewSearch = () => setResetKey(key => key + 1);
+  // Both remount the composer (and focus it): empty for 새 대화, with the question for a starter row.
+  const prefill = (text: string) => {
+    setDraft(text);
+    setResetKey(key => key + 1);
+  };
+  const startNewSearch = () => prefill('');
 
   return (
     <div className="home-shell">
@@ -90,7 +109,7 @@ function HomeWorkspace({
 
           <HomeComposer
             key={`${attemptedQuery}#${resetKey}`}
-            initialQuery={attemptedQuery}
+            initialQuery={draft}
             onSearch={onSearch}
             guidanceMessage={guidanceMessage}
             guidanceSticky={guidanceSticky}
@@ -101,29 +120,15 @@ function HomeWorkspace({
           <section className="home-tasks" aria-labelledby="home-tasks">
             <h2 id="home-tasks" className="home-label">집현전에 이런 걸 맡겨 보세요</h2>
             <ul className="home-list">
-              <Row
-                lead={<Icon name="compare" />}
-                label="GraphRAG와 기존 RAG, 무엇이 달라졌는지 비교 리뷰"
-                meta="비교 질문도 검색어로 바로 던질 수 있어요"
-                onClick={() => onSearch('GraphRAG와 기존 RAG 비교')}
-              />
-              {isAuthenticated ? (
+              {STARTER_QUESTIONS.map(question => (
                 <Row
-                  lead={<Icon name="review" />}
-                  label={data.bookmarks.length > 0
-                    ? `북마크 ${data.bookmarks.length}편 중에서 골라 딥리뷰 만들기`
-                    : '검색 결과에서 논문을 골라 딥리뷰 만들기'}
-                  meta="근거 검증 · 포스터 생성까지 한 번에"
-                  to="/mypage"
+                  key={question.text}
+                  lead={<Icon name={question.icon} />}
+                  label={question.text}
+                  meta={question.meta}
+                  onClick={() => prefill(question.text)}
                 />
-              ) : (
-                <Row
-                  lead={<Icon name="review" />}
-                  label="논문을 골라 딥리뷰 만들기"
-                  meta="로그인 후 검색 결과에서 선택합니다"
-                  onClick={() => setShowLoginModal(true)}
-                />
-              )}
+              ))}
               <Row
                 lead={<Icon name="course" />}
                 label="주제 입문 커리큘럼 짜기"

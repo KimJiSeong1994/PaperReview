@@ -10,6 +10,10 @@ export interface ViewTurn extends ConversationTurn {
   stopped?: boolean;
   /** The question this failed run sent but the server never stored; retry re-sends it. */
   retryMessage?: string;
+  /** Live only: a status event arrived, so the turn shows a status line. */
+  statusSeen?: boolean;
+  /** Live only: length of the lead, the text streamed before the first status or block (frozen then). */
+  leadLength?: number;
 }
 
 export interface ConversationState {
@@ -26,6 +30,9 @@ export interface ConversationState {
 }
 
 const LIVE_ID = 'live';
+
+// Text streamed before the first status or block is the lead (possibly empty).
+const leadOf = (turn: ViewTurn): number => turn.content.length;
 
 const localTurn = (role: ViewTurn['role'], content: string, seq: number): ViewTurn => ({
   id: role === 'assistant' ? LIVE_ID : `local-${seq}`,
@@ -78,10 +85,14 @@ export function useConversation(id: string, runOnLoad: boolean): ConversationSta
       setLiveStatus(null);
     };
     void streamTurn(id, message, {
-      onStatus: event => setLiveStatus(event.status),
-      onBlock: block => patchLive(turn => ({ ...turn, blocks: [...turn.blocks, block] })),
+      onStatus: event => {
+        setLiveStatus(event.status);
+        patchLive(turn => ({ ...turn, statusSeen: true, leadLength: turn.leadLength ?? leadOf(turn) }));
+      },
+      onBlock: block => patchLive(turn => ({ ...turn, blocks: [...turn.blocks, block], leadLength: turn.leadLength ?? leadOf(turn) })),
       onDelta: text => patchLive(turn => ({ ...turn, content: turn.content + text })),
       onDone: done => {
+        if (done.title) setConversation(current => (current ? { ...current, title: done.title! } : current));
         patchLive(turn => ({ ...turn, id: done.turn_id || `done-${turn.seq}`, intent: done.intent, status: 'done' }));
         settle();
       },

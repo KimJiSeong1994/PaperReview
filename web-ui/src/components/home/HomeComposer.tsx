@@ -29,12 +29,18 @@ function HomeComposer({
   onStop,
 }: HomeComposerProps) {
   const reply = variant === 'reply';
+  // The accessible name stays short; the placeholder invites a natural question.
   const label = reply ? '이어서 물어보세요' : '논문 검색';
+  const placeholder = reply ? '이어서 물어보거나 조건을 바꿔 보세요 (예: 2024년 이후만)' : '궁금한 주제나 질문을 편하게 적어 주세요';
   const [query, setQuery] = useState(initialQuery);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   useEffect(() => {
-    if (autoFocus) textareaRef.current?.focus();
+    const box = textareaRef.current;
+    if (!autoFocus || !box) return;
+    box.focus();
+    // A prefilled question is for editing: put the caret after it.
+    box.setSelectionRange(box.value.length, box.value.length);
   }, [autoFocus]);
 
   useEffect(() => {
@@ -68,7 +74,7 @@ function HomeComposer({
         ref={textareaRef}
         rows={1}
         value={query}
-        placeholder={label}
+        placeholder={placeholder}
         onChange={(event) => {
           setQuery(event.target.value);
           if (guidanceMessage) onQueryChange();

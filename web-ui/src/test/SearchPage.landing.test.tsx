@@ -100,19 +100,31 @@ describe('homepage landing content', () => {
     renderHome();
     expect(screen.getByRole('textbox', { name: '논문 검색' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '집현전에 이런 걸 맡겨 보세요' })).toBeTruthy();
-    expect(screen.getByRole('button', { name: /비교 리뷰/ })).toBeTruthy();
-    expect(screen.getByRole('link', { name: /커리큘럼 짜기/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /GraphRAG가 기존 RAG보다 나은 경우는 언제야\?/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /최근 1년 사이 나온 장기 대화 기억 논문만 보여줘/ })).toBeTruthy();
+    expect(screen.getByRole('link', { name: /주제 입문 커리큘럼 짜기/ }).getAttribute('href')).toBe('/curriculum');
+    expect(screen.getByRole('textbox', { name: '논문 검색' }).getAttribute('placeholder'))
+      .toBe('궁금한 주제나 질문을 편하게 적어 주세요');
   });
 
-  // A task row exists to start work, so the wiring is the whole point: the
-  // comparison row starts a conversation and opens it with the run flag.
-  it('starts a conversation from the comparison task row', async () => {
+  // A starter row puts its question in the composer for editing; sending it
+  // starts a conversation and opens it with the run flag.
+  it('prefills the composer from a starter row, then starts a conversation on send', async () => {
     authState.isAuthenticated = true;
     renderHome();
     await act(async () => {
-      fireEvent.click(screen.getByRole('button', { name: /GraphRAG와 기존 RAG, 무엇이 달라졌는지 비교 리뷰/ }));
+      fireEvent.click(screen.getByRole('button', { name: /GraphRAG가 기존 RAG보다 나은 경우는 언제야\?/ }));
     });
-    expect(createConversation).toHaveBeenCalledWith('GraphRAG와 기존 RAG 비교');
+    expect(createConversation).not.toHaveBeenCalled();
+    const box = screen.getByRole('textbox', { name: '논문 검색' }) as HTMLTextAreaElement;
+    expect(box.value).toBe('GraphRAG가 기존 RAG보다 나은 경우는 언제야?');
+    expect(document.activeElement).toBe(box);
+
+    await act(async () => {
+      fireEvent.change(box, { target: { value: 'GraphRAG가 기존 RAG보다 나은 경우는 언제야? 2024년 이후만' } });
+      fireEvent.keyDown(box, { key: 'Enter' });
+    });
+    expect(createConversation).toHaveBeenCalledWith('GraphRAG가 기존 RAG보다 나은 경우는 언제야? 2024년 이후만');
     expect(searchPapers).not.toHaveBeenCalled();
     expect(screen.getByText('conversation conv-1 run=true')).toBeTruthy();
   });

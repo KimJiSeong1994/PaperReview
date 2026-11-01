@@ -14,6 +14,9 @@ import {
 import { api } from '../api/base';
 import { useDeepReview } from '../hooks/useDeepReview';
 
+// The home composer (first screen) or the results-page search bar.
+const SEARCH_BOX = /^(논문 검색|궁금한 주제나 질문을 편하게 적어 주세요)$/;
+
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock('../api/client', async () => {
@@ -54,7 +57,7 @@ vi.mock('../analytics/events', () => ({
 
 async function submitSearch(query: string) {
   await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText('논문 검색'), { target: { value: query } });
+    fireEvent.change(screen.getByPlaceholderText(SEARCH_BOX), { target: { value: query } });
     fireEvent.click(screen.getByRole('button', { name: '논문 검색' }));
   });
 }

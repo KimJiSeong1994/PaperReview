@@ -274,6 +274,73 @@ describe('ConversationPage', () => {
     expect((await screen.findByTestId('graph')).textContent).toBe('graph:HippoRAG');
   });
 
+  it('puts the lead above the status line and results, and the summary below them', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: '그래프 RAG' });
+    act(() => {
+      live!.onDelta('GraphRAG 논문을 찾아볼게요.');
+      live!.onStatus({ status: '출처 6곳에서 검색하는 중…', stage: 'search' });
+      live!.onBlock({ type: 'search_results', query: 'q', total: 2, query_hash: 'h1', partial: false, degraded: [], papers });
+    });
+    const lead = screen.getByText('GraphRAG 논문을 찾아볼게요.');
+    const status = screen.getByRole('status');
+    const results = screen.getByRole('region', { name: '검색 결과 2편' });
+    const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(lead, status)).toBe(true);
+    expect(follows(status, results)).toBe(true);
+
+    act(() => {
+      live!.onDelta('\n\n두 편이 핵심이에요.');
+      live!.onDone({ turn_id: 'a1', intent: 'search' });
+    });
+    expect(follows(results, screen.getByText('두 편이 핵심이에요.'))).toBe(true);
+    expect(follows(screen.getByText('GraphRAG 논문을 찾아볼게요.'), results)).toBe(true);
+  });
+
+  it('splits a saved search turn at its first paragraph', async () => {
+    vi.mocked(fetchConversation).mockResolvedValueOnce({
+      id: 'conv-1', title: '그래프 RAG', created_at: '', updated_at: '',
+      turns: [
+        { id: 'u1', seq: 1, role: 'user', content: '그래프 RAG', blocks: [], intent: null, status: 'done', created_at: '' },
+        {
+          id: 'a1', seq: 2, role: 'assistant', content: '찾아볼게요.\n\n요약입니다.', intent: 'search', status: 'done', created_at: '',
+          blocks: [{ type: 'search_results', query: 'q', total: 2, query_hash: 'h1', partial: false, degraded: [], papers }],
+        },
+      ],
+    });
+    renderPage(null);
+    const results = await screen.findByRole('region', { name: '검색 결과 2편' });
+    const follows = (a: Element, b: Element) => Boolean(a.compareDocumentPosition(b) & Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(follows(screen.getByText('찾아볼게요.'), results)).toBe(true);
+    expect(follows(results, screen.getByText('요약입니다.'))).toBe(true);
+  });
+
+  it('streams a chat turn with no status line, and applies the new title in place', async () => {
+    renderPage();
+    await screen.findByRole('heading', { name: '그래프 RAG' });
+    // Waiting indicator from send until the first event.
+    expect(screen.getByRole('status').textContent).toContain('생각하는 중…');
+    act(() => live!.onDelta('안녕하세요! 어떤 주제가 궁금하세요?'));
+    expect(screen.queryByRole('status')).toBeNull();
+
+    act(() => live!.onDone({ turn_id: 'a1', intent: 'chat', title: '인사와 주제 고르기' }));
+    expect(screen.getByRole('heading', { name: '인사와 주제 고르기' })).toBeTruthy();
+    expect(screen.queryByText(/출처 \d+곳/)).toBeNull();
+    const nav = screen.getByRole('navigation', { name: '내 기록' });
+    expect(await within(nav).findByRole('link', { name: /인사와 주제 고르기/ })).toBeTruthy();
+    // A later turn sends title null: the title stays.
+    const box = screen.getByRole('textbox', { name: '이어서 물어보세요' });
+    fireEvent.change(box, { target: { value: '고마워요' } });
+    fireEvent.keyDown(box, { key: 'Enter' });
+    act(() => {
+      live!.onDelta('천만에요.');
+      live!.onDone({ turn_id: 'a2', intent: 'chat', latency_ms: 5, title: null });
+    });
+    expect(screen.getByRole('heading', { name: '인사와 주제 고르기' })).toBeTruthy();
+    expect(screen.getByRole('textbox', { name: '이어서 물어보세요' }).getAttribute('placeholder'))
+      .toBe('이어서 물어보거나 조건을 바꿔 보세요 (예: 2024년 이후만)');
+  });
+
   it('shows a load error with a way back', async () => {
     vi.mocked(fetchConversation).mockReset().mockRejectedValue({ response: { status: 404 } });
     renderPage(null);

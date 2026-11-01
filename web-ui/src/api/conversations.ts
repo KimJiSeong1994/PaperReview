@@ -16,6 +16,8 @@ export interface TurnDoneEvent {
   turn_id: string;
   intent: string | null;
   latency_ms?: number;
+  /** The conversation's new title when this turn changed it; null when unchanged. */
+  title?: string | null;
 }
 
 export interface TurnStreamHandlers {

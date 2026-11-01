@@ -17,6 +17,9 @@ import {
   trackSearchEvent,
 } from '../analytics/events';
 
+// The home composer (first screen) or the results-page search bar.
+const SEARCH_BOX = /^(논문 검색|궁금한 주제나 질문을 편하게 적어 주세요)$/;
+
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const authState = vi.hoisted(() => ({
@@ -81,7 +84,7 @@ function createDeferred<T>() {
 
 async function submitSearch(query: string) {
   await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText('논문 검색'), {
+    fireEvent.change(screen.getByPlaceholderText(SEARCH_BOX), {
       target: { value: query },
     });
     fireEvent.click(screen.getByRole('button', { name: '논문 검색' }));
@@ -231,7 +234,7 @@ describe('SearchPage analytics instrumentation', () => {
 
     expect(vi.mocked(searchPapers).mock.calls[0][0]).not.toHaveProperty('fast_mode');
     expect(await screen.findAllByText('Fast Primary Result')).toHaveLength(2);
-    expect(screen.getByPlaceholderText('논문 검색')).not.toBeDisabled();
+    expect(screen.getByPlaceholderText(SEARCH_BOX)).not.toBeDisabled();
     expect(getGraphData).toHaveBeenCalledTimes(1);
     expect(fetchBatchReferences).toHaveBeenCalledTimes(1);
 

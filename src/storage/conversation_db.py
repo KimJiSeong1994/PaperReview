@@ -233,6 +233,16 @@ class ConversationDB:
             finally:
                 conn.close()
 
+    def set_title(self, conversation_id: str, title: str) -> None:
+        """Replace the conversation title (the router's natural first-turn title)."""
+        with self._lock:
+            conn = self._connect()
+            try:
+                conn.execute("UPDATE conversations SET title = ? WHERE id = ?", (title, conversation_id))
+                conn.commit()
+            finally:
+                conn.close()
+
     def archive(self, conversation_id: str, username: str, incarnation: str) -> bool:
         """Hide a conversation from listings; False when not the caller's."""
         with self._lock:

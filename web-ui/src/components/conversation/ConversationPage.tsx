@@ -20,6 +20,7 @@ import {
   normalizeEmphasis,
   resultsOf,
   searchBlockOf,
+  splitLead,
   turnSummary,
 } from './conversationBlocks';
 
@@ -111,18 +112,36 @@ function ConversationPage({ id }: ConversationPageProps) {
     const summary = turnSummary(turn);
     const isLast = turn === lastTurn;
     const serverCancelled = turn.status === 'error' && turn.content.trim() === CANCELLED_CONTENT;
+    // Search turns: lead paragraph, status, results, then the summary. Chat and
+    // clarify turns stream text only and show no status line.
+    const { lead, rest } = splitLead(serverCancelled ? '' : turn.content, Boolean(search) || Boolean(turn.statusSeen), turn.leadLength);
+    const showLiveStatus = live && turn.status === 'running'
+      && (Boolean(turn.statusSeen) || (!turn.content && turn.blocks.length === 0));
+    const markdown = (text: string) => text && (
+      <div className="conv-markdown">
+        <ReactMarkdown
+          remarkPlugins={[remarkGfm]}
+          components={{ a: ({ href, children }) => renderCitation(turn, href, children) }}
+        >
+          {linkCitations(normalizeEmphasis(text))}
+        </ReactMarkdown>
+      </div>
+    );
     return (
       <li key={turn.id} className="conv-turn is-assistant">
         <div className="conv-assistant-head">
           <img className="conv-avatar" src={AVATAR_SRC} alt="" width="28" height="28" />
           <span className="conv-assistant-name">집현전</span>
         </div>
-        {live && turn.status === 'running' ? (
+        {markdown(lead)}
+
+        {showLiveStatus ? (
           <p className="conv-status is-live" role="status">
             <span className="conv-status-dot" aria-hidden="true" />
-            {liveStatus ?? '질문을 살펴보는 중…'}
+            {/* The router can stay silent for seconds before its first event. */}
+            {liveStatus ?? '생각하는 중…'}
           </p>
-        ) : summary && search ? (
+        ) : summary && search && !(live && turn.status === 'running') ? (
           <details className="conv-status">
             <summary>{summary}</summary>
             <ul className="conv-status-detail">
@@ -133,17 +152,6 @@ function ConversationPage({ id }: ConversationPageProps) {
           </details>
         ) : null}
 
-        {turn.content && !serverCancelled && (
-          <div className="conv-markdown">
-            <ReactMarkdown
-              remarkPlugins={[remarkGfm]}
-              components={{ a: ({ href, children }) => renderCitation(turn, href, children) }}
-            >
-              {linkCitations(normalizeEmphasis(turn.content))}
-            </ReactMarkdown>
-          </div>
-        )}
-
         {search && search.papers.length > 0 && (
           <SearchResultsBlock
             block={search}
@@ -151,6 +159,8 @@ function ConversationPage({ id }: ConversationPageProps) {
             onShowAll={() => showInArtifact(turn.seq, null, 'list')}
           />
         )}
+
+        {markdown(rest)}
 
         {(turn.stopped || serverCancelled) && <p className="conv-note">중단됨</p>}
         {!live && turn.status === 'running' && (
@@ -171,7 +181,7 @@ function ConversationPage({ id }: ConversationPageProps) {
 
   return (
     <div className={`home-shell conv-shell${artifactOpen ? ' has-artifact' : ''}`}>
-      <HomeSidebar onNew={() => navigate('/')} onAsk={ask} activeConversationId={id} />
+      <HomeSidebar onNew={() => navigate('/')} onAsk={ask} activeConversationId={id} activeConversationTitle={conversation?.title} />
 
       <main id="main" className="conv-main">
         <header className="conv-topbar">

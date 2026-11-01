@@ -17,6 +17,8 @@ interface HomeSidebarProps {
   onAsk: (query: string) => void;
   /** Conversation shown beside the sidebar, highlighted in the list. */
   activeConversationId?: string;
+  /** Latest title of that conversation (the first answer renames it), shown without a refetch. */
+  activeConversationTitle?: string;
   /** The home already fetches these; given here, the sidebar skips its own request. */
   reviewSessions?: ReviewSessionSummary[];
 }
@@ -55,7 +57,13 @@ function readUsername(): string {
  * (or this device's recent searches before the first one), deep reviews,
  * curricula and the account. Below 860px it is a drawer behind 기록 열기.
  */
-function HomeSidebar({ onNew, onAsk, activeConversationId, reviewSessions: givenSessions }: HomeSidebarProps) {
+function HomeSidebar({
+  onNew,
+  onAsk,
+  activeConversationId,
+  activeConversationTitle,
+  reviewSessions: givenSessions,
+}: HomeSidebarProps) {
   const { isAuthenticated, setShowLoginModal, logout } = useAuth();
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [fetchedSessions, setFetchedSessions] = useState<ReviewSessionSummary[]>([]);
@@ -109,7 +117,7 @@ function HomeSidebar({ onNew, onAsk, activeConversationId, reviewSessions: given
       ? conversations.map(item => ({
         key: `conversation:${item.id}`,
         kind: '대화',
-        label: item.title,
+        label: (item.id === activeConversationId && activeConversationTitle) || item.title,
         at: item.updated_at,
         to: `/c/${item.id}`,
       }))
@@ -135,7 +143,7 @@ function HomeSidebar({ onNew, onAsk, activeConversationId, reviewSessions: given
     const groups = new Map<HistoryGroup, HistoryItem[]>(HISTORY_GROUPS.map(group => [group, []]));
     items.forEach(item => groups.get(groupOf(item.at, now))!.push(item));
     return HISTORY_GROUPS.map(group => [group, groups.get(group)!] as const).filter(([, list]) => list.length > 0);
-  }, [conversations, now, onAsk, recentSearches, reviewSessions]);
+  }, [activeConversationId, activeConversationTitle, conversations, now, onAsk, recentSearches, reviewSessions]);
 
   return (
     <>

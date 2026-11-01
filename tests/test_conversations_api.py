@@ -38,10 +38,11 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(conversations, "_get_conversation_db", lambda: db)
     limiter.reset()
 
-    calls = {"search": [], "llm": []}
+    calls = {"search": [], "llm": [], "years": [], "route_inputs": []}
 
-    async def fake_search(query, username):
+    async def fake_search(query, username, year_start=None, year_end=None):
         calls["search"].append((query, username))
+        calls["years"].append((year_start, year_end))
         if calls.get("search_error"):
             raise RuntimeError("provider down")
         return calls.get("search_response") or _search_response()
@@ -60,6 +61,15 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(turn_runner, "run_search", fake_search)
     monkeypatch.setattr(turn_runner, "build_graph", fake_graph)
     monkeypatch.setattr(turn_runner, "stream_llm", fake_llm)
+
+    def fake_route(client, **kwargs):  # the only non-streaming LLM call left unfaked
+        calls["route_inputs"].append(kwargs["messages"])
+        if calls.get("route") is None:
+            raise RuntimeError("router down")
+        return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=calls["route"]))], usage=None)
+
+    monkeypatch.setattr(turn_runner, "create_chat_completion", fake_route)
+    monkeypatch.setattr(turn_runner, "get_openai_client", lambda: None)
 
     app = FastAPI()
     app.state.limiter = limiter
@@ -113,9 +123,11 @@ def test_search_turn_stream_order_and_persistence(env):
     conv_id = env.client.post("/api/conversations", json={"message": "트랜스포머"}).json()["id"]
     events = _events(env.client, conv_id)
     kinds = _kinds(events)
-    assert kinds[0] == "status" and kinds[-1] == "done"
-    assert kinds.index("block:search_results") < kinds.index("block:graph") < kinds.index("delta")
-    assert {e["stage"] for e in events if "status" in e} == {"analyze", "search", "graph", "answer"}
+    # Router is down → plain search of the raw message with the deterministic lead.
+    lead = "'트랜스포머'(으)로 찾아볼게요.\n\n"
+    assert kinds[:2] == ["delta", "status"] and events[0]["delta"] == lead and kinds[-1] == "done"
+    assert kinds.index("block:search_results") < kinds.index("block:graph") < kinds.index("delta", 1)
+    assert {e["stage"] for e in events if "status" in e} == {"search", "graph", "answer"}
 
     block = events[kinds.index("block:search_results")]["block"]
     assert [p["result_key"] for p in block["papers"]] == ["k0", "k1"]  # rank-sorted, de-duplicated
@@ -124,23 +136,27 @@ def test_search_turn_stream_order_and_persistence(env):
 
     turn = env.client.get(f"/api/conversations/{conv_id}").json()["turns"][-1]
     assert events[-1]["done"]["turn_id"] == turn["id"] and events[-1]["done"]["intent"] == "search"
-    assert turn["content"] == "요약 [1]" and turn["status"] == "done"
+    assert turn["content"] == lead + "요약 [1]" and turn["status"] == "done"
+    assert events[-1]["done"]["title"] is None
     assert [b["type"] for b in turn["blocks"]] == ["search_results", "graph"]
 
     # The message is answered: running again without a new message is rejected.
     assert env.client.post(f"/api/conversations/{conv_id}/turns", json={}).status_code == 400
 
 
-def test_non_academic_and_empty_results_send_guidance_only(env):
+def test_non_academic_and_empty_results_reply_conversationally(env):
     env.calls["search_response"] = _search_response(is_academic=False)
     conv_id = env.client.post("/api/conversations", json={"message": "오늘 날씨"}).json()["id"]
     events = _events(env.client, conv_id)
     assert _kinds(events)[-2:] == ["delta", "done"] and not any("block" in e for e in events)
-    assert env.calls["llm"] == []
+    note = env.calls["llm"][-1][-1]["content"]
+    assert env.calls["llm"][-1][0]["content"].startswith("당신은 학술 논문 검색 도우미 '집현전'")
+    assert note.startswith("오늘 날씨") and "검색어 예시 2개" in note
 
     env.calls["search_response"] = _search_response(results={"arxiv": []})
+    env.calls["llm_error"] = True
     events = _events(env.client, conv_id, "없는 주제 zzz")
-    assert "찾지 못했습니다" in events[-2]["delta"]
+    assert "찾지 못했어요" in events[-2]["delta"] and "GraphRAG 최신 연구" in events[-2]["delta"]
     assert env.db.get_conversation(conv_id, "alice", "inc-a")["turns"][-1]["blocks"] == []
 
 
@@ -150,7 +166,7 @@ def test_llm_failure_uses_fallback_sentence(env):
     events = _events(env.client, conv_id)
     assert events[-1].get("done") and "2편의 논문을 찾았습니다" in events[-2]["delta"]
     turn = env.client.get(f"/api/conversations/{conv_id}").json()["turns"][-1]
-    assert turn["status"] == "done" and turn["content"].startswith("2편의 논문을 찾았습니다")
+    assert turn["status"] == "done" and turn["content"].endswith("2편의 논문을 찾았습니다. 오른쪽 그래프와 목록에서 논문 사이의 관계를 살펴보세요.")
 
 
 def test_search_exception_ends_with_error_and_can_be_retried(env):
@@ -170,11 +186,7 @@ def test_follow_up_answer_path_uses_latest_results(env, monkeypatch):
     conv_id = env.client.post("/api/conversations", json={"message": "트랜스포머"}).json()["id"]
     _events(env.client, conv_id)
 
-    reply = SimpleNamespace(
-        choices=[SimpleNamespace(message=SimpleNamespace(content='{"action": "answer", "query": ""}'))], usage=None
-    )
-    monkeypatch.setattr(turn_runner, "create_chat_completion", lambda client, **kw: reply)
-    monkeypatch.setattr(turn_runner, "get_openai_client", lambda: None)
+    env.calls["route"] = '{"action": "answer", "query": null, "lead": ""}'
     events = _events(env.client, conv_id, "첫 번째 논문을 설명해줘")
     assert not any("block" in e for e in events) and events[-1]["done"]["intent"] == "answer"
     assert len(env.calls["search"]) == 1
@@ -258,9 +270,84 @@ def test_new_message_cancels_running_turn(env, monkeypatch):
         ("user", "done", "트랜스포머"),
         ("assistant", "error", "중단됨"),
         ("user", "done", "그래프 신경망"),
-        ("assistant", "done", "새 답"),
+        ("assistant", "done", "'그래프 신경망'(으)로 찾아볼게요.\n\n새 답"),
     ]
 
 
 async def _async(value):
     return value
+
+
+def test_parse_route_actions_and_malformed_fallback():
+    parse = turn_runner.parse_route
+    chat = parse('{"action": "chat", "lead": "안녕하세요", "title": "인사"}', "안녕", False)
+    assert chat["action"] == "chat" and chat["title"] == "인사"
+    search = parse(
+        '```json\n{"action": "search", "query": "GraphRAG vs RAG", "year_start": 2024, "year_end": null,'
+        ' "lead": "비교 연구를\n찾아볼게요.", "title": "' + "가" * 40 + '"}\n```', "GraphRAG랑 RAG 비교 논문 찾아줘", False
+    )
+    assert (search["query"], search["year_start"], search["year_end"]) == ("GraphRAG vs RAG", 2024, None)
+    assert search["lead"] == "비교 연구를 찾아볼게요." and len(search["title"]) == 24
+    assert parse('{"action": "answer"}', "2번 자세히", True)["action"] == "answer"
+    assert parse('{"action": "answer"}', "2번 자세히", False)["action"] == "search"  # no results to answer from
+    clarify = parse('{"action": "clarify", "lead": "어떤 분야인가요?"}', "논문 찾아줘", False)
+    assert clarify["action"] == "clarify" and clarify["lead"] == "어떤 분야인가요?"
+    assert parse('{"action": "search", "year_start": 2025, "year_end": 2020}', "q", False)["year_start"] is None
+    for raw in ("", "not json", '["search"]', '{"action": "dance"}'):
+        route = parse(raw, "원문 메시지", False)
+        assert (route["action"], route["query"], route["lead"], route["title"]) == ("search", "원문 메시지", "", None)
+
+
+def test_routed_first_turn_sets_title_years_and_lead(env):
+    env.calls["route"] = json.dumps({
+        "action": "search", "query": "GraphRAG RAG comparison", "year_start": 2024, "year_end": None,
+        "lead": "GraphRAG와 기존 RAG를 비교한 연구를 찾아볼게요.", "title": "GraphRAG와 RAG 비교",
+    })
+    conv_id = env.client.post("/api/conversations", json={"message": "GraphRAG랑 RAG 비교한 논문 찾아줘"}).json()["id"]
+    events = _events(env.client, conv_id)
+    assert events[0] == {"delta": "GraphRAG와 기존 RAG를 비교한 연구를 찾아볼게요.\n\n"} and "status" in events[1]
+    assert events[-1]["done"]["title"] == "GraphRAG와 RAG 비교"
+    assert env.client.get(f"/api/conversations/{conv_id}").json()["title"] == "GraphRAG와 RAG 비교"
+    assert env.calls["search"][-1][0] == "GraphRAG RAG comparison" and env.calls["years"][-1] == (2024, None)
+    assert "(첫 메시지)" in env.calls["route_inputs"][-1][1]["content"]
+
+    # A refinement is a later turn: no title change, previous query reaches the summary prompt.
+    env.calls["route"] = json.dumps({
+        "action": "search", "query": "GraphRAG RAG comparison Korean", "year_start": 2024, "year_end": 2025,
+        "lead": "한국어 데이터로 좁혀 볼게요.", "title": "무시될 제목",
+    })
+    events = _events(env.client, conv_id, "그 중 한국어 데이터로 한정해서")
+    assert events[-1]["done"]["title"] is None and env.calls["years"][-1] == (2024, 2025)
+    assert "현재 검색어: GraphRAG RAG comparison" in env.calls["route_inputs"][-1][1]["content"]
+    assert "이전 검색어: GraphRAG RAG comparison\n" in env.calls["llm"][-1][1]["content"]
+    assert env.client.get(f"/api/conversations/{conv_id}").json()["title"] == "GraphRAG와 RAG 비교"
+
+
+def test_chat_and_clarify_turns_have_no_blocks_or_status(env):
+    env.calls["route"] = '{"action": "chat", "lead": "", "title": "집현전 소개"}'
+    conv_id = env.client.post("/api/conversations", json={"message": "뭘 할 수 있어?"}).json()["id"]
+    events = _events(env.client, conv_id)
+    assert _kinds(events) == ["delta", "delta", "done"] and events[-1]["done"]["intent"] == "chat"
+    assert env.calls["llm"][-1][0]["content"].startswith("당신은 학술 논문 검색 도우미 '집현전'")
+    assert env.calls["search"] == []
+
+    env.calls["route"] = '{"action": "clarify", "lead": "어떤 주제인가요? 예: \\"GraphRAG 최신 연구\\", \\"LLM 에이전트 메모리\\""}'
+    events = _events(env.client, conv_id, "논문 추천해줘")
+    assert _kinds(events) == ["delta", "done"] and events[-1]["done"]["intent"] == "clarify"
+    assert events[0]["delta"].startswith("어떤 주제인가요?")
+    turns = env.client.get(f"/api/conversations/{conv_id}").json()["turns"]
+    assert [t["intent"] for t in turns if t["role"] == "assistant"] == ["chat", "clarify"]
+    assert all(t["blocks"] == [] for t in turns) and env.calls["search"] == []
+
+
+def test_title_follows_chat_turns_until_first_search(env):
+    env.calls["route"] = '{"action": "chat", "lead": "", "title": "도움 기능 안내"}'
+    conv_id = env.client.post("/api/conversations", json={"message": "뭘 할 수 있어?"}).json()["id"]
+    assert _events(env.client, conv_id)[-1]["done"]["title"] == "도움 기능 안내"
+
+    env.calls["route"] = '{"action": "search", "query": "GraphRAG", "lead": "찾아볼게요.", "title": "GraphRAG 연구 동향"}'
+    assert _events(env.client, conv_id, "GraphRAG 논문 찾아줘")[-1]["done"]["title"] == "GraphRAG 연구 동향"
+
+    env.calls["route"] = '{"action": "search", "query": "LightRAG", "lead": "찾아볼게요.", "title": "다른 제목"}'
+    assert _events(env.client, conv_id, "LightRAG도 찾아줘")[-1]["done"]["title"] is None
+    assert env.client.get(f"/api/conversations/{conv_id}").json()["title"] == "GraphRAG 연구 동향"

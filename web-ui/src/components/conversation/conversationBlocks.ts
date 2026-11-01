@@ -52,6 +52,20 @@ export function degradedLabels(markers: string[]): string[] {
 }
 
 /**
+ * A search turn opens with a one-paragraph lead, then the results, then the
+ * summary. Live turns know where the lead ended; saved ones split at the
+ * first blank line. Turns without results have no lead.
+ */
+export function splitLead(content: string, hasResults: boolean, leadLength?: number): { lead: string; rest: string } {
+  if (!hasResults) return { lead: '', rest: content };
+  if (leadLength !== undefined) return { lead: content.slice(0, leadLength).trim(), rest: content.slice(leadLength).trim() };
+  const match = /\n\s*\n/.exec(content);
+  return match
+    ? { lead: content.slice(0, match.index).trim(), rest: content.slice(match.index + match[0].length).trim() }
+    : { lead: content.trim(), rest: '' };
+}
+
+/**
  * CommonMark will not close `**"제목"**가` (a quote before the delimiter, a Hangul
  * letter after it), so the asterisks print. Unwrap quoted and triple emphasis
  * to plain bold, and move trailing punctuation out of bold, before parsing.

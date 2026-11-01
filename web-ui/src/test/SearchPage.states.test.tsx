@@ -4,6 +4,9 @@ import { MemoryRouter } from 'react-router-dom';
 import SearchPage from '../components/SearchPage';
 import { searchPapers } from '../api/client';
 
+// The home composer (first screen) or the results-page search bar.
+const SEARCH_BOX = /^(논문 검색|궁금한 주제나 질문을 편하게 적어 주세요)$/;
+
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const authState = vi.hoisted(() => ({ isAuthenticated: true, setShowLoginModal: vi.fn() }));
@@ -44,7 +47,7 @@ function deferred<T>() {
 
 async function submit(q: string) {
   await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText('논문 검색'), { target: { value: q } });
+    fireEvent.change(screen.getByPlaceholderText(SEARCH_BOX), { target: { value: q } });
     fireEvent.click(screen.getByRole('button', { name: '논문 검색' }));
   });
 }
@@ -69,7 +72,7 @@ describe('SearchPage honest states', () => {
     await submit('graph nueral netwroks');
     await act(async () => { vi.advanceTimersByTime(600); });
 
-    const field = screen.getByPlaceholderText('논문 검색') as HTMLInputElement;
+    const field = screen.getByPlaceholderText(SEARCH_BOX) as HTMLInputElement;
     expect(field).not.toBeDisabled();
     expect(field.value).toBe('graph nueral netwroks');
 
