@@ -22,6 +22,7 @@ const PaperViewerRoute = lazy(() => import('./components/PaperViewerRoute'));
 const SeriesPage = lazy(() => import('./components/SeriesPage'));
 const IntroducePage = lazy(() => import('./components/IntroducePage'));
 const ConversationPage = lazy(() => import('./components/conversation/ConversationPage'));
+const SampleConversationPage = lazy(() => import('./components/conversation/SampleConversationPage'));
 
 const HOME_TITLE = 'AI 논문 검색·리뷰 도구 | 집현전';
 const HOME_DESCRIPTION = '집현전은 여러 학술 소스의 AI 논문 검색, 다중 논문 비교·딥리뷰, 원문 근거 검증, 인용 그래프와 다음 읽기를 한곳에서 잇는 연구 도구입니다.';
@@ -46,6 +47,11 @@ function ConversationRoute() {
   const { id = '' } = useParams<{ id: string }>();
   // One mount per conversation, so its state never leaks into the next one.
   return <ConversationPage key={id} id={id} />;
+}
+
+function SampleRoute() {
+  const { slug = '' } = useParams<{ slug: string }>();
+  return <SampleConversationPage key={slug} slug={slug} />;
 }
 
 /** Conversations are per account: a guest lands on the home with the login dialog open. */
@@ -159,7 +165,10 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
-            {englishChrome ? 'My Page' : '마이페이지'}
+            {/* Guests get the login dialog from this button, so it says so. */}
+            {isAuthenticated
+              ? (englishChrome ? 'My Page' : '마이페이지')
+              : (englishChrome ? 'Log in' : '로그인')}
           </button>
           {isAuthenticated && (
             <button className="nav-btn" onClick={logout}>
@@ -338,6 +347,25 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
             )
           }
         />
+        {/* Read-only sample conversations: public, for guests to see an answer before signing in. */}
+        <Route
+          path="/samples/:slug"
+          element={
+            <>
+              <SEOHead
+                title="상담 예시 | 집현전"
+                description="집현전에 논문 질문을 하면 어떻게 답하는지 보여 주는 상담 예시입니다."
+                canonical={`${SITE_URL}${location.pathname}`}
+                locale="ko_KR"
+                robots="noindex,follow"
+              />
+              {header}
+              <Suspense fallback={<div className="app-loading">불러오는 중...</div>}>
+                <SampleRoute />
+              </Suspense>
+            </>
+          }
+        />
         <Route
           path="/introduce"
           element={
@@ -405,7 +433,7 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
         />
       </Routes>
       {/* The home/search workspace and conversations are app surfaces; the site footer lives on the introduce, blog and other reading pages. */}
-      {location.pathname !== '/' && !location.pathname.startsWith('/c/') && <SiteFooter />}
+      {location.pathname !== '/' && !location.pathname.startsWith('/c/') && !location.pathname.startsWith('/samples/') && <SiteFooter />}
     </div>
   );
 }

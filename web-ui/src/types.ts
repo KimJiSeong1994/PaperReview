@@ -226,6 +226,37 @@ export interface Conversation {
   turns: ConversationTurn[];
 }
 
+// ── Public sample conversations (/api/samples, no sign-in) ─────────────
+
+export interface SampleSummary {
+  id: string;
+  slug: string;
+  title: string;
+  /** The question the sample opens with; also what "이어서 물어보기" asks. */
+  question: string;
+  /** The date the sample's answers were made, e.g. "2026-10-25". */
+  asof: string;
+  turn_count: number;
+}
+
+export interface SampleTurn {
+  seq: number;
+  role: 'user' | 'assistant';
+  content: string;
+  blocks: TurnBlock[];
+  intent: string | null;
+}
+
+export interface SampleConversation {
+  id: string;
+  slug: string;
+  title: string;
+  /** The sample's opening question (the live API sends it; older payloads may not). */
+  question?: string;
+  asof: string;
+  turns: SampleTurn[];
+}
+
 // LightRAG types
 export interface LightRAGQueryRequest {
   query: string;

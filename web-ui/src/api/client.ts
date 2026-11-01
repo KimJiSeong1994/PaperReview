@@ -18,3 +18,4 @@ export * from './pdf';
 export * from './topology';
 export * from './recommendations';
 export * from './conversations';
+export * from './samples';

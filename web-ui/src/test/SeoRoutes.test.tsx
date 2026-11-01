@@ -149,10 +149,14 @@ describe('SEO-sensitive routes', () => {
       level: 1,
       name: /오늘은 어떤 논문부터 볼까요/,
     })).toBeInTheDocument();
-    expect(screen.getByText('논문을 찾은 뒤, 근거까지 읽습니다.')).toBeInTheDocument();
+    // The guest home introduces itself next to the mascot, as body text rather than a heading.
+    expect(screen.getByText('집현전이 여러 소스에서 찾아 근거까지 읽어 드려요.')).toBeInTheDocument();
     expect(screen.getByRole('textbox')).toBeInTheDocument();
+    // Guests see 로그인 in the header where members see 마이페이지.
+    expect(screen.getByRole('button', { name: '로그인' })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: '마이페이지' })).not.toBeInTheDocument();
     expect(screen.queryByRole('heading', {
-      name: /논문을 찾은 뒤, 근거까지 읽습니다\./,
+      name: /집현전이 여러 소스에서 찾아 근거까지 읽어 드려요\./,
     })).not.toBeInTheDocument();
 
     await waitFor(() => {

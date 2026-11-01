@@ -87,7 +87,8 @@ async function submitSearch(query: string) {
     fireEvent.change(screen.getByPlaceholderText(SEARCH_BOX), {
       target: { value: query },
     });
-    fireEvent.click(screen.getByRole('button', { name: '논문 검색' }));
+    // Signed in the button is "논문 검색"; signed out it reads "무료로 물어보기".
+    fireEvent.click(screen.getByRole('button', { name: /^(논문 검색|무료로 물어보기)$/ }));
   });
 }
 

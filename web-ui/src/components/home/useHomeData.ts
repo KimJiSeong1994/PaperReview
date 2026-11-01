@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { fetchBlogPosts } from '../../api/blog';
 import { getBookmarks } from '../../api/bookmarks';
 import { fetchMyReviewSessions, type ReviewSessionSummary } from '../../api/me';
+import { fetchSampleConversations } from '../../api/samples';
+import type { SampleSummary } from '../../types';
 import {
   fetchRecommendationNotifications,
   type RecommendationNotificationResponse,
@@ -20,6 +22,8 @@ export interface HomeData {
   bookmarks: Bookmark[];
   reviewSessions: ReviewSessionSummary[];
   posts: HomeBlogPost[];
+  /** Guests only: sample conversations they can read without signing in. */
+  samples: SampleSummary[];
   reloadRecommendations: () => void;
 }
 
@@ -50,6 +54,7 @@ export function useHomeData(isAuthenticated: boolean): HomeData {
   const [bookmarks, setBookmarks] = useState<Bookmark[]>([]);
   const [reviewSessions, setReviewSessions] = useState<ReviewSessionSummary[]>([]);
   const [posts, setPosts] = useState<HomeBlogPost[]>([]);
+  const [samples, setSamples] = useState<SampleSummary[]>([]);
   const [recommendationKey, setRecommendationKey] = useState(0);
 
   const reloadRecommendations = useCallback(() => setRecommendationKey(key => key + 1), []);
@@ -61,6 +66,15 @@ export function useHomeData(isAuthenticated: boolean): HomeData {
       .catch(() => { /* public block stays empty */ });
     return () => controller.abort();
   }, []);
+
+  useEffect(() => {
+    if (isAuthenticated) return undefined;
+    const controller = new AbortController();
+    fetchSampleConversations(controller.signal)
+      .then(list => { if (!controller.signal.aborted) setSamples(list); })
+      .catch(() => { /* the sample block stays empty */ });
+    return () => controller.abort();
+  }, [isAuthenticated]);
 
   useEffect(() => {
     if (!isAuthenticated) return undefined;
@@ -96,6 +110,7 @@ export function useHomeData(isAuthenticated: boolean): HomeData {
     bookmarks: isAuthenticated ? bookmarks : [],
     reviewSessions: isAuthenticated ? reviewSessions : [],
     posts,
+    samples: isAuthenticated ? [] : samples,
     reloadRecommendations,
   };
 }

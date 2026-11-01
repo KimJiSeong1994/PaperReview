@@ -14,6 +14,10 @@ interface HomeComposerProps {
   /** A turn is running: sending is disabled and, with onStop, a stop button shows. */
   busy?: boolean;
   onStop?: () => void;
+  /** Signed-out home: the button reads "무료로 물어보기". */
+  guest?: boolean;
+  /** Replaces the default placeholder (the guest home shows a sample question). */
+  placeholder?: string;
 }
 
 /** The home's search box, shaped like a composer: Enter submits, Shift+Enter breaks a line. */
@@ -27,11 +31,14 @@ function HomeComposer({
   variant = 'home',
   busy = false,
   onStop,
+  guest = false,
+  placeholder: placeholderOverride,
 }: HomeComposerProps) {
   const reply = variant === 'reply';
   // The accessible name stays short; the placeholder invites a natural question.
   const label = reply ? '이어서 물어보세요' : '논문 검색';
-  const placeholder = reply ? '이어서 물어보세요 (예: 2번 핵심 내용 설명해줘, 2024년 이후만)' : '궁금한 주제나 질문을 편하게 적어 주세요';
+  const placeholder = placeholderOverride
+    ?? (reply ? '이어서 물어보세요 (예: 2번 핵심 내용 설명해줘, 2024년 이후만)' : '궁금한 주제나 질문을 편하게 적어 주세요');
   const [query, setQuery] = useState(initialQuery);
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -107,10 +114,10 @@ function HomeComposer({
           <button
             type="submit"
             className="home-send"
-            aria-label={reply ? '보내기' : '논문 검색'}
+            aria-label={reply ? '보내기' : guest ? undefined : '논문 검색'}
             disabled={!query.trim() || busy}
           >
-            {reply ? '보내기' : '검색'}
+            {reply ? '보내기' : guest ? '무료로 물어보기' : '검색'}
             <svg aria-hidden="true" viewBox="0 0 16 16" width="16" height="16">
               <path d="M3 8h9.5M9 4.5 12.5 8 9 11.5" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
             </svg>

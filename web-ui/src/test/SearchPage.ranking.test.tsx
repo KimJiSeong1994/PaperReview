@@ -776,12 +776,13 @@ describe('SearchPage result ordering', () => {
       view.rerender(<MemoryRouter><SearchPage /></MemoryRouter>);
     });
     expect(screen.queryByText('집현전 서고 탐색 중')).not.toBeInTheDocument();
-    const searchButton = screen.getByRole('button', { name: '논문 검색' });
+    // Signed out, the home composer's button reads "무료로 물어보기".
+    const searchButton = screen.getByRole('button', { name: '무료로 물어보기' });
     expect(searchButton).toBeDisabled();
     fireEvent.change(screen.getByPlaceholderText(SEARCH_BOX), {
       target: { value: 'fresh auth query' },
     });
-    expect(screen.getByRole('button', { name: '논문 검색' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: '무료로 물어보기' })).not.toBeDisabled();
 
     view.unmount();
     await act(async () => {

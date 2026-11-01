@@ -1,4 +1,5 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import HomeWorkspace from '../components/home/HomeWorkspace';
@@ -59,6 +60,11 @@ vi.mock('../api/me', () => ({
 vi.mock('../api/conversations', () => ({
   fetchMyConversations: vi.fn().mockResolvedValue([]),
 }));
+const samplesApi = vi.hoisted(() => ({
+  fetchSampleConversations: vi.fn(),
+  fetchSampleConversation: vi.fn(),
+}));
+vi.mock('../api/samples', () => samplesApi);
 vi.mock('../api/blog', () => ({
   fetchBlogPosts: vi.fn().mockResolvedValue({ data: { posts: [{ slug: 'kronlstm', title: 'KronLSTM 페어 리뷰' }] } }),
 }));
@@ -80,6 +86,8 @@ function renderHome(onSearch = vi.fn()) {
 
 describe('HomeWorkspace', () => {
   beforeEach(() => {
+    samplesApi.fetchSampleConversations.mockReset().mockResolvedValue([]);
+    samplesApi.fetchSampleConversation.mockReset();
     vi.mocked(fetchMyReviewSessions).mockClear();
     authState.isAuthenticated = true;
     authState.userRole = 'user';
@@ -133,16 +141,17 @@ describe('HomeWorkspace', () => {
     expect(menu.getAttribute('aria-expanded')).toBe('false');
   });
 
-  it('shows the guest shell with sign-in guidance and public reviews', async () => {
+  it('gives guests a sidebar-free home: mascot intro, composer, public reviews, no account blocks', async () => {
     authState.isAuthenticated = false;
     renderHome();
 
-    expect(screen.getByText('논문을 찾은 뒤, 근거까지 읽습니다.')).toBeTruthy();
-    fireEvent.click(screen.getByRole('button', { name: '로그인' }));
-    expect(authState.setShowLoginModal).toHaveBeenCalledWith(true);
+    expect(screen.queryByRole('navigation', { name: '내 기록' })).toBeNull();
+    expect(screen.queryByRole('complementary', { name: '오늘의 추천' })).toBeNull();
     expect(screen.queryByRole('heading', { name: '이어서 하기' })).toBeNull();
+    expect(screen.getByText('궁금한 주제나 논문 제목을 편하게 물어보세요.')).toBeTruthy();
+    expect(screen.getByText('집현전이 여러 소스에서 찾아 근거까지 읽어 드려요.')).toBeTruthy();
+    expect(document.querySelector('.home-guest-mascot picture.mascot-face img')!.getAttribute('width')).toBe('80');
     expect(await screen.findByText('KronLSTM 페어 리뷰')).toBeTruthy();
-    expect(screen.getByText(/로그인하고 논문을 3편만 북마크하면/)).toBeTruthy();
   });
 
   it('keeps the workspace up when the recommendation response has no items', async () => {
@@ -191,13 +200,6 @@ describe('HomeWorkspace', () => {
     expect(getComputedStyle(scroll).overflowY).toBe('auto');
   });
 
-  it('pins the guest sign-in block below the (empty) history too', () => {
-    authState.isAuthenticated = false;
-    renderHome();
-    const nav = screen.getByRole('navigation', { name: '내 기록' });
-    expect([...nav.children].map(child => child.className)).toEqual(['home-btn home-btn-outline', 'home-sidebar-scroll', 'home-signin']);
-  });
-
   it('shows a user card with initials, name and role, then 설정 and 로그아웃', () => {
     renderHome();
     const account = document.querySelector('.home-account') as HTMLElement;
@@ -215,21 +217,146 @@ describe('HomeWorkspace', () => {
     expect(within(document.querySelector('.home-account') as HTMLElement).getByText('관리자')).toBeTruthy();
   });
 
-  it('gives guests a sign-in card in the same place', () => {
-    authState.isAuthenticated = false;
-    renderHome();
-    const card = document.querySelector('.home-signin') as HTMLElement;
-    expect(within(card).getByText('로그인하면 대화가 저장돼요')).toBeTruthy();
-    fireEvent.click(within(card).getByRole('button', { name: '로그인' }));
-    expect(authState.setShowLoginModal).toHaveBeenCalledWith(true);
-  });
-
   it('derives avatar initials', () => {
     expect(userInitials('jiseong')).toBe('JI');
     expect(userInitials('home_demo')).toBe('HO');
     expect(userInitials('한지성')).toBe('한');
     expect(userInitials('_x')).toBe('X');
     expect(userInitials('')).toBe('?');
+  });
+
+  describe('guest home with samples', () => {
+    const summaries = [
+      { id: 's1', slug: 'graphrag-vs-rag', title: 'GraphRAG vs RAG', question: 'GraphRAG가 RAG보다 나은 경우는?', asof: '2026-10-25', turn_count: 2 },
+      { id: 's2', slug: 'graphrag-core-explained', title: 'GraphRAG 핵심', question: 'GraphRAG 핵심을 설명해줘', asof: '2026-10-25', turn_count: 2 },
+      { id: 's3', slug: 'long-term-agent-memory', title: '장기 기억', question: '장기 대화 기억 논문 보여줘', asof: '2026-10-25', turn_count: 2 },
+    ];
+    const lead = '그래프가 도움이 되는 경우를 정리했어요.';
+    const detail = {
+      id: 's1', slug: 'graphrag-vs-rag', title: 'GraphRAG vs RAG', asof: '2026-10-25',
+      turns: [
+        { seq: 1, role: 'user', content: 'GraphRAG가 RAG보다 나은 경우는?', blocks: [], intent: null },
+        {
+          seq: 2, role: 'assistant', intent: 'search',
+          content: `${lead}\n\n전역 질문에서는 GraphRAG가 유리합니다 [1].`,
+          blocks: [{
+            type: 'search_results', query: 'q', total: 1, query_hash: 'h', partial: false, degraded: [],
+            papers: [{ doc_id: 'd1', title: 'From Local to Global', authors: ['Darren Edge'], year: 2024, source: 'arxiv' }],
+          }],
+        },
+      ],
+    };
+    const tick = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
+    // Each typed word schedules the next from an effect, so playback needs a commit per step.
+    const play = async (ms: number) => {
+      for (let elapsed = 0; elapsed < ms; elapsed += 40) await tick(40);
+    };
+
+    beforeEach(() => {
+      authState.isAuthenticated = false;
+      samplesApi.fetchSampleConversations.mockResolvedValue(summaries);
+      samplesApi.fetchSampleConversation.mockResolvedValue(detail);
+    });
+    afterEach(() => {
+      vi.useRealTimers();
+      vi.unstubAllGlobals();
+    });
+
+    it('shows the pill, the guest composer with a sample placeholder, and three sample cards as buttons', async () => {
+      renderHome();
+      expect(screen.getByText('논문 연구 AI, 로그인 후 무료')).toBeTruthy();
+      expect(screen.getByRole('button', { name: '무료로 물어보기' })).toBeTruthy();
+      const note = screen.getByText('내 질문은 로그인 후 무료로 검색·대화해요.');
+      // The note sits under the composer card, not inside it.
+      expect(note.closest('form')).toBeNull();
+      expect(screen.queryByRole('heading', { name: '집현전에 이런 걸 맡겨 보세요' })).toBeNull();
+
+      const section = (await screen.findByRole('heading', { name: '샘플 질문으로 먼저 써보세요' })).closest('section')!;
+      expect(within(section).getByText('로그인 없이 답변 보기')).toBeTruthy();
+      const cards = within(section).getAllByRole('button');
+      expect(cards).toHaveLength(3);
+      expect(cards.map(card => card.getAttribute('aria-pressed'))).toEqual(['true', 'false', 'false']);
+      expect(cards[0].textContent).toContain('GraphRAG가 RAG보다 나은 경우는?');
+      expect(cards[0].textContent).toContain('GraphRAG vs RAG');
+      expect(within(section).queryByRole('link')).toBeNull();
+      expect((screen.getByRole('textbox', { name: '논문 검색' }) as HTMLTextAreaElement).placeholder)
+        .toBe('예) GraphRAG가 RAG보다 나은 경우는?');
+    });
+
+    it('plays the clicked card\'s sample in the panel, with 전체 답변 pointing at its page', async () => {
+      samplesApi.fetchSampleConversation.mockImplementation(async (slug: string) => ({
+        ...detail,
+        slug,
+        turns: [{ ...detail.turns[0], content: `질문: ${slug}` }, detail.turns[1]],
+      }));
+      renderHome();
+      const panel = (await screen.findByRole('heading', { name: '집현전과의 대화' })).closest('section')!;
+      expect(await within(panel).findByText('질문: graphrag-vs-rag')).toBeTruthy();
+      expect(within(panel).getByRole('link', { name: '전체 답변 ↗' }).getAttribute('href')).toBe('/samples/graphrag-vs-rag');
+
+      const cards = within(screen.getByRole('heading', { name: '샘플 질문으로 먼저 써보세요' }).closest('section')!).getAllByRole('button');
+      fireEvent.click(cards[1]);
+      expect(cards[1].getAttribute('aria-pressed')).toBe('true');
+      expect(cards[0].getAttribute('aria-pressed')).toBe('false');
+      const next = (await screen.findByRole('heading', { name: '집현전과의 대화' })).closest('section')!;
+      expect(await within(next).findByText('질문: graphrag-core-explained')).toBeTruthy();
+      expect(within(next).getByRole('link', { name: '전체 답변 ↗' }).getAttribute('href')).toBe('/samples/graphrag-core-explained');
+      expect(within(next).queryByRole('button', { name: /다른 샘플 보기/ })).toBeNull();
+    });
+
+    it('types the answer after the question, with the results after the lead, and can pause and replay', async () => {
+      vi.useFakeTimers();
+      renderHome();
+      await tick(0);
+      await tick(0);
+      const replay = screen.getByRole('heading', { name: '집현전과의 대화' }).closest('section')!;
+      expect(within(replay).getByText('2026-10-25 기준 · 상담 예시')).toBeTruthy();
+      expect(within(replay).getByRole('status').textContent).toBe('상담 예시 · 재생 중');
+      expect(within(replay).getByText('GraphRAG가 RAG보다 나은 경우는?')).toBeTruthy();
+      expect(within(replay).queryByText('집현전')).toBeNull();
+
+      await tick(1200);
+      expect(within(replay).getByText('생각하는 중…')).toBeTruthy();
+      await play(160);
+      // Part of the lead is typed, the results not yet.
+      expect(replay.textContent).toContain('그래프가');
+      expect(replay.textContent).not.toContain(lead);
+      expect(within(replay).queryByRole('region', { name: /검색 결과/ })).toBeNull();
+
+      await play(1500);
+      expect(replay.textContent).toContain(lead);
+      expect(within(replay).getByRole('region', { name: '검색 결과 1편' })).toBeTruthy();
+
+      // 멈춤 holds the text where it is.
+      fireEvent.click(within(replay).getByRole('button', { name: '멈춤' }));
+      expect(within(replay).getByRole('status').textContent).toBe('상담 예시 · 멈춤');
+      const frozen = replay.textContent;
+      await play(1000);
+      expect(replay.textContent).toBe(frozen);
+      fireEvent.click(within(replay).getByRole('button', { name: '재생' }));
+      await play(2000);
+      expect(replay.textContent).toContain('전역 질문에서는 GraphRAG가 유리합니다');
+      await play(2600);
+      expect(within(replay).getByRole('status').textContent).toBe('상담 예시 · 재생 완료');
+
+      // 다시 보기 starts the same sample from the question again.
+      fireEvent.click(within(replay).getByRole('button', { name: '↻ 다시 보기' }));
+      await tick(0);
+      expect(within(replay).getByRole('status').textContent).toBe('상담 예시 · 재생 중');
+      expect(replay.textContent).not.toContain(lead);
+      expect(within(replay).getByText('2026-10-25 기준', { selector: '.home-replay-foot span' })).toBeTruthy();
+    });
+
+    it('shows the whole sample at once, without playback controls, under reduced motion', async () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
+      renderHome();
+      const replay = (await screen.findByRole('heading', { name: '집현전과의 대화' })).closest('section')!;
+      expect(await within(replay).findByText(/전역 질문에서는 GraphRAG가 유리합니다/)).toBeTruthy();
+      expect(within(replay).getByRole('region', { name: '검색 결과 1편' })).toBeTruthy();
+      expect(within(replay).queryByRole('button', { name: '멈춤' })).toBeNull();
+      expect(within(replay).queryByRole('button', { name: '↻ 다시 보기' })).toBeNull();
+      expect(within(replay).getByRole('status').textContent).toBe('상담 예시');
+    });
   });
 
   it('labels time relative to now', () => {

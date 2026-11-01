@@ -6,6 +6,7 @@ import HomeComposer from './HomeComposer';
 import { Icon, Row, type IconName } from './HomeRow';
 import HomeSidebar from './HomeSidebar';
 import MascotFace from './MascotFace';
+import GuestHome from './GuestHome';
 import { relativeLabel } from './homeTime';
 import { readRecentSearches } from './recentSearches';
 import { useHomeData } from './useHomeData';
@@ -72,11 +73,7 @@ function HomeWorkspace({
 
   const lastSearch = recentSearches[0] ?? null;
   const latestReview = data.reviewSessions[0] ?? null;
-  const eyebrow = !isAuthenticated
-    ? <>집현전 · <span>논문을 찾은 뒤, 근거까지 읽습니다.</span></>
-    : lastSearch
-      ? '집현전 · 지난 검색 이어서'
-      : '집현전 · 다시 오셨군요';
+  const eyebrow = lastSearch ? '집현전 · 지난 검색 이어서' : '집현전 · 다시 오셨군요';
   const recommendationItems = data.recommendations?.items?.slice(0, 5) ?? [];
   const degradedCode = data.recommendations?.degraded_reasons?.[0] ?? null;
   const degradedReason = degradedCode ? describeDegradedReason(degradedCode) : null;
@@ -91,6 +88,24 @@ function HomeWorkspace({
     setResetKey(key => key + 1);
   };
   const startNewSearch = () => prefill('');
+
+  const composer = (
+    <HomeComposer
+      key={`${attemptedQuery}#${resetKey}`}
+      initialQuery={draft}
+      onSearch={onSearch}
+      guidanceMessage={guidanceMessage}
+      guidanceSticky={guidanceSticky}
+      onQueryChange={onQueryChange}
+      autoFocus={resetKey > 0}
+      guest={!isAuthenticated}
+      placeholder={!isAuthenticated && data.samples[0] ? `예) ${data.samples[0].question}` : undefined}
+    />
+  );
+
+  if (!isAuthenticated) {
+    return <GuestHome composer={composer} samples={data.samples} posts={data.posts} />;
+  }
 
   return (
     <div className="home-shell">
@@ -107,15 +122,7 @@ function HomeWorkspace({
             <p className="home-lead">주제나 논문 제목을 적으면 여러 소스에서 찾아 중복을 걷어내고, 근거까지 읽어 드려요.</p>
           </div>
 
-          <HomeComposer
-            key={`${attemptedQuery}#${resetKey}`}
-            initialQuery={draft}
-            onSearch={onSearch}
-            guidanceMessage={guidanceMessage}
-            guidanceSticky={guidanceSticky}
-            onQueryChange={onQueryChange}
-            autoFocus={resetKey > 0}
-          />
+          {composer}
 
           <section className="home-tasks" aria-labelledby="home-tasks">
             <h2 id="home-tasks" className="home-label">집현전에 이런 걸 맡겨 보세요</h2>
@@ -138,112 +145,89 @@ function HomeWorkspace({
             </ul>
           </section>
 
-          {isAuthenticated ? (
-            <section className="home-continue" aria-labelledby="home-continue">
-              <h2 id="home-continue" className="home-label">이어서 하기</h2>
-              {lastSearch || latestReview || data.bookmarks.length > 0 ? (
-                <ul className="home-list">
-                  {lastSearch && (
-                    <Row
-                      lead={<Icon name="clock" />}
-                      label={<>{relativeLabel(lastSearch.at, now)} 검색 <em>{lastSearch.query}</em> 결과 다시 보기</>}
-                      meta="같은 검색어로 다시 찾습니다"
-                      onClick={() => onSearch(lastSearch.query)}
-                    />
-                  )}
-                  {latestReview && (
-                    <Row
-                      lead={<Icon name="clock" />}
-                      label={`${latestReview.title ? `${latestReview.title} ` : ''}딥리뷰 상태 보기`}
-                      meta={[
-                        REVIEW_STATUS_LABEL[latestReview.status] ?? latestReview.status,
-                        relativeLabel(latestReview.created_at, now),
-                        `${latestReview.num_papers}편`,
-                      ].filter(Boolean).join(' · ')}
-                      to="/mypage"
-                    />
-                  )}
-                  {data.bookmarks.length > 0 && (
-                    <Row
-                      lead={<Icon name="clock" />}
-                      label="지금까지 북마크 정리 보기"
-                      meta={`${data.bookmarks.length}편`}
-                      to="/mypage"
-                    />
-                  )}
-                </ul>
-              ) : (
-                <p className="home-empty">아직 기록이 없어요. 첫 검색이 여기에 쌓입니다.</p>
-              )}
-            </section>
-          ) : (
-            <section className="home-continue" aria-labelledby="home-public">
-              <h2 id="home-public" className="home-label">공개 리뷰 읽어보기</h2>
+          <section className="home-continue" aria-labelledby="home-continue">
+            <h2 id="home-continue" className="home-label">이어서 하기</h2>
+            {lastSearch || latestReview || data.bookmarks.length > 0 ? (
               <ul className="home-list">
-                {data.posts.map(post => (
-                  <Row key={post.slug} lead={<Icon name="doc" />} label={post.title} meta="논문 리뷰 · 쉬운 읽기 / 상세 읽기" to={`/blog/${post.slug}`} />
-                ))}
-                <Row
-                  lead={<Icon name="doc" />}
-                  label="집현전 사용법 자세히 보기"
-                  meta="검색 → 리뷰 → 검증 → 학습 흐름"
-                  to="/ko/introduce/"
-                />
+                {lastSearch && (
+                  <Row
+                    lead={<Icon name="clock" />}
+                    label={<>{relativeLabel(lastSearch.at, now)} 검색 <em>{lastSearch.query}</em> 결과 다시 보기</>}
+                    meta="같은 검색어로 다시 찾습니다"
+                    onClick={() => onSearch(lastSearch.query)}
+                  />
+                )}
+                {latestReview && (
+                  <Row
+                    lead={<Icon name="clock" />}
+                    label={`${latestReview.title ? `${latestReview.title} ` : ''}딥리뷰 상태 보기`}
+                    meta={[
+                      REVIEW_STATUS_LABEL[latestReview.status] ?? latestReview.status,
+                      relativeLabel(latestReview.created_at, now),
+                      `${latestReview.num_papers}편`,
+                    ].filter(Boolean).join(' · ')}
+                    to="/mypage"
+                  />
+                )}
+                {data.bookmarks.length > 0 && (
+                  <Row
+                    lead={<Icon name="clock" />}
+                    label="지금까지 북마크 정리 보기"
+                    meta={`${data.bookmarks.length}편`}
+                    to="/mypage"
+                  />
+                )}
               </ul>
-            </section>
-          )}
+            ) : (
+              <p className="home-empty">아직 기록이 없어요. 첫 검색이 여기에 쌓입니다.</p>
+            )}
+          </section>
 
           <p className="home-disclaimer">AI 리뷰도 틀릴 수 있어요. 중요한 주장은 원문 근거를 한 번 더 확인해 주세요.</p>
           <aside className="home-aside" aria-label="오늘의 추천">
             <section>
               <h3 className="home-label">오늘의 추천 논문 · {todayLabel}</h3>
-              {isAuthenticated ? (
-                <>
-                  {recommendationItems.length > 0 && (
-                    <ol className="home-list">
-                      {recommendationItems.map((item, index) => (
-                        <Row
-                          key={item.canonical_key}
-                          lead={index + 1}
-                          label={item.title}
-                          meta={(
-                            <>
-                              {item.reason && <span className="home-row-why">{item.reason}</span>}
-                              {[item.year, item.venue ?? item.candidate_sources?.[0]].filter(Boolean).join(' · ')}
-                            </>
-                          )}
-                          to={item.url || item.pdf_url || undefined}
-                          external
-                          arrow={false}
-                        />
-                      ))}
-                    </ol>
-                  )}
-                  {data.recommendations && recommendationItems.length === 0 && !degradedReason && (
-                    <p className="home-empty">논문을 3편만 북마크하면 다음 날부터 관심 주제에 맞는 추천이 여기에 와요.</p>
-                  )}
-                  {((data.recommendations?.total_count ?? 0) > recommendationItems.length || latestRunLabel) && (
-                    <p className="home-empty home-aside-note">
-                      {[
-                        (data.recommendations?.total_count ?? 0) > recommendationItems.length
-                          && `오늘 추천 ${data.recommendations?.total_count}편 중 ${recommendationItems.length}편`,
-                        latestRunLabel,
-                      ].filter(Boolean).join(' · ')}
-                    </p>
-                  )}
-                  {(data.recommendationsFailed || degradedReason) && (
-                    <div className="home-degraded">
-                      <span>{data.recommendationsFailed ? '추천을 불러오지 못했어요.' : degradedReason}</span>
-                      <button type="button" onClick={data.reloadRecommendations}>다시 불러오기</button>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <p className="home-empty">로그인하고 논문을 3편만 북마크하면 다음 날부터 관심 주제에 맞는 추천이 여기에 와요.</p>
+              {recommendationItems.length > 0 && (
+                <ol className="home-list">
+                  {recommendationItems.map((item, index) => (
+                    <Row
+                      key={item.canonical_key}
+                      lead={index + 1}
+                      label={item.title}
+                      meta={(
+                        <>
+                          {item.reason && <span className="home-row-why">{item.reason}</span>}
+                          {[item.year, item.venue ?? item.candidate_sources?.[0]].filter(Boolean).join(' · ')}
+                        </>
+                      )}
+                      to={item.url || item.pdf_url || undefined}
+                      external
+                      arrow={false}
+                    />
+                  ))}
+                </ol>
+              )}
+              {data.recommendations && recommendationItems.length === 0 && !degradedReason && (
+                <p className="home-empty">논문을 3편만 북마크하면 다음 날부터 관심 주제에 맞는 추천이 여기에 와요.</p>
+              )}
+              {((data.recommendations?.total_count ?? 0) > recommendationItems.length || latestRunLabel) && (
+                <p className="home-empty home-aside-note">
+                  {[
+                    (data.recommendations?.total_count ?? 0) > recommendationItems.length
+                      && `오늘 추천 ${data.recommendations?.total_count}편 중 ${recommendationItems.length}편`,
+                    latestRunLabel,
+                  ].filter(Boolean).join(' · ')}
+                </p>
+              )}
+              {(data.recommendationsFailed || degradedReason) && (
+                <div className="home-degraded">
+                  <span>{data.recommendationsFailed ? '추천을 불러오지 못했어요.' : degradedReason}</span>
+                  <button type="button" onClick={data.reloadRecommendations}>다시 불러오기</button>
+                </div>
               )}
             </section>
 
-            {isAuthenticated && data.posts.length > 0 && (
+            {data.posts.length > 0 && (
               <section>
                 <h3 className="home-label">공개 리뷰 최신</h3>
                 <ul className="home-list">

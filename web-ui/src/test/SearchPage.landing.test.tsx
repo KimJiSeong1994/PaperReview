@@ -51,6 +51,10 @@ vi.mock('../api/bookmarks', () => ({ getBookmarks: vi.fn().mockResolvedValue([])
 vi.mock('../api/curriculum', () => ({ fetchCurricula: vi.fn().mockResolvedValue({ curricula: [] }) }));
 vi.mock('../api/me', () => ({ fetchMyReviewSessions: vi.fn().mockResolvedValue({ sessions: [], total: 0 }) }));
 vi.mock('../api/conversations', () => ({ fetchMyConversations: vi.fn().mockResolvedValue([]) }));
+vi.mock('../api/samples', () => ({
+  fetchSampleConversations: vi.fn().mockResolvedValue([]),
+  fetchSampleConversation: vi.fn(),
+}));
 vi.mock('../api/blog', () => ({ fetchBlogPosts: vi.fn().mockResolvedValue({ data: { posts: [] } }) }));
 
 vi.mock('../analytics/events', () => ({
@@ -97,6 +101,8 @@ describe('homepage landing content', () => {
   });
 
   it('asks one question over a composer and offers verb-first task rows', () => {
+    // The task rows are the signed-in home's; guests get sample conversations instead.
+    authState.isAuthenticated = true;
     renderHome();
     expect(screen.getByRole('textbox', { name: '논문 검색' })).toBeTruthy();
     expect(screen.getByRole('heading', { name: '집현전에 이런 걸 맡겨 보세요' })).toBeTruthy();
@@ -188,7 +194,7 @@ describe('homepage landing content', () => {
 
   it('says search needs sign-in, and offers a way to read more', () => {
     renderHome();
-    expect(screen.getByText('로그인하면 대화가 저장돼요')).toBeTruthy();
+    expect(screen.getByText('내 질문은 로그인 후 무료로 검색·대화해요.')).toBeTruthy();
     expect(
       screen.getByRole('link', { name: /집현전 사용법 자세히 보기/ }).getAttribute('href'),
     ).toBe('/ko/introduce/');
