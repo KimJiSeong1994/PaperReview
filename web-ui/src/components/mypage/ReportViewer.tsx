@@ -27,10 +27,6 @@ export interface ReportViewerProps {
   loadingDetail: boolean;
   hasSelectedBookmark: boolean;
   reportScrollRef: React.RefObject<HTMLDivElement | null>;
-  // Highlight evidence
-  highlightTerms: string[];
-  setHighlightTerms: (terms: string[]) => void;
-  highlightChildren: (children: React.ReactNode) => React.ReactNode;
   // User highlights
   userHighlights: HighlightItem[];
   sortedHighlights: HighlightItem[];
@@ -88,7 +84,6 @@ export interface ReportViewerProps {
 export default function ReportViewer({
   bookmarkDetail, loadingDetail, hasSelectedBookmark,
   reportScrollRef,
-  highlightTerms, setHighlightTerms, highlightChildren,
   userHighlights, sortedHighlights, applyUserHighlights,
   expandedHighlightId, setExpandedHighlightId,
   highlightPopover, popoverPos, setHighlightPopover,
@@ -213,16 +208,6 @@ export default function ReportViewer({
 
   return (
     <div className="mypage-report-panel" role="region" aria-label="리서치 리포트">
-      {/* Highlight indicator */}
-      {highlightTerms.length > 0 && (
-        <div className="mypage-highlight-bar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <span>인용 키워드 표시 중</span>
-          <button className="mypage-highlight-clear" onClick={() => setHighlightTerms([])}>지우기</button>
-        </div>
-      )}
 
       {/* Header */}
       <div className="mypage-report-header">
@@ -463,23 +448,20 @@ export default function ReportViewer({
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeSlug]}
-                  components={(highlightTerms.length > 0 || userHighlights.length > 0) ? {
+                  components={userHighlights.length > 0 ? {
                     p: ({ children }) => {
                       let c: React.ReactNode = children;
-                      if (userHighlights.length > 0) c = applyUserHighlights(c);
-                      if (highlightTerms.length > 0) c = highlightChildren(c);
+                      c = applyUserHighlights(c);
                       return <p>{c}</p>;
                     },
                     li: ({ children }) => {
                       let c: React.ReactNode = children;
-                      if (userHighlights.length > 0) c = applyUserHighlights(c);
-                      if (highlightTerms.length > 0) c = highlightChildren(c);
+                      c = applyUserHighlights(c);
                       return <li>{c}</li>;
                     },
                     td: ({ children }) => {
                       let c: React.ReactNode = children;
-                      if (userHighlights.length > 0) c = applyUserHighlights(c);
-                      if (highlightTerms.length > 0) c = highlightChildren(c);
+                      c = applyUserHighlights(c);
                       return <td>{c}</td>;
                     },
                   } : undefined}

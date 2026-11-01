@@ -167,3 +167,20 @@ const HIGHLIGHT_CATEGORY: Record<string, { label: string; tone: 'finding' | 'met
 export function highlightCategory(category: string | undefined): { label: string; tone: string } {
   return HIGHLIGHT_CATEGORY[category ?? ''] ?? { label: '하이라이트', tone: 'other' };
 }
+
+const VERIFICATION_LABEL: Record<string, string> = {
+  verified: '확인',
+  partially_verified: '부분',
+  unverified: '미확인',
+  contradicted: '반박',
+};
+
+/** A claim's verification status in Korean; null when the service did not report one. */
+export function verificationStatusLabel(status: string | undefined): string | null {
+  return status ? VERIFICATION_LABEL[status] ?? null : null;
+}
+
+/** The passage a claim was checked against: its own evidence, or the first linked one. */
+export function claimEvidence(claim: { evidence?: string; evidences?: { text?: string }[] }): string | null {
+  return claim.evidence?.trim() || claim.evidences?.find(item => item.text?.trim())?.text?.trim() || null;
+}

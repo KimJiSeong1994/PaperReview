@@ -45,7 +45,10 @@ interface ConversationPageProps {
 function ConversationPage({ id }: ConversationPageProps) {
   const navigate = useNavigate();
   const location = useLocation();
-  const [runOnLoad] = useState(() => Boolean((location.state as { run?: boolean } | null)?.run));
+  // One-shot navigation state: run the pending turn, and (from MyPage's 대화에서 열기)
+  // open that bookmark's review in the 리뷰 tab right away.
+  const [navState] = useState(() => (location.state ?? {}) as { run?: boolean; openReview?: string | null; openReviewTitle?: string });
+  const runOnLoad = Boolean(navState.run);
   const { conversation, turns, loadError, streaming, liveStatus, send, stop, retry, reload } = useConversation(id, runOnLoad);
 
   // Which turn's results the artifact shows (null = the latest), the selected paper in it,
@@ -54,13 +57,19 @@ function ConversationPage({ id }: ConversationPageProps) {
   // the same query asked twice is two results.
   const [activeSeq, setActiveSeq] = useState<number | null>(null);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
-  const [artifactPref, setArtifactPref] = useState<{ artifactSeq: number; open: boolean } | null>(null);
-  const [tabPref, setTabPref] = useState<{ artifactSeq: number; tab: ArtifactTab } | null>(null);
+  const [artifactPref, setArtifactPref] = useState<{ artifactSeq: number; open: boolean } | null>(
+    () => (navState.openReview ? { artifactSeq: -1, open: true } : null),
+  );
+  const [tabPref, setTabPref] = useState<{ artifactSeq: number; tab: ArtifactTab } | null>(
+    () => (navState.openReview ? { artifactSeq: -1, tab: 'review' } : null),
+  );
   const [pdfSeq, setPdfSeq] = useState<number | null>(null);
   // Reviews that finished while this page was open (or settled on their first
-  // poll after a reload), newest last; the 리뷰 tab shows the chosen or latest one.
+  // poll after a reload), newest last; the 리뷰 tab shows the chosen one, else the latest.
   const [reviews, setReviews] = useState<CompletedReview[]>([]);
-  const [reviewSession, setReviewSession] = useState<string | null>(null);
+  const [reviewTarget, setReviewTarget] = useState<{ sessionId: string; title: string } | null>(
+    () => (navState.openReview ? { sessionId: navState.openReview, title: navState.openReviewTitle || '북마크 리뷰' } : null),
+  );
   const scrollRef = useRef<HTMLDivElement | null>(null);
   const stickRef = useRef(true);
 
@@ -99,15 +108,16 @@ function ConversationPage({ id }: ConversationPageProps) {
     setTab('pdf');
     setArtifactOpen(true);
   };
-  const activeReview = reviews.find(review => review.sessionId === reviewSession) ?? reviews.at(-1) ?? null;
+  const latestReview = reviews.at(-1);
+  const activeReview = reviewTarget ?? (latestReview ? { sessionId: latestReview.sessionId, title: latestReview.title } : null);
 
   const addReview = (review: CompletedReview) => setReviews(prev => [
     ...prev.filter(item => item.sessionId !== review.sessionId),
     review,
   ]);
 
-  const openReport = (sessionId: string) => {
-    setReviewSession(sessionId);
+  const openReport = (sessionId: string, title: string) => {
+    setReviewTarget({ sessionId, title });
     setTab('review');
     setArtifactOpen(true);
   };
@@ -189,7 +199,9 @@ function ConversationPage({ id }: ConversationPageProps) {
           <img className="conv-avatar" src={AVATAR_SRC} alt="" width="28" height="28" />
           <span className="conv-assistant-name">집현전</span>
         </div>
-        {bookmarkRefs && <BookmarkRefsStrip block={bookmarkRefs} idPrefix={`bookmark-ref-${turn.seq}`} />}
+        {bookmarkRefs && (
+          <BookmarkRefsStrip block={bookmarkRefs} idPrefix={`bookmark-ref-${turn.seq}`} onOpenReview={openReport} />
+        )}
 
         {markdown(lead)}
 
@@ -220,7 +232,7 @@ function ConversationPage({ id }: ConversationPageProps) {
           />
         )}
 
-        {review && <ReviewBlock block={review} onCompleted={addReview} onOpenReport={openReport} />}
+        {review && <ReviewBlock block={review} onCompleted={addReview} onOpenReport={sessionId => openReport(sessionId, review.paper_title)} />}
         {pdf?.type === 'paper_pdf' && <PdfBlock block={pdf} onOpen={() => openPdf(turn.seq)} />}
         {pdf?.type === 'pdf_highlights' && <HighlightsBlock block={pdf} onOpen={() => openPdf(turn.seq)} />}
 

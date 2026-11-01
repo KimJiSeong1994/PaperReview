@@ -5,10 +5,12 @@ interface BookmarkRefsStripProps {
   block: BookmarkRefsBlock;
   /** Prefix for chip ids; `[Bn]` in the answer focuses `${idPrefix}-n`. */
   idPrefix: string;
+  /** Opens the artifact's 리뷰 tab for a bookmark's review session. */
+  onOpenReview: (sessionId: string, title: string) => void;
 }
 
 /** "근거 북마크": the bookmarks an answer drew on, each a link to it in MyPage. */
-function BookmarkRefsStrip({ block, idPrefix }: BookmarkRefsStripProps) {
+function BookmarkRefsStrip({ block, idPrefix, onOpenReview }: BookmarkRefsStripProps) {
   if (block.bookmarks.length === 0) return null;
   return (
     <nav className="conv-bookmarks" aria-label="근거 북마크">
@@ -23,6 +25,16 @@ function BookmarkRefsStrip({ block, idPrefix }: BookmarkRefsStripProps) {
                 {bookmark.num_papers}편{bookmark.has_report ? ' · 리포트' : ''}
               </span>
             </Link>
+            {bookmark.session_id && (
+              <button
+                type="button"
+                className="conv-bookmark-review"
+                aria-label={`${bookmark.title} 리뷰 보기`}
+                onClick={() => onOpenReview(bookmark.session_id!, bookmark.title)}
+              >
+                리뷰 보기
+              </button>
+            )}
           </li>
         ))}
       </ul>

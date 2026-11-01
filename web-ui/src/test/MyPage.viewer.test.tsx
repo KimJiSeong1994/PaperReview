@@ -35,6 +35,11 @@ function Probe() {
   return <output data-testid="probe">{location.pathname}{location.search}|{location.state === null ? 'null' : 'state'}</output>;
 }
 
+function StateProbe() {
+  const location = useLocation();
+  return <output data-testid="state-probe">{JSON.stringify({ pathname: location.pathname, state: location.state })}</output>;
+}
+
 const renderAt = (entry: string | { pathname: string; state: unknown }) => render(
   <MemoryRouter initialEntries={[entry]}>
     <MyPage onBack={() => {}} />
@@ -45,9 +50,9 @@ const renderAt = (entry: string | { pathname: string; state: unknown }) => rende
 beforeEach(() => { vi.clearAllMocks(); });
 
 describe('MyPage 대화에서 열기', () => {
-  it('starts a conversation about the selected bookmark and opens it with the run flag', async () => {
+  it('starts a conversation about the selected bookmark and opens it with the run flag and its review', async () => {
     Object.assign(bm, {
-      selectedBookmark: { id: 'bm_1', title: 'GraphRAG 서베이' },
+      selectedBookmark: { id: 'bm_1', title: 'GraphRAG 서베이', session_id: 'rev-bm' },
       bookmarkDetail: { id: 'bm_1', title: 'GraphRAG 서베이', papers: [] },
     });
     vi.mocked(createConversation).mockResolvedValue({ id: 'conv-9', title: 't', turn_id: 'u' });
@@ -56,7 +61,7 @@ describe('MyPage 대화에서 열기', () => {
         <MemoryRouter initialEntries={['/mypage']}>
           <Routes>
             <Route path="/mypage" element={<MyPage onBack={() => {}} />} />
-            <Route path="/c/:id" element={<Probe />} />
+            <Route path="/c/:id" element={<StateProbe />} />
           </Routes>
         </MemoryRouter>,
       );
@@ -64,7 +69,8 @@ describe('MyPage 대화에서 열기', () => {
       const props = reportSpy.mock.calls.at(-1)![0] as { onOpenInConversation: () => Promise<void> };
       await act(async () => { await props.onOpenInConversation(); });
       expect(createConversation).toHaveBeenCalledWith('북마크 "GraphRAG 서베이"의 리포트를 바탕으로 이야기해 줘');
-      expect(screen.getByTestId('probe')).toHaveTextContent('/c/conv-9|state');
+      const handed = JSON.parse(screen.getByTestId('state-probe').textContent!);
+      expect(handed).toEqual({ pathname: '/c/conv-9', state: { run: true, openReview: 'rev-bm', openReviewTitle: 'GraphRAG 서베이' } });
     } finally {
       Object.assign(bm, { selectedBookmark: null, bookmarkDetail: null });
     }

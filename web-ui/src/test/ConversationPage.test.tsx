@@ -30,7 +30,20 @@ vi.mock('../api/conversations', () => ({
     { id: 'conv-1', title: '그래프 RAG', updated_at: new Date().toISOString(), turn_count: 1, last_intent: null },
   ]),
 }));
-vi.mock('../api/client', () => ({ getReviewStatus: vi.fn(), getReviewReport: vi.fn() }));
+// ReviewBlock polls through api/client, the 리뷰 tab reads api/review: one set of fakes for both.
+const reviewApi = vi.hoisted(() => ({
+  getReviewStatus: vi.fn(),
+  getReviewReport: vi.fn(),
+  getVerificationDetail: vi.fn(),
+  generatePoster: vi.fn(),
+  generatePosterDirect: vi.fn(),
+  downloadPosterPdf: vi.fn(),
+}));
+vi.mock('../api/client', () => reviewApi);
+vi.mock('../api/review', async () => {
+  const actual = await vi.importActual<typeof import('../api/review')>('../api/review');
+  return { ...reviewApi, classifyPosterResponse: actual.classifyPosterResponse, classifyPosterError: actual.classifyPosterError };
+});
 vi.mock('../components/mypage/PaperViewerPanel', () => ({
   default: ({ bookmarkDetail, highlights }: { bookmarkDetail: { papers: { title: string; pdf_url?: string }[] }; highlights?: unknown[] }) => (
     <div data-testid="pdf-viewer">
@@ -384,6 +397,7 @@ describe('ConversationPage', () => {
       vi.useFakeTimers();
       vi.mocked(getReviewStatus).mockReset();
       vi.mocked(getReviewReport).mockReset();
+      reviewApi.getVerificationDetail.mockReset().mockResolvedValue({ session_id: 'rev-1', claims: [], cross_references: [], consensus: [] });
       vi.mocked(fetchConversation).mockResolvedValueOnce(reviewConversation());
     });
     afterEach(() => vi.useRealTimers());
@@ -416,6 +430,7 @@ describe('ConversationPage', () => {
 
       const artifact = screen.getByRole('complementary', { name: '검색 결과 아티팩트' });
       expect(within(artifact).getByRole('tab', { name: '리뷰' }).getAttribute('aria-selected')).toBe('true');
+      await tick(0); // the 리뷰 tab loads the session's report on open
       expect(within(artifact).getByRole('heading', { name: '핵심 기여' })).toBeTruthy();
       expect(within(artifact).getByText(/근거 확인 70%/)).toBeTruthy();
     });
@@ -516,6 +531,53 @@ describe('ConversationPage', () => {
       });
       expect(within(screen.getByRole('region', { name: 'PDF: HippoRAG' })).getByText('북마크')).toBeTruthy();
     });
+  });
+
+  it('opens a bookmark\'s review in the 리뷰 tab from 리뷰 보기 on its chip', async () => {
+    reviewApi.getReviewReport.mockReset().mockResolvedValue({
+      session_id: 'rev-bm', report_markdown: '## 북마크 리뷰 본문', num_papers: 3, created_at: '',
+    });
+    reviewApi.getVerificationDetail.mockReset().mockResolvedValue({ session_id: 'rev-bm', claims: [], cross_references: [], consensus: [] });
+    renderPage();
+    await screen.findByRole('heading', { name: '그래프 RAG' });
+    act(() => {
+      live!.onBlock({
+        type: 'bookmark_refs',
+        bookmarks: [
+          { id: 'bm_1', title: 'GraphRAG 서베이', query: 'q', num_papers: 3, has_report: true, url: '/mypage?bookmark=bm_1', session_id: 'rev-bm' },
+          { id: 'bm_2', title: '리뷰 없는 북마크', query: 'q', num_papers: 1, has_report: false, url: '/mypage?bookmark=bm_2', session_id: null },
+        ],
+      });
+      live!.onDelta('답변 [B1]');
+      live!.onDone({ turn_id: 'a1', intent: 'answer_from_bookmarks' });
+    });
+    expect(screen.getAllByRole('button', { name: /리뷰 보기/ })).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'GraphRAG 서베이 리뷰 보기' }));
+    const artifact = screen.getByRole('complementary', { name: '검색 결과 아티팩트' });
+    expect(within(artifact).getByRole('tab', { name: '리뷰' }).getAttribute('aria-selected')).toBe('true');
+    expect(await within(artifact).findByRole('heading', { name: '북마크 리뷰 본문' })).toBeTruthy();
+    expect(reviewApi.getReviewReport).toHaveBeenCalledWith('rev-bm');
+  });
+
+  it('opens the 리뷰 tab at once when MyPage hands over a review session', async () => {
+    reviewApi.getReviewReport.mockReset().mockResolvedValue({
+      session_id: 'rev-bm', report_markdown: '## 넘겨받은 리뷰', num_papers: 2, created_at: '',
+    });
+    reviewApi.getVerificationDetail.mockReset().mockResolvedValue({ session_id: 'rev-bm', claims: [], cross_references: [], consensus: [] });
+    renderPage({ run: true, openReview: 'rev-bm', openReviewTitle: 'GraphRAG 서베이' });
+    const artifact = await screen.findByRole('complementary', { name: '검색 결과 아티팩트' });
+    expect(within(artifact).getByRole('tab', { name: '리뷰' }).getAttribute('aria-selected')).toBe('true');
+    expect(within(artifact).getByText('GraphRAG 서베이')).toBeTruthy();
+    expect(await within(artifact).findByRole('heading', { name: '넘겨받은 리뷰' })).toBeTruthy();
+    expect(streamTurn).toHaveBeenCalledWith('conv-1', null, expect.any(Object), expect.any(AbortSignal));
+  });
+
+  it('reads a vanished handed-over session as 확인 불가', async () => {
+    reviewApi.getReviewReport.mockReset().mockRejectedValue({ response: { status: 404 } });
+    renderPage({ run: true, openReview: 'rev-gone', openReviewTitle: '오래된 북마크' });
+    const artifact = await screen.findByRole('complementary', { name: '검색 결과 아티팩트' });
+    expect((await within(artifact).findByText(/리뷰 세션을 더 이상 찾을 수 없어요/))).toBeTruthy();
   });
 
   it('shows a load error with a way back', async () => {

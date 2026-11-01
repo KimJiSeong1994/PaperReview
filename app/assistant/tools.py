@@ -452,7 +452,8 @@ async def _answer_from_bookmarks(t: Turn) -> None:
     t.add({"type": "bookmark_refs", "bookmarks": [
         {"id": b["id"], "title": b.get("title") or "", "query": b.get("query") or "",
          "num_papers": b.get("num_papers") or len(b.get("papers") or []),
-         "has_report": bool(b.get("report_markdown")), "url": f"/mypage?bookmark={quote(str(b['id']))}"}
+         "has_report": bool(b.get("report_markdown")), "session_id": b.get("session_id") or None,
+         "url": f"/mypage?bookmark={quote(str(b['id']))}"}
         for b in selected
     ]})
     t.learn = True

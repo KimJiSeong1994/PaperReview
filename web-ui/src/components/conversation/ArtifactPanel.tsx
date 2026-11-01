@@ -1,13 +1,11 @@
 import { lazy, Suspense, useMemo } from 'react';
-import ReactMarkdown from 'react-markdown';
-import remarkGfm from 'remark-gfm';
 import DetailPanel from '../DetailPanel';
 import PaperList from '../PaperList';
 import { rankedNeighbors } from '../graph/graphPresentation';
 import { openPaperViewer, viewerHrefForPaper } from '../../utils/blogPaperReference';
 import LazyLoadErrorBoundary from '../LazyLoadErrorBoundary';
 import type { GraphData, Paper, PaperPdfBlock, PdfHighlightsBlock, SearchResultsBlock } from '../../types';
-import type { CompletedReview } from './ReviewBlock';
+import ReviewTab from './ReviewTab';
 
 const GraphView = lazy(() => import('../GraphView'));
 // The /paper-viewer route's viewer: same pdf.js core, proxy and highlight overlay.
@@ -20,8 +18,8 @@ interface ArtifactPanelProps {
   graph: GraphData | null;
   /** The turn that owns this search is still streaming, so its graph may yet arrive. */
   graphPending: boolean;
-  /** Report for the 리뷰 tab; the tab is shown only when there is one. */
-  review: CompletedReview | null;
+  /** Session for the 리뷰 tab (report, verification, poster); the tab shows only with one. */
+  review: { sessionId: string; title: string } | null;
   /** Paper for the PDF tab (with highlights when the tool found some); the tab shows only with one. */
   pdf: PaperPdfBlock | PdfHighlightsBlock | null;
   /** Remounts the viewer when another turn's paper or highlights are shown. */
@@ -107,18 +105,7 @@ function ArtifactPanel({ search, graph, graphPending, review, pdf, pdfKey, tab, 
             </LazyLoadErrorBoundary>
           </div>
         ) : tab === 'review' && review ? (
-          <div className="conv-report">
-            {review.stats && review.stats.total_claims > 0 && (
-              <p className="conv-report-stats">
-                근거 확인 {Math.round(review.stats.verification_rate * 100)}% · 주장 {review.stats.total_claims}개 중
-                확인 {review.stats.verified} · 부분 {review.stats.partially_verified} · 미확인 {review.stats.unverified}
-                {review.stats.contradicted > 0 && ` · 반박 ${review.stats.contradicted}`}
-              </p>
-            )}
-            <div className="conv-markdown">
-              <ReactMarkdown remarkPlugins={[remarkGfm]}>{review.markdown}</ReactMarkdown>
-            </div>
-          </div>
+          <ReviewTab key={review.sessionId} sessionId={review.sessionId} title={review.title} />
         ) : !search ? (
           <p className="conv-artifact-empty">검색 결과가 생기면 관계 그래프와 목록이 여기에 열립니다.</p>
         ) : tab === 'graph' ? (

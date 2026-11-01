@@ -187,6 +187,8 @@ export interface BookmarkRef {
   has_report: boolean;
   /** /mypage?bookmark=<id> */
   url: string;
+  /** The deep-review session behind the report, when there is one. */
+  session_id?: string | null;
 }
 
 /** The bookmarks an answer_from_bookmarks turn draws on; `[B1]` cites the first. */

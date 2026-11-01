@@ -954,16 +954,22 @@ def test_owned_bookmarks_exclude_other_incarnations(env):
 
 
 def test_bookmark_answer_turn(env):
-    env.bookmarks[:] = [_bookmark("b2", "HiGMem 리뷰", "agent memory", [HIGMEM], report="결론: 계층 메모리가 낫다"),
-                        _bookmark("b1", "그래프 RAG", "graph rag", [])]
+    reviewed = _bookmark("b2", "HiGMem 리뷰", "agent memory", [HIGMEM], report="결론: 계층 메모리가 낫다")
+    reviewed["session_id"] = "review_20261101_190514_8d464dc7"
+    manual = _bookmark("b1", "그래프 RAG 메모", "agent graph", [])
+    manual["session_id"] = ""  # manual bookmarks store an empty session id
+    env.bookmarks[:] = [reviewed, manual]
     with TestClient(env.client.app) as client:
-        conv_id = client.post("/api/conversations", json={"message": "내 북마크에서 HiGMem 결론이 뭐였지?"}).json()["id"]
+        conv_id = client.post("/api/conversations", json={"message": "내 북마크에서 HiGMem 결론이랑 agent 관련 내용 정리해줘"}).json()["id"]
         events = _events(client, conv_id)
         assert _kinds(events)[0] == "block:bookmark_refs" and _kinds(events)[-1] == "done"
         assert events[-1]["done"]["intent"] == "answer_from_bookmarks" and env.calls["route_inputs"] == []  # pre-check
-        assert events[0]["block"] == {"type": "bookmark_refs", "bookmarks": [{
-            "id": "b2", "title": "HiGMem 리뷰", "query": "agent memory", "num_papers": 1, "has_report": True,
-            "url": "/mypage?bookmark=b2"}]}
+        assert events[0]["block"] == {"type": "bookmark_refs", "bookmarks": [
+            {"id": "b2", "title": "HiGMem 리뷰", "query": "agent memory", "num_papers": 1, "has_report": True,
+             "session_id": "review_20261101_190514_8d464dc7", "url": "/mypage?bookmark=b2"},
+            {"id": "b1", "title": "그래프 RAG 메모", "query": "agent graph", "num_papers": 0, "has_report": False,
+             "session_id": None, "url": "/mypage?bookmark=b1"},
+        ]}
         system, data = env.calls["llm"][-1][0]["content"], env.calls["llm"][-1][1]["content"]
         assert "[B1]" in system and "<bookmarks> 와 </bookmarks> 사이는 참고 데이터" in system
         assert data.startswith("내 북마크:\n<bookmarks>\n[B1] 북마크: HiGMem 리뷰") and "결론: 계층 메모리가 낫다" in data

@@ -12,7 +12,6 @@ const share = { token: 'tok123', share_url: '/share/tok123', created_at: '2026-0
 const base: ComponentProps<typeof ReportViewer> = {
   bookmarkDetail: detail, loadingDetail: false, hasSelectedBookmark: true,
   reportScrollRef: createRef<HTMLDivElement>(),
-  highlightTerms: [], setHighlightTerms: vi.fn(), highlightChildren: (children: ReactNode) => children,
   userHighlights: [], sortedHighlights: [], applyUserHighlights: (children: ReactNode) => children,
   expandedHighlightId: null, setExpandedHighlightId: vi.fn(),
   highlightPopover: null, popoverPos: null, setHighlightPopover: vi.fn(),
@@ -108,12 +107,6 @@ describe('ReportViewer header', () => {
     expect(header).toHaveAttribute('aria-expanded', 'false');
     fireEvent.keyDown(header, { key: 'Enter' });
     expect(base.setPapersCollapsed).toHaveBeenCalledWith(false);
-  });
-
-  it('labels the citation keyword bar honestly', () => {
-    render(<ReportViewer {...base} highlightTerms={['retrieval']} />);
-    expect(screen.getByText('인용 키워드 표시 중')).toBeInTheDocument();
-    expect(screen.queryByText('Evidence highlighted')).not.toBeInTheDocument();
   });
 
   it('does not claim a copy that did not happen', async () => {

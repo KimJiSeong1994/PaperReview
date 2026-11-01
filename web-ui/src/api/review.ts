@@ -59,6 +59,34 @@ export const getReviewReport = async (sessionId: string): Promise<ReviewReportRe
   return response.data;
 };
 
+/**
+ * One claim from GET /api/deep-review/verification/{id}. The service stores the
+ * extracted claim (id, text, type, section); status and evidence are read when
+ * present and otherwise left out of the UI.
+ */
+export interface VerificationClaim {
+  id: string;
+  text: string;
+  claim_type?: string;
+  report_section?: string;
+  verification_status?: 'verified' | 'partially_verified' | 'unverified' | 'contradicted' | string;
+  evidence?: string;
+  evidences?: { text?: string; verification_status?: string }[];
+}
+
+export interface VerificationDetailResponse {
+  session_id: string;
+  claims: VerificationClaim[];
+  cross_references: unknown[];
+  consensus: unknown[];
+  verification_stats?: VerificationStats | null;
+}
+
+export const getVerificationDetail = async (sessionId: string): Promise<VerificationDetailResponse> => {
+  const response = await api.get<VerificationDetailResponse>(`/api/deep-review/verification/${sessionId}`);
+  return response.data;
+};
+
 // Poster Visualization API
 export type PosterStatus =
   | 'succeeded'

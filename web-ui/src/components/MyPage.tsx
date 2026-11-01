@@ -35,12 +35,6 @@ const MYPAGE_TABS: { id: MyPageTab; label: string; icon: ReactNode }[] = [
   },
 ];
 
-// Evidence terms were set only by the removed bookmark chat's citations; the report
-// still takes them, so it gets an empty, inert set.
-const NO_EVIDENCE_TERMS: string[] = [];
-const ignoreEvidenceTerms = () => {};
-const keepChildren = (children: ReactNode) => children;
-
 const CURRICULUM_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>;
 
 /**
@@ -172,7 +166,10 @@ function MyPage({ onBack }: MyPageProps) {
     setConversationAttempt({ bookmarkId, error: null });
     try {
       const created = await createConversation(`북마크 "${title}"의 리포트를 바탕으로 이야기해 줘`);
-      navigate(`/c/${created.id}`, { state: { run: true } });
+      // The bookmark's review opens in the conversation's 리뷰 tab straight away.
+      navigate(`/c/${created.id}`, {
+        state: { run: true, openReview: bm.selectedBookmark?.session_id || null, openReviewTitle: title },
+      });
     } catch {
       setConversationAttempt({ bookmarkId, error: '대화를 시작하지 못했어요. 잠시 후 다시 시도해 주세요.' });
     }
@@ -312,9 +309,6 @@ function MyPage({ onBack }: MyPageProps) {
             loadingDetail={bm.loadingDetail}
             hasSelectedBookmark={!!bm.selectedBookmark}
             reportScrollRef={reportScrollRef}
-            highlightTerms={NO_EVIDENCE_TERMS}
-            setHighlightTerms={ignoreEvidenceTerms}
-            highlightChildren={keepChildren}
             userHighlights={hl.userHighlights}
             sortedHighlights={hl.sortedHighlights}
             applyUserHighlights={hl.applyUserHighlights}

@@ -760,49 +760,6 @@
   color: var(--danger-strong);
 }
 
-/* ===== Evidence Highlight ===== */
-.mypage-highlight {
-  background: rgba(250, 204, 21, 0.4);
-  color: var(--c-fef9c3);
-  padding: 1px 3px;
-  border-radius: 2px;
-  border-bottom: 2px solid rgba(250, 204, 21, 0.7);
-  font-weight: 500;
-}
-
-.mypage-highlight-bar {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 6px 16px;
-  background: rgba(250, 204, 21, 0.08);
-  border-bottom: 1px solid rgba(250, 204, 21, 0.15);
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--amber);
-  position: sticky;
-  top: 0;
-  z-index: 5;
-  backdrop-filter: blur(8px);
-}
-
-.mypage-highlight-clear {
-  margin-left: auto;
-  background: transparent;
-  border: 1px solid rgba(250, 204, 21, 0.3);
-  border-radius: 4px;
-  color: var(--amber);
-  font-size: 10px;
-  padding: 2px 8px;
-  cursor: pointer;
-  font-family: inherit;
-  transition: all 0.15s ease;
-}
-
-.mypage-highlight-clear:hover {
-  background: rgba(250, 204, 21, 0.15);
-}
-
 /* ===== Panel 2: Report / Detail ===== */
 .mypage-report-panel {
   flex: 1;
