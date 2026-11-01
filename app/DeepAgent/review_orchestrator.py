@@ -19,7 +19,7 @@ from app.DeepAgent.tools.report_generator import generate_markdown_report, gener
 from app.DeepAgent.subagents.researcher_agent import analyze_paper_deep
 from app.DeepAgent.subagents.advisor_agent import validate_and_synthesize
 from app.DeepAgent.tools.fact_verification import (
-    ClaimExtractor, EvidenceLinker, CrossRefValidator, VerificationResult,
+    ClaimExtractor, EvidenceLinker, CrossRefValidator, VerificationResult, claims_with_verification,
 )
 
 _workspace_write_lock = threading.Lock()
@@ -297,9 +297,9 @@ class ReviewOrchestrator:
 
             # Workspace에 저장
             self.workspace.save_verification_claims(
-                [c.to_dict() for c in claims]
+                claims_with_verification(claims, claim_evidences)
             )
-            if cross_refs:
+            if cross_refs or consensus:
                 self.workspace.save_cross_references(
                     [xref.to_dict() for xref in cross_refs],
                     [cons.to_dict() for cons in consensus],

@@ -239,6 +239,36 @@ class ClaimEvidence:
         )
 
 
+VERIFICATION_FIELDS = ("verification_status", "evidence", "evidence_source", "confidence")
+
+
+def claims_with_verification(claims: List["Claim"], claim_evidences: List[ClaimEvidence]) -> List[Dict[str, Any]]:
+    """Claim dicts with their best evidence merged in, for the verification detail view.
+
+    Adds ``verification_status`` (same rule as ``VerificationResult.statistics``:
+    the best evidence's status, ``unverified`` when a linked claim has none),
+    ``evidence`` (≤300 chars), ``evidence_source`` ({paper_id, section}) and
+    ``confidence`` (similarity of the best evidence). Claims the linker never
+    saw (e.g. interpretive) keep these fields as None.
+    """
+    by_claim = {ce.claim.id: ce for ce in claim_evidences}
+    merged = []
+    for claim in claims:
+        item = {**claim.to_dict(), **dict.fromkeys(VERIFICATION_FIELDS)}
+        ce = by_claim.get(claim.id)
+        if ce is not None:
+            best = ce.best_evidence()
+            item["verification_status"] = (
+                best.verification_status.value if best else VerificationStatus.UNVERIFIED.value
+            )
+            if best:
+                item["evidence"] = best.text[:300]
+                item["evidence_source"] = {"paper_id": best.paper_id, "section": best.estimated_section or None}
+                item["confidence"] = round(best.similarity_score, 3)
+        merged.append(item)
+    return merged
+
+
 @dataclass
 class VerificationResult:
     """전체 검증 결과"""

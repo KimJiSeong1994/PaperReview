@@ -1539,6 +1539,14 @@ async def get_verification_detail(
                 claims_data = data.get("claims", [])
         except Exception as e:
             logger.warning("Failed to load claims: %s", e)
+    # Sessions saved before per-claim results were persisted lack these fields.
+    # Imported here: a module-level import cycles through routers.schemas and
+    # silently disables the claim extractor's strict schema.
+    from app.DeepAgent.tools.fact_verification import VERIFICATION_FIELDS
+
+    claims_data = [
+        {**dict.fromkeys(VERIFICATION_FIELDS), **claim} for claim in claims_data if isinstance(claim, dict)
+    ]
 
     # Load cross-references and consensus
     crossrefs_data = []
