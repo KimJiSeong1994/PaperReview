@@ -172,6 +172,23 @@ export interface Conversation {
   turns: ConversationTurn[];
 }
 
+// ── Personal memory ("soul", /api/me/soul) ───────────────────────────
+
+export interface SoulMemory {
+  id: string;
+  kind: 'preference' | 'topic' | 'paper' | 'fact';
+  text: string;
+  created_at: string;
+}
+
+export interface Soul {
+  /** What the user wrote about themselves (≤2000 chars). */
+  user_md: string;
+  memories: SoulMemory[];
+  /** The rendered memory the assistant reads; not shown in the UI. */
+  markdown: string;
+}
+
 // LightRAG types
 export interface LightRAGQueryRequest {
   query: string;

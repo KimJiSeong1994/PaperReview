@@ -14,6 +14,7 @@ import ReportViewer from './mypage/ReportViewer';
 import ChatPanel from './mypage/ChatPanel';
 import LazyLoadErrorBoundary from './LazyLoadErrorBoundary';
 import AgentKeyButton from './AgentKeyButton';
+import SoulPanel from './mypage/SoulPanel';
 
 const PaperViewerPanel = lazy(() => import('./mypage/PaperViewerPanel'));
 
@@ -21,7 +22,7 @@ interface MyPageProps {
   onBack: () => void;
 }
 
-type MyPageTab = 'bookmarks' | 'papers';
+type MyPageTab = 'bookmarks' | 'papers' | 'memory';
 
 // The default tab comes first, so the first tab on screen is the one the page
 // opens on. "Papers" and "bookmarks" share a selection; the labels say what the
@@ -35,6 +36,11 @@ const MYPAGE_TABS: { id: MyPageTab; label: string; icon: ReactNode }[] = [
     id: 'papers', label: '논문 PDF',
     icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></svg>,
   },
+  {
+    // What the assistant remembers about this user; it has its own panel, no bookmark sidebar.
+    id: 'memory', label: '기억',
+    icon: <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M12 3a6 6 0 0 0-6 6c0 2.2 1.2 3.6 2.4 4.8.8.8 1.6 1.6 1.6 2.7V18h4v-1.5c0-1.1.8-1.9 1.6-2.7C16.8 12.6 18 11.2 18 9a6 6 0 0 0-6-6z" /><line x1="10" y1="21" x2="14" y2="21" /></svg>,
+  },
 ];
 
 const CURRICULUM_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" aria-hidden="true"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></svg>;
@@ -44,7 +50,7 @@ const CURRICULUM_ICON = <svg viewBox="0 0 24 24" fill="none" stroke="currentColo
  * a value — anything unrecognised lands there too.
  */
 export function tabFromParams(raw: string | null): MyPageTab {
-  return raw === 'papers' ? raw : 'bookmarks';
+  return raw === 'papers' || raw === 'memory' ? raw : 'bookmarks';
 }
 
 /** Carries the rest of the query string through; only touches its own key. */
@@ -299,12 +305,13 @@ function MyPage({ onBack }: MyPageProps) {
 
       {/* Tab content */}
         <div
-          className={`mypage-content${activeTab === 'papers' ? ' mypage-content--viewer' : ''}`}
+          className={`mypage-content${activeTab === 'papers' ? ' mypage-content--viewer' : ''}${activeTab === 'memory' ? ' mypage-content--memory' : ''}`}
           role="tabpanel"
           id={`mypage-panel-${activeTab}`}
           aria-labelledby={`mypage-tab-${activeTab}`}
         >
-          {bookmarkSidebar}
+          {activeTab !== 'memory' && bookmarkSidebar}
+          {activeTab === 'memory' && <SoulPanel />}
           {/* Both bodies are grid children through display:contents wrappers, so the
               hidden one costs no track and the shown one lays out as before. */}
           {viewerMounted && (

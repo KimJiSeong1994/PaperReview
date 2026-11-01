@@ -1,0 +1,232 @@
+/* "집현전이 기억하는 것" — the same panel surface as the MyPage bookmark/report panels. */
+.soul-panel {
+  flex: 1;
+  align-self: flex-start;
+  max-width: 760px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  padding: 20px 24px 24px;
+  background: var(--bg-input);
+  border: 1px solid var(--wov-08);
+  border-radius: 12px;
+  overflow-y: auto;
+  max-height: 100%;
+  color: var(--text);
+}
+
+.soul-head {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.soul-title {
+  margin: 0;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.soul-subtitle,
+.soul-muted {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--text-muted);
+}
+
+.soul-block {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.soul-label {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.soul-textarea {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 96px;
+  padding: 10px 12px;
+  border: 1px solid var(--wov-12);
+  border-radius: 8px;
+  background: var(--bg);
+  color: var(--text-hi);
+  font: inherit;
+  font-size: 14px;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.soul-textarea:focus-visible,
+.soul-btn:focus-visible,
+.soul-icon-btn:focus-visible {
+  outline: 2px solid var(--indigo-mid);
+  outline-offset: 2px;
+}
+
+.soul-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+}
+
+.soul-count {
+  margin-right: auto;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.soul-list-head {
+  justify-content: space-between;
+}
+
+.soul-btn {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--wov-15);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-hi);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.soul-btn:hover:not(:disabled) {
+  background: var(--wov-04);
+}
+
+.soul-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.soul-btn-primary {
+  border-color: transparent;
+  background: var(--text-hi);
+  color: var(--bg);
+}
+
+.soul-btn-primary:hover:not(:disabled) {
+  background: var(--text-hi);
+  opacity: 0.88;
+}
+
+.soul-btn-danger {
+  border-color: color-mix(in srgb, var(--danger) 40%, transparent);
+  color: var(--danger);
+}
+
+.soul-confirm {
+  display: inline-flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  font-size: 12.5px;
+  color: var(--text);
+}
+
+.soul-group {
+  margin-top: 4px;
+}
+
+.soul-group-title {
+  margin: 0 0 4px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-faint);
+  font-variant-numeric: tabular-nums;
+}
+
+.soul-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.soul-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  border-top: 1px solid var(--wov-08);
+}
+
+.soul-item:last-child {
+  border-bottom: 1px solid var(--wov-08);
+}
+
+.soul-item-text {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  line-height: 1.5;
+  color: var(--text-hi);
+  overflow-wrap: anywhere;
+}
+
+.soul-icon-btn {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+}
+
+.soul-icon-btn:hover:not(:disabled) {
+  background: var(--wov-04);
+  color: var(--danger);
+}
+
+.soul-error {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 13px;
+}
+
+.soul-error-text {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--danger);
+}
+
+@media (max-width: 860px) {
+  .soul-panel {
+    padding: 16px;
+    border-radius: 8px;
+  }
+
+  .soul-btn,
+  .soul-icon-btn {
+    min-height: 44px;
+  }
+
+  .soul-icon-btn {
+    width: 44px;
+  }
+}
+
+/* The 기억 tab has one panel; the bookmark grid's columns and chat row (≤1200px) do not apply. */
+.mypage-content.mypage-content--memory {
+  display: flex;
+  overflow-y: auto;
+}

@@ -4,6 +4,7 @@ import { tabFromParams, paramsWithTab, paramsWithBookmark } from '../components/
 describe('tabFromParams', () => {
   it('reads the tab that is not the default', () => {
     expect(tabFromParams('papers')).toBe('papers');
+    expect(tabFromParams('memory')).toBe('memory');
   });
 
   it('falls back to bookmarks for absent or unrecognised values', () => {

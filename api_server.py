@@ -470,6 +470,9 @@ app.include_router(seo_router)
 from routers.conversations import router as conversations_router
 
 app.include_router(conversations_router)
+from routers.soul import router as soul_router
+
+app.include_router(soul_router)
 
 
 # ── Entrypoint ─────────────────────────────────────────────────────────

@@ -11,7 +11,9 @@ from app.assistant import turn_runner
 from routers import conversations
 from routers.deps.auth import AuthenticatedPrincipal, get_authenticated_principal
 from routers.deps.middleware import limiter
+from routers.deps import storage
 from src.storage.conversation_db import ConversationDB
+from src.storage.soul_db import SoulDB
 
 PAPERS = {
     "arxiv": [
@@ -36,6 +38,8 @@ def _search_response(results=PAPERS, is_academic=True):
 def env(tmp_path, monkeypatch):
     db = ConversationDB(tmp_path / "conversations.db")
     monkeypatch.setattr(conversations, "_get_conversation_db", lambda: db)
+    souls = SoulDB(tmp_path / "souls.db")
+    monkeypatch.setattr(storage, "_get_soul_db", lambda: souls)
     limiter.reset()
 
     calls = {"search": [], "llm": [], "years": [], "route_inputs": []}
@@ -62,7 +66,11 @@ def env(tmp_path, monkeypatch):
     monkeypatch.setattr(turn_runner, "build_graph", fake_graph)
     monkeypatch.setattr(turn_runner, "stream_llm", fake_llm)
 
-    def fake_route(client, **kwargs):  # the only non-streaming LLM call left unfaked
+    def fake_route(client, **kwargs):  # the non-streaming LLM calls: router and memory extractor
+        if kwargs["messages"][0]["content"] == turn_runner._EXTRACT_PROMPT:
+            calls.setdefault("extract_inputs", []).append(kwargs["messages"])
+            content = calls.get("extract", '{"items": []}')
+            return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=content))], usage=None)
         calls["route_inputs"].append(kwargs["messages"])
         if calls.get("route") is None:
             raise RuntimeError("router down")
@@ -82,7 +90,8 @@ def env(tmp_path, monkeypatch):
     anonymous = FastAPI()
     anonymous.include_router(conversations.router)
     return SimpleNamespace(
-        client=TestClient(app), other=TestClient(other), anonymous=TestClient(anonymous), db=db, calls=calls
+        client=TestClient(app), other=TestClient(other), anonymous=TestClient(anonymous), db=db, calls=calls,
+        souls=souls,
     )
 
 
@@ -527,3 +536,33 @@ def test_bare_reply_after_review_reports_that_turns_own_session(env, monkeypatch
     assert turn_runner.repeat_reply(chat_route, history, [], "2") is None
     del sessions["s-new"]
     assert "(상태: 확인 불가)" in turn_runner.repeat_reply(chat_route, history, [], "2")
+
+
+def test_user_memory_reaches_prompts_and_turns_are_remembered(env):
+    env.souls.set_user_md("alice", "inc-a", "박사과정, 짧은 답 선호")
+    env.souls.add_memories("alice", "inc-a", [{"kind": "paper", "text": "심층 리뷰: HiGMem"}], None)
+    env.calls["route"] = json.dumps({"action": "search", "query": "장기 기억 에이전트", "lead": "찾아볼게요."})
+    env.calls["extract"] = '{"items": [{"kind": "fact", "text": "12월 학회 마감"}]}'
+    with TestClient(env.client.app) as client:  # keep the loop alive for the post-`done` memory write
+        conv_id = client.post("/api/conversations", json={"message": "장기 기억 에이전트 논문, 12월 마감이야"}).json()["id"]
+        _events(client, conv_id)
+
+        router_input = env.calls["route_inputs"][-1][1]["content"]
+        assert "사용자 메모리:\n<user_memory>\n# USER.md\n\n박사과정, 짧은 답 선호" in router_input
+        summary_system = env.calls["llm"][-1][0]["content"]
+        assert "<user_memory>" in summary_system and "- [논문] 심층 리뷰: HiGMem" in summary_system
+        assert "메모리에 없는 과거는 절대 지어내지 마세요" in summary_system
+
+        texts = {m["text"] for m in env.souls.get_soul("alice", "inc-a")["memories"]}
+        assert {"장기 기억 에이전트", "12월 학회 마감", "심층 리뷰: HiGMem"} <= texts
+
+        env.calls["route"] = '{"action": "answer", "lead": ""}'
+        _events(client, conv_id, "1번이 HiGMem 이랑 뭐가 달라?")
+        assert "<user_memory>" in env.calls["llm"][-1][0]["content"]
+
+        before = len(env.souls.get_soul("alice", "inc-a")["memories"])
+        extract_calls = len(env.calls["extract_inputs"])
+        env.calls["route"] = '{"action": "clarify", "lead": "어떤 주제인가요?"}'
+        _events(client, conv_id, "추천해줘")
+        assert len(env.calls["extract_inputs"]) == extract_calls  # clarify turns teach nothing
+        assert len(env.souls.get_soul("alice", "inc-a")["memories"]) == before
