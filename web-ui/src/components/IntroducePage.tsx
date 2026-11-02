@@ -146,10 +146,7 @@ function IntroducePage({ locale = 'en' }: IntroducePageProps) {
           </section>
         </header>
 
-        <LandingSections
-          locale={locale}
-          sample={{ question: copy.question, claim: copy.conclusion[0], papers: SAMPLE_PAPERS }}
-        />
+        <LandingSections locale={locale} />
       </div>
     </main>
   );

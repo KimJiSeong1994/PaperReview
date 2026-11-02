@@ -90,15 +90,12 @@ const staticContent = `
         </section>
         <section id="outputs">
           <h2>See how a claim connects to its source</h2>
-          <p>A full review checks whether the review’s important interpretations stay within what the paper actually supports.</p>
           <h3>Evidence check from a full review: CausalRAG2</h3>
           <p>Review claim: The paper’s “causal gate” is not a validated directed causal edge. It is an undirected binary connection that opens a retrieval path.</p>
           <p>Source check: The method and algorithm assign neither direction nor effect size to the gate; an LLM judges causal or logical dependence.</p>
           <p>Verdict: We limit the interpretation to what the source supports.</p>
-          <ul>
-            <li><a href="/blog/causalrag2-hugrag-hierarchical-causal-gating">CausalRAG2: Hierarchical Causal Knowledge Graph Design for RAG</a></li>
-            <li><a href="/blog/hipporag-neurobiologically-inspired-long-term-memory">HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models</a></li>
-          </ul>
+          <p><a href="/blog/causalrag2-hugrag-hierarchical-causal-gating">Read the full evidence review</a></p>
+          <p><a href="/blog/category/paper-review">Browse all public reviews</a></p>
         </section>
         <section id="faq">
           <h2>Questions about AI paper search and review</h2>
@@ -106,12 +103,11 @@ ${faqHtml('en')}
         </section>
         <section id="claude">
           <h2>Use Jiphyeonjeon with Claude</h2>
-          <p>Jiphyeonjeon Agent is an optional open-source extension installed separately from the web app. Once installed, Claude conversations can call Jiphyeonjeon’s search, review, bookmarks, and curricula.</p>
+          <p>Jiphyeonjeon Agent is an optional open-source extension installed separately from the web app.</p>
           <p><a href="https://github.com/KimJiSeong1994/jiphyeonjeon-agent">View installation instructions and source</a></p>
         </section>
         <section>
           <h2>Start with the paper you are curious about</h2>
-          <p>Read a sample answer first, then sign in to ask your own question for free.</p>
           <p><a href="/">Ask for free</a> · <a href="/">See a sample answer</a></p>
         </section>
         <nav aria-label="Main pages">
@@ -159,15 +155,12 @@ const koreanStaticContent = `
         </section>
         <section id="outputs">
           <h2>주장과 원문이 어떻게 연결되는지 먼저 보세요</h2>
-          <p>정밀 리뷰는 리뷰의 중요한 해석이 원문이 말하는 범위를 벗어나지 않는지 다시 확인합니다.</p>
           <h3>정밀 리뷰의 검토 예시: CausalRAG2</h3>
           <p>리뷰 주장: 논문이 말하는 “인과 게이트”는 검증된 방향성 인과 간선이 아니라, 검색 경로를 여는 무방향 이진 연결입니다.</p>
           <p>원문 확인: 원문 방법과 알고리즘을 대조하면 게이트에는 방향과 효과 크기가 없고, LLM이 인과 또는 논리적 의존성을 판정합니다.</p>
           <p>판정: 원문이 뒷받침하는 범위로 해석을 제한했습니다.</p>
-          <ul>
-            <li><a href="/blog/causalrag2-hugrag-hierarchical-causal-gating">CausalRAG2: Hierarchical Causal Knowledge Graph Design for RAG</a></li>
-            <li><a href="/blog/hipporag-neurobiologically-inspired-long-term-memory">HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models</a></li>
-          </ul>
+          <p><a href="/blog/causalrag2-hugrag-hierarchical-causal-gating">검토 과정이 담긴 리뷰 읽기</a></p>
+          <p><a href="/blog/category/paper-review">공개 리뷰 전체 보기</a></p>
         </section>
         <section id="faq">
           <h2>AI 논문 검색과 리뷰, 자주 묻는 질문</h2>
@@ -175,12 +168,11 @@ ${faqHtml('ko')}
         </section>
         <section id="claude">
           <h2>Claude에서 집현전 활용하기</h2>
-          <p>집현전 Agent는 웹 서비스와 별도로 설치하는 오픈소스 확장입니다. 설치하면 Claude 대화 안에서 집현전의 검색, 리뷰, 북마크와 커리큘럼 기능을 부를 수 있습니다.</p>
+          <p>집현전 Agent는 웹 서비스와 별도로 설치하는 오픈소스 확장입니다.</p>
           <p><a href="https://github.com/KimJiSeong1994/jiphyeonjeon-agent">집현전 Agent 설치와 소스 보기</a></p>
         </section>
         <section>
           <h2>궁금한 논문부터 물어보세요</h2>
-          <p>샘플 답변을 먼저 보고, 로그인 후 무료로 직접 물어보세요.</p>
           <p><a href="/">무료로 물어보기</a> · <a href="/">샘플 답변 보기</a></p>
         </section>
         <nav aria-label="주요 페이지">

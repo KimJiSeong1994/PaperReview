@@ -7,16 +7,8 @@ import './LandingSections.css';
 
 type Locale = 'en' | 'ko';
 
-/** The hero's sample conversation, so the workflow fragments quote it instead of copying it. */
-interface SpecimenSample {
-  question: string;
-  claim: { text: string; cites: string };
-  papers: readonly { title: string }[];
-}
-
 interface LandingSectionsProps {
   locale?: Locale;
-  sample: SpecimenSample;
 }
 
 const GIT_INSTALL = [
@@ -50,27 +42,10 @@ const WORKFLOW = {
   },
 } as const;
 
-// Fragment labels only; the question, sentence and paper titles come from the hero sample.
-const SPECIMEN = {
-  en: {
-    sources: ['arXiv', 'Google Scholar', 'OpenAlex', 'DBLP', 'Connected Papers', 'OpenAlex Korean'],
-    reviews: [['Fast review', 'Summary'], ['Full review', 'Claim check']],
-    labels: ['Direct quote', 'Paraphrase', 'Inference', 'Unverified'],
-  },
-  ko: {
-    sources: ['arXiv', 'Google Scholar', 'OpenAlex', 'DBLP', 'Connected Papers', 'OpenAlex 한국어'],
-    reviews: [['빠른 리뷰', '요약'], ['정밀 리뷰', '주장 검증']],
-    labels: ['직접 인용', '의역', '추론', '미확인'],
-  },
-} as const;
-
-const EVIDENCE_TO = '/blog/causalrag2-hugrag-hierarchical-causal-gating';
-
 const OUTPUTS = {
   en: {
     kicker: 'Evidence in practice',
     title: 'See how a claim connects to its source',
-    lead: 'A full review checks whether the review’s important interpretations stay within what the paper actually supports.',
     exampleKicker: 'Evidence check from a full review',
     claimLabel: 'Review claim',
     claim: 'The paper’s “causal gate” is not a validated directed causal edge. It is an undirected binary connection that opens a retrieval path.',
@@ -79,13 +54,11 @@ const OUTPUTS = {
     verdictLabel: 'Verdict',
     verdict: 'We limit the interpretation to what the source supports.',
     readReview: 'Read the full evidence review',
-    publicWork: 'Public paper reviews',
     allReviews: 'Browse all public reviews',
   },
   ko: {
     kicker: '실제 근거 확인',
     title: '주장과 원문이 어떻게 연결되는지 먼저 보세요',
-    lead: '정밀 리뷰는 리뷰의 중요한 해석이 원문이 말하는 범위를 벗어나지 않는지 다시 확인합니다.',
     exampleKicker: '정밀 리뷰의 검토 예시',
     claimLabel: '리뷰 주장',
     claim: '논문이 말하는 “인과 게이트”는 검증된 방향성 인과 간선이 아니라, 검색 경로를 여는 무방향 이진 연결입니다.',
@@ -94,35 +67,9 @@ const OUTPUTS = {
     verdictLabel: '판정',
     verdict: '원문이 뒷받침하는 범위로 해석을 제한했습니다.',
     readReview: '검토 과정이 담긴 리뷰 읽기',
-    publicWork: '공개 논문 리뷰',
     allReviews: '공개 리뷰 전체 보기',
   },
 } as const;
-
-const PUBLIC_REVIEWS = [
-  {
-    to: '/blog/causalrag2-hugrag-hierarchical-causal-gating',
-    en: {
-      title: 'CausalRAG2: Hierarchical Causal Knowledge Graph Design for RAG',
-      description: 'Reviews the method and results while testing how far the paper’s causal language can reasonably be interpreted.',
-    },
-    ko: {
-      title: 'CausalRAG2: Hierarchical Causal Knowledge Graph Design for RAG',
-      description: '방법과 실험 결과뿐 아니라 인과라는 표현을 어디까지 해석할 수 있는지 한계까지 검토합니다.',
-    },
-  },
-  {
-    to: '/blog/hipporag-neurobiologically-inspired-long-term-memory',
-    en: {
-      title: 'HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models',
-      description: 'Examines the roles of the knowledge graph and Personalized PageRank alongside performance claims and cost.',
-    },
-    ko: {
-      title: 'HippoRAG: Neurobiologically Inspired Long-Term Memory for Large Language Models',
-      description: '지식 그래프와 Personalized PageRank의 역할, 성능 주장, 비용 구조를 함께 읽습니다.',
-    },
-  },
-];
 
 const SKILLS = [
   { skill: 'jh-review-paper', en: ['Read one paper in depth', 'Deep-review this paper by arXiv ID or title'], ko: ['논문 하나를 깊게 읽고 싶다', 'arXiv ID 또는 논문 제목으로 딥리뷰해줘'] },
@@ -135,7 +82,7 @@ const CLAUDE = {
   en: {
     kicker: 'Optional Claude extension',
     title: 'Bring your Jiphyeonjeon workflow into Claude',
-    body: 'Jiphyeonjeon Agent is an optional open-source extension installed separately from the web app. Once installed, Claude conversations can call Jiphyeonjeon’s search, review, bookmarks, and curricula.',
+    body: 'Jiphyeonjeon Agent is an optional open-source extension installed separately from the web app.',
     install: 'Ask Claude to install it:',
     installPrompt: 'Install the Jiphyeonjeon agent',
     more: 'Research skills and terminal install',
@@ -148,7 +95,7 @@ const CLAUDE = {
   ko: {
     kicker: '선택형 Claude 확장',
     title: '웹에서 하던 연구를 Claude로 확장합니다',
-    body: '집현전 Agent는 웹 서비스와 별도로 설치하는 오픈소스 확장입니다. 설치하면 Claude 대화 안에서 집현전의 검색, 리뷰, 북마크와 커리큘럼 기능을 부를 수 있습니다.',
+    body: '집현전 Agent는 웹 서비스와 별도로 설치하는 오픈소스 확장입니다.',
     install: 'Claude에게 이렇게 요청하면 설치합니다.',
     installPrompt: '집현전 agent 설치해줘',
     more: '연구 스킬과 터미널 설치',
@@ -162,16 +109,12 @@ const CLAUDE = {
 
 const CLOSING = {
   en: {
-    kicker: 'Start from a question',
     title: 'Start with the paper you are curious about',
-    body: 'Read a sample answer first, then sign in to ask your own question for free.',
     ask: 'Ask for free',
     sample: 'See a sample answer',
   },
   ko: {
-    kicker: '질문에서 시작하기',
     title: '궁금한 논문부터 물어보세요',
-    body: '샘플 답변을 먼저 보고, 로그인 후 무료로 직접 물어보세요.',
     ask: '무료로 물어보기',
     sample: '샘플 답변 보기',
   },
@@ -213,69 +156,6 @@ function CopySnippet({ text, locale }: { text: string; locale: Locale }) {
   );
 }
 
-/** A static, decorative close-up of one part of the hero conversation for each workflow step. */
-function IntroSpecimen({ step, locale, sample }: { step: number; locale: Locale; sample: SpecimenSample }) {
-  const text = SPECIMEN[locale];
-  const cites = sample.claim.cites.split(',');
-  const citedPaper = sample.papers[Number(cites[0]) - 1];
-  let content;
-  switch (step) {
-    case 0:
-      content = <span className="intro-specimen-bubble">{sample.question}</span>;
-      break;
-    case 1:
-      content = (
-        <>
-          <span className="intro-specimen-chips">
-            {text.sources.map(source => <span className="intro-chip" key={source}>{source}</span>)}
-          </span>
-          <span className="intro-specimen-split">
-            {sample.papers.slice(0, 2).map((paper, index) => (
-              <span className="intro-specimen-row" key={paper.title}>
-                <span className="intro-specimen-rank">{index + 1}</span>
-                <span className="intro-specimen-paper">{paper.title}</span>
-              </span>
-            ))}
-          </span>
-        </>
-      );
-      break;
-    case 2:
-      content = (
-        <>
-          <span className="intro-specimen-sentence">
-            {sample.claim.text}
-            {cites.map((cite, index) => (
-              <span className={`intro-specimen-cite${index === 0 ? ' intro-specimen-cite--on' : ''}`} key={cite}>{cite}</span>
-            ))}
-          </span>
-          {citedPaper && (
-            <span className="intro-specimen-split intro-specimen-row">
-              <span className="intro-specimen-rank">{cites[0]}</span>
-              <span className="intro-specimen-paper">{citedPaper.title}</span>
-            </span>
-          )}
-        </>
-      );
-      break;
-    default:
-      content = (
-        <>
-          {text.reviews.map(([mode, result], index) => (
-            <span className="intro-specimen-review" key={mode}>
-              <span className={`intro-chip${index === 1 ? ' intro-chip--accent' : ''}`}>{mode}</span>
-              <span>{result}</span>
-            </span>
-          ))}
-          <span className="intro-specimen-chips intro-specimen-split">
-            {text.labels.map(label => <span className="intro-chip" key={label}>{label}</span>)}
-          </span>
-        </>
-      );
-  }
-  return <div className={step === 0 ? 'intro-specimen intro-specimen--ask' : 'intro-specimen'} aria-hidden="true">{content}</div>;
-}
-
 function SectionHeading({ kicker, title, body }: { kicker: string; title: string; body?: string }) {
   return (
     <header className="landing-section-header">
@@ -286,7 +166,7 @@ function SectionHeading({ kicker, title, body }: { kicker: string; title: string
   );
 }
 
-function LandingSections({ locale = 'en', sample }: LandingSectionsProps) {
+function LandingSections({ locale = 'en' }: LandingSectionsProps) {
   const workflow = WORKFLOW[locale];
   const outputs = OUTPUTS[locale];
   const claude = CLAUDE[locale];
@@ -304,7 +184,6 @@ function LandingSections({ locale = 'en', sample }: LandingSectionsProps) {
                 <h3 className="intro-step-title">{label}</h3>
               </div>
               <p className="intro-step-body">{body}</p>
-              <IntroSpecimen step={index} locale={locale} sample={sample} />
             </li>
           ))}
         </ol>
@@ -312,7 +191,7 @@ function LandingSections({ locale = 'en', sample }: LandingSectionsProps) {
       </section>
 
       <section className="intro-section" id="outputs">
-        <SectionHeading kicker={outputs.kicker} title={outputs.title} body={outputs.lead} />
+        <SectionHeading kicker={outputs.kicker} title={outputs.title} />
 
         <article className="intro-evidence" aria-labelledby="evidence-example-title">
           <div className="landing-evidence-head">
@@ -332,41 +211,28 @@ function LandingSections({ locale = 'en', sample }: LandingSectionsProps) {
           <div className="intro-verdict">
             <span className="intro-chip intro-chip--accent">{outputs.verdictLabel}</span>
             <p>{outputs.verdict}</p>
-            <Link className="landing-link intro-verdict-link" to={EVIDENCE_TO}>{outputs.readReview} →</Link>
+            <Link className="landing-link intro-verdict-link" to="/blog/causalrag2-hugrag-hierarchical-causal-gating">{outputs.readReview} →</Link>
           </div>
         </article>
 
-        <h3 className="landing-sub-title landing-output-sub-title">{outputs.publicWork}</h3>
-        <div className="landing-output-list">
-          {PUBLIC_REVIEWS.map(item => (
-            <Link className="landing-output" to={item.to} key={item.to}>
-              <span className="landing-output-title">{item[locale].title}</span>
-              <span className="landing-output-description">{item[locale].description}</span>
-              <span className="landing-output-arrow" aria-hidden="true">↗</span>
-            </Link>
-          ))}
-        </div>
         <Link className="landing-link landing-output-more" to="/blog/category/paper-review">
           {outputs.allReviews} →
         </Link>
       </section>
 
       <section className="intro-section" id="faq">
-        <div className="intro-faq">
-          <div className="intro-faq-head">
-            <SectionHeading
-              kicker={locale === 'ko' ? '자주 묻는 질문' : 'Frequently asked questions'}
-              title={locale === 'ko' ? 'AI 논문 검색과 리뷰, 자주 묻는 질문' : 'Questions about AI paper search and review'}
-            />
-          </div>
-          <div className="intro-faq-list">
-            {INTRODUCE_FAQ[locale].map(item => (
-              <div className="intro-faq-item" key={item.question}>
-                <h3>{item.question}</h3>
-                <p>{item.answer}</p>
-              </div>
-            ))}
-          </div>
+        <SectionHeading
+          kicker={locale === 'ko' ? '자주 묻는 질문' : 'Frequently asked questions'}
+          title={locale === 'ko' ? 'AI 논문 검색과 리뷰, 자주 묻는 질문' : 'Questions about AI paper search and review'}
+        />
+        {/* Collapsed on the page; the static copy and the FAQPage JSON-LD keep every answer. */}
+        <div className="intro-faq-list">
+          {INTRODUCE_FAQ[locale].map(item => (
+            <details className="intro-faq-item" key={item.question}>
+              <summary><h3>{item.question}</h3></summary>
+              <p>{item.answer}</p>
+            </details>
+          ))}
         </div>
       </section>
 
@@ -405,20 +271,13 @@ function LandingSections({ locale = 'en', sample }: LandingSectionsProps) {
         </div>
       </section>
 
-      <section className="intro-closing">
-        <div className="intro-closing-body">
-          <MascotFace size={56} className="introduce-face intro-closing-face" />
-          <div>
-            <p className="intro-eyebrow">{closing.kicker}</p>
-            <h2 className="landing-section-title">{closing.title}</h2>
-            <p className="landing-section-lead">{closing.body}</p>
-            <div className="introduce-cta intro-closing-actions">
-              <Link className="intro-btn" to="/">{closing.ask}</Link>
-              <Link className="intro-btn intro-btn--ghost" to={INTRODUCE_SAMPLE_PATH}>{closing.sample}</Link>
-            </div>
-          </div>
+      <section className="intro-closing" aria-labelledby="intro-closing-title">
+        <MascotFace size={44} className="introduce-face intro-closing-face" />
+        <h2 className="intro-closing-title" id="intro-closing-title">{closing.title}</h2>
+        <div className="introduce-cta">
+          <Link className="intro-btn" to="/">{closing.ask}</Link>
+          <Link className="intro-btn intro-btn--ghost" to={INTRODUCE_SAMPLE_PATH}>{closing.sample}</Link>
         </div>
-        <div className="intro-closing-art" aria-hidden="true" />
       </section>
     </div>
   );
