@@ -116,7 +116,7 @@ _SITE_FOOTER_HTML = (
     '<footer class="site-footer"><div class="site-footer-columns">'
     '<nav class="site-footer-column" aria-label="집현전">'
     '<p class="site-footer-heading">집현전</p><ul class="site-footer-list">'
-    '<li><a href="/">논문 검색</a></li>'
+    '<li><a href="/">논문 물어보기</a></li>'
     '<li><a href="/ko/introduce/">서비스 소개</a></li>'
     "</ul></nav>"
     '<nav class="site-footer-column" aria-label="블로그">'
@@ -2121,13 +2121,18 @@ async def llms_txt() -> Response:
         "Source: https://github.com/KimJiSeong1994/PaperReview\n"
         "\n"
         "## Capabilities\n"
+        "- Conversational paper research: ask in plain language; each conversation is "
+        "saved\n"
         "- Academic paper search across arXiv, Google Scholar, OpenAlex, DBLP, "
-        "Connected Papers, and Korean academic search\n"
-        "- Multi-paper AI review that compares common findings, conflicts, and methods\n"
-        "- Source-grounded claim verification that distinguishes quotation, paraphrase, "
-        "inference, and unverified claims\n"
-        "- Study curriculum builder\n"
-        "- Citation graph explorer\n"
+        "Connected Papers, and OpenAlex filtered to Korean-language papers\n"
+        "- Answers with numbered citations to the papers they draw on, plus a relation "
+        "graph and result list\n"
+        "- PDF reader with automatic key-sentence highlights\n"
+        "- Fast deep review (minutes); full review adds source-grounded claim "
+        "verification that distinguishes quotation, paraphrase, inference, and "
+        "unverified claims\n"
+        "- Sample answers and public paper reviews readable without sign-in\n"
+        "- Study curriculum builder and citation graph explorer\n"
         "\n"
         "## Review methodology\n"
         "Jiphyeonjeon searches broadly, reviews papers side by side, and checks important "
