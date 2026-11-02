@@ -352,16 +352,16 @@ def _open_fixture_search(
             "status": "passed",
         }
     ]
-    page.goto(base_url, wait_until="domcontentloaded")
-    steps.append({"action": "navigate", "url": page.url, "status": "passed"})
-    page.get_by_role("textbox", name="논문 검색").fill("fixture graph evidence")
-    steps.append({"action": "fill", "target": "논문 검색", "status": "passed"})
+    # The home composer starts a conversation now; the classic results
+    # workspace (the graph under test) is reached with /?q=, which searches
+    # directly through /api/search.
+    search_url = f"{base_url}/?q=fixture+graph+evidence"
     response_path = "/api/graph-data" if search_status < 400 else "/api/search"
     with page.expect_response(
         lambda response: urlsplit(response.url).path == response_path
     ) as response_info:
-        page.get_by_role("button", name="논문 검색").first.click()
-    steps.append({"action": "click", "target": "논문 검색", "status": "passed"})
+        page.goto(search_url, wait_until="domcontentloaded")
+    steps.append({"action": "navigate", "url": search_url, "status": "passed"})
     response_info.value.finished()
     steps.append(
         {
