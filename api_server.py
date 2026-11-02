@@ -467,6 +467,16 @@ app.include_router(topology_router)
 app.include_router(me_router)
 app.include_router(recommendations_router)
 app.include_router(seo_router)
+from routers.conversations import router as conversations_router
+
+app.include_router(conversations_router)
+from routers.soul import profile_router as research_profile_router, router as soul_router
+
+app.include_router(soul_router)
+app.include_router(research_profile_router)
+from routers.samples import router as samples_router
+
+app.include_router(samples_router)
 
 
 # ── Entrypoint ─────────────────────────────────────────────────────────

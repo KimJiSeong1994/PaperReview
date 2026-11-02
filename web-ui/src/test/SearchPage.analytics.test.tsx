@@ -17,6 +17,9 @@ import {
   trackSearchEvent,
 } from '../analytics/events';
 
+// The home composer (first screen) or the results-page search bar.
+const SEARCH_BOX = /^(논문 검색|궁금한 주제나 질문을 편하게 적어 주세요)$/;
+
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const authState = vi.hoisted(() => ({
@@ -29,6 +32,8 @@ vi.mock('../api/client', async () => {
   return {
     classifyPosterError: reviewApi.classifyPosterError,
     classifyPosterResponse: reviewApi.classifyPosterResponse,
+    // This suite drives the results page: a failed conversation create falls back to direct search.
+    createConversation: vi.fn().mockRejectedValue(new Error('conversations unavailable')),
     fetchBatchReferences: vi.fn(),
     generatePoster: vi.fn(),
     generatePosterDirect: vi.fn(),
@@ -79,10 +84,11 @@ function createDeferred<T>() {
 
 async function submitSearch(query: string) {
   await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText('논문 검색'), {
+    fireEvent.change(screen.getByPlaceholderText(SEARCH_BOX), {
       target: { value: query },
     });
-    fireEvent.click(screen.getByRole('button', { name: '논문 검색' }));
+    // Signed in the button is "논문 검색"; signed out it reads "무료로 물어보기".
+    fireEvent.click(screen.getByRole('button', { name: /^(논문 검색|무료로 물어보기)$/ }));
   });
 }
 
@@ -229,7 +235,7 @@ describe('SearchPage analytics instrumentation', () => {
 
     expect(vi.mocked(searchPapers).mock.calls[0][0]).not.toHaveProperty('fast_mode');
     expect(await screen.findAllByText('Fast Primary Result')).toHaveLength(2);
-    expect(screen.getByPlaceholderText('논문 검색')).not.toBeDisabled();
+    expect(screen.getByPlaceholderText(SEARCH_BOX)).not.toBeDisabled();
     expect(getGraphData).toHaveBeenCalledTimes(1);
     expect(fetchBatchReferences).toHaveBeenCalledTimes(1);
 
@@ -237,27 +243,16 @@ describe('SearchPage analytics instrumentation', () => {
     refsDeferred.resolve({ references: [] });
   });
 
-  it('keeps anonymous graph search public without protected reference enrichment', async () => {
+  it('asks anonymous visitors to sign in instead of searching', async () => {
     authState.isAuthenticated = false;
-    vi.mocked(searchPapers).mockResolvedValue({
-      results: {
-        arxiv: [{
-          doc_id: 'paper-public',
-          title: 'Public Graph Result',
-          authors: ['A. Researcher'],
-          year: 2026,
-          abstract: 'abstract',
-        }],
-      },
-      total: 1,
-    });
 
     renderSearchPage();
     await submitSearch('public graph search');
 
-    await waitFor(() => expect(getGraphData).toHaveBeenCalledTimes(1));
+    expect(authState.setShowLoginModal).toHaveBeenCalledWith(true);
+    expect(searchPapers).not.toHaveBeenCalled();
+    expect(getGraphData).not.toHaveBeenCalled();
     expect(fetchBatchReferences).not.toHaveBeenCalled();
-    expect(authState.setShowLoginModal).not.toHaveBeenCalled();
   });
 
   it('tracks poster completion for a succeeded V2 session poster', async () => {

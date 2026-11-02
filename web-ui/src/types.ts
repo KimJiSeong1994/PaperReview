@@ -1,3 +1,5 @@
+import type { HighlightItem } from './api/base';
+
 export interface Paper {
   doc_id: string;
   /** Server identity for selection; doc_id remains the storage reference. */
@@ -113,6 +115,146 @@ export interface SearchResponse {
   };
   /** Echoed back on POST /api/search/click to join a click to its search. */
   query_hash?: string;
+}
+
+// ── Conversations (home → /c/:id) ─────────────────────────────────────
+
+export interface ConversationSummary {
+  id: string;
+  title: string;
+  updated_at: string;
+  turn_count: number;
+  last_intent: string | null;
+}
+
+export interface SearchResultsBlock {
+  type: 'search_results';
+  query: string;
+  executed_query?: string | null;
+  total: number;
+  query_hash: string;
+  partial: boolean;
+  degraded: string[];
+  papers: Paper[];
+}
+
+export interface GraphBlock {
+  type: 'graph';
+  query_hash: string;
+  graph: GraphData;
+}
+
+/** A deep review the assistant started for one paper; progress is polled by session. */
+/** Set on paper blocks whose paper came from one of the user's bookmarks. */
+export interface BookmarkSourced {
+  source?: 'bookmark';
+  bookmark_id?: string;
+}
+
+export interface ReviewStartedBlock extends BookmarkSourced {
+  type: 'review_started';
+  /** fast: no claim verification (the chat default); full: verified claims. */
+  mode?: 'fast' | 'full';
+  session_id: string;
+  paper_index: number | null;
+  paper_title: string;
+  paper_key: string;
+}
+
+/** A paper the assistant opened as a PDF (or found highlights in). */
+export interface PaperPdfBlock extends BookmarkSourced {
+  type: 'paper_pdf';
+  paper_index: number | null;
+  paper_title: string;
+  paper_key: string;
+  pdf_url: string | null;
+  proxy_url: string | null;
+  /** The standalone /paper-viewer link for "새 창에서 열기". */
+  viewer_url: string;
+  authors: string[];
+  year?: number | string | null;
+}
+
+export interface PdfHighlightsBlock extends Omit<PaperPdfBlock, 'type'> {
+  type: 'pdf_highlights';
+  /** As POST /api/pdf-highlights returns them, at most 20. */
+  highlights: HighlightItem[];
+}
+
+export interface BookmarkRef {
+  id: string;
+  title: string;
+  query: string;
+  num_papers: number;
+  has_report: boolean;
+  /** /mypage?bookmark=<id> */
+  url: string;
+  /** The deep-review session behind the report, when there is one. */
+  session_id?: string | null;
+}
+
+/** The bookmarks an answer_from_bookmarks turn draws on; `[B1]` cites the first. */
+export interface BookmarkRefsBlock {
+  type: 'bookmark_refs';
+  bookmarks: BookmarkRef[];
+}
+
+export type TurnBlock =
+  | SearchResultsBlock
+  | GraphBlock
+  | ReviewStartedBlock
+  | PaperPdfBlock
+  | PdfHighlightsBlock
+  | BookmarkRefsBlock;
+
+export interface ConversationTurn {
+  id: string;
+  seq: number;
+  role: 'user' | 'assistant';
+  content: string;
+  blocks: TurnBlock[];
+  intent: string | null;
+  status: 'done' | 'running' | 'error';
+  created_at: string;
+}
+
+export interface Conversation {
+  id: string;
+  title: string;
+  created_at: string;
+  updated_at: string;
+  turns: ConversationTurn[];
+}
+
+// ── Public sample conversations (/api/samples, no sign-in) ─────────────
+
+export interface SampleSummary {
+  id: string;
+  slug: string;
+  title: string;
+  /** The question the sample opens with; also what "이어서 물어보기" asks. */
+  question: string;
+  /** The date the sample's answers were made, e.g. "2026-10-25". */
+  asof: string;
+  turn_count: number;
+}
+
+export interface SampleTurn {
+  seq: number;
+  role: 'user' | 'assistant';
+  content: string;
+  blocks: TurnBlock[];
+  intent: string | null;
+}
+
+export interface SampleConversation {
+  id: string;
+  slug: string;
+  title: string;
+  /** The sample's opening question (the live API sends it; older payloads may not). */
+  question?: string;
+  asof: string;
+  turns: SampleTurn[];
 }
 
 // LightRAG types

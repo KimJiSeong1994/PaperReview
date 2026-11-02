@@ -19,7 +19,7 @@ from app.DeepAgent.tools.report_generator import generate_markdown_report, gener
 from app.DeepAgent.subagents.researcher_agent import analyze_paper_deep
 from app.DeepAgent.subagents.advisor_agent import validate_and_synthesize
 from app.DeepAgent.tools.fact_verification import (
-    ClaimExtractor, EvidenceLinker, CrossRefValidator, VerificationResult,
+    ClaimExtractor, EvidenceLinker, CrossRefValidator, VerificationResult, claims_with_verification,
 )
 
 _workspace_write_lock = threading.Lock()
@@ -262,65 +262,7 @@ class ReviewOrchestrator:
             synthesis = validation.get("cross_paper_synthesis", {})
             draft_report = generate_markdown_report(papers, analyses, validation, synthesis)
 
-            # 1. Claim 추출
-            extractor = ClaimExtractor()
-            claims = extractor.extract_claims_sync(draft_report, papers, analyses)
-
-            if verbose:
-                logger.info(f"  [v] Extracted {len(claims)} claims from report")
-
-            # 2. Evidence 연결
-            linker = EvidenceLinker()
-            claim_evidences = linker.find_all_evidence_sync(claims, papers)
-
-            verification_result = VerificationResult(
-                claims=claims,
-                claim_evidences=claim_evidences,
-            )
-            stats = verification_result.statistics
-
-            if verbose:
-                logger.info(f"  [v] Evidence linked: {stats['verified']} verified, "
-                      f"{stats['unverified']} unverified out of {stats['verifiable_claims']}")
-
-            # 3. 교차 검증 (2개 이상 논문일 때만)
-            cross_refs = []
-            consensus = []
-            if len(papers) >= 2:
-                validator = CrossRefValidator()
-                cross_refs = validator.detect_conflicts_sync(claims)
-                consensus = validator.build_consensus_sync(claims, cross_refs)
-
-                if verbose:
-                    conflicts = sum(1 for r in cross_refs if r.relation.value == "contradicts")
-                    logger.info(f"  [v] Cross-validation: {len(cross_refs)} comparisons, {conflicts} conflicts")
-
-            # Workspace에 저장
-            self.workspace.save_verification_claims(
-                [c.to_dict() for c in claims]
-            )
-            if cross_refs:
-                self.workspace.save_cross_references(
-                    [xref.to_dict() for xref in cross_refs],
-                    [cons.to_dict() for cons in consensus],
-                )
-
-            self.workspace.log("Fact verification completed")
-
-            elapsed = (datetime.now() - start_time).total_seconds()
-
-            if verbose:
-                rate = stats['verification_rate'] * 100
-                logger.info(f"\n[OK] Fact verification completed in {elapsed:.1f}s")
-                logger.info(f"   Verification rate: {rate:.1f}%\n")
-
-            return {
-                "claims": [c.to_dict() for c in claims],
-                "claim_evidences": [ce.to_dict() for ce in claim_evidences],
-                "cross_references": [xref.to_dict() for xref in cross_refs],
-                "consensus": [cons.to_dict() for cons in consensus],
-                "statistics": stats,
-            }
+            return verify_report_claims(draft_report, papers, analyses, self.workspace, verbose, start_time)
 
         except Exception as e:
             if verbose:
@@ -436,3 +378,77 @@ def review_selected_papers(
     orchestrator = ReviewOrchestrator(max_workers=max_workers)
     return orchestrator.review_papers(paper_ids, verbose=verbose)
 
+
+def verify_report_claims(
+    report_markdown: str,
+    papers: List[Dict[str, Any]],
+    analyses: List[Dict[str, Any]],
+    workspace: WorkspaceManager,
+    verbose: bool = False,
+    start_time: Optional[datetime] = None,
+) -> Dict[str, Any]:
+    """Extract claims from *report_markdown* ("### Paper N: Title" sections), link evidence in
+    the papers' full_text/abstract, cross-validate when there are 2+ papers, and save the
+    merged per-claim results (and consensus) to *workspace*. Raises on failure.
+    """
+    start_time = start_time or datetime.now()
+    draft_report = report_markdown
+    # 1. Claim 추출
+    extractor = ClaimExtractor()
+    claims = extractor.extract_claims_sync(draft_report, papers, analyses)
+
+    if verbose:
+        logger.info(f"  [v] Extracted {len(claims)} claims from report")
+
+    # 2. Evidence 연결
+    linker = EvidenceLinker()
+    claim_evidences = linker.find_all_evidence_sync(claims, papers)
+
+    verification_result = VerificationResult(
+        claims=claims,
+        claim_evidences=claim_evidences,
+    )
+    stats = verification_result.statistics
+
+    if verbose:
+        logger.info(f"  [v] Evidence linked: {stats['verified']} verified, "
+              f"{stats['unverified']} unverified out of {stats['verifiable_claims']}")
+
+    # 3. 교차 검증 (2개 이상 논문일 때만)
+    cross_refs = []
+    consensus = []
+    if len(papers) >= 2:
+        validator = CrossRefValidator()
+        cross_refs = validator.detect_conflicts_sync(claims)
+        consensus = validator.build_consensus_sync(claims, cross_refs)
+
+        if verbose:
+            conflicts = sum(1 for r in cross_refs if r.relation.value == "contradicts")
+            logger.info(f"  [v] Cross-validation: {len(cross_refs)} comparisons, {conflicts} conflicts")
+
+    # Workspace에 저장
+    workspace.save_verification_claims(
+        claims_with_verification(claims, claim_evidences)
+    )
+    if cross_refs or consensus:
+        workspace.save_cross_references(
+            [xref.to_dict() for xref in cross_refs],
+            [cons.to_dict() for cons in consensus],
+        )
+
+    workspace.log("Fact verification completed")
+
+    elapsed = (datetime.now() - start_time).total_seconds()
+
+    if verbose:
+        rate = stats['verification_rate'] * 100
+        logger.info(f"\n[OK] Fact verification completed in {elapsed:.1f}s")
+        logger.info(f"   Verification rate: {rate:.1f}%\n")
+
+    return {
+        "claims": [c.to_dict() for c in claims],
+        "claim_evidences": [ce.to_dict() for ce in claim_evidences],
+        "cross_references": [xref.to_dict() for xref in cross_refs],
+        "consensus": [cons.to_dict() for cons in consensus],
+        "statistics": stats,
+    }

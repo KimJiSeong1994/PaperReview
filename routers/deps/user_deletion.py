@@ -49,6 +49,8 @@ from .auth import AuthenticatedPrincipal
 from .storage import (
     PAPERS_FILE,
     _get_bookmark_db,
+    _get_conversation_db,
+    _get_soul_db,
     _get_user_db,
     _papers_lock,
     review_sessions,
@@ -122,7 +124,8 @@ class DeleteResult(BaseModel):
         Stage names that raised (``"rubric_db"``, ``"profile_emb"``,
         ``"events_db"``, ``"bookmarks"``, ``"papers_anonymize"``,
         ``"blog_anonymize"``, ``"curriculum_anonymize"``,
-        ``review_sessions_memory"``, ``"account_authority"``, ``"audit_log"``,
+        ``review_sessions_memory"``, ``"conversations"``,
+        ``"souls"``, ``"account_authority"``, ``"audit_log"``,
         or ``"username_invalid"``).
     audit_hash:
         ``sha256(username)`` hex digest — provides proof-of-deletion
@@ -603,6 +606,20 @@ def _delete_reserved_user(
             "cascade[review_sessions_memory] failed for hash_prefix=%s", hp
         )
         partial_failures.append("review_sessions_memory")
+
+    # Home-assistant conversations (every incarnation of this username).
+    try:
+        _get_conversation_db().delete_by_username(username)
+    except Exception:
+        logger.exception("cascade[conversations] failed for hash_prefix=%s", hp)
+        partial_failures.append("conversations")
+
+    # Personal soul: USER.md profile and memories (every incarnation).
+    try:
+        _get_soul_db().delete_by_username(username)
+    except Exception:
+        logger.exception("cascade[souls] failed for hash_prefix=%s", hp)
+        partial_failures.append("souls")
 
     # Dedicated MCP measurements must follow account deletion as well.
     try:

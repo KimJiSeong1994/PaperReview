@@ -1,0 +1,1165 @@
+/* Conversation page: the home's shell and sidebar, a thread column, and the results artifact.
+   Same surfaces, hairlines, label and row rhythm as HomeWorkspace.css; the composer stays the only elevated object. */
+.conv-shell {
+  /* The site header is fixed; the home gets this 70px from .main-content's padding. */
+  margin-top: var(--home-header);
+  height: calc(100vh - var(--home-header));
+  min-height: 0;
+}
+
+.conv-main {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: calc(100vh - var(--home-header));
+}
+
+/* ── Top bar ───────────────────────────────────────────────────────── */
+.conv-topbar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 24px;
+  border-bottom: var(--home-line);
+}
+
+.conv-title {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.conv-toggle,
+.conv-icon-btn,
+.conv-tab {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background var(--home-ease), color var(--home-ease), border-color var(--home-ease);
+}
+
+.conv-toggle {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 0 12px;
+  border-color: var(--wov-15);
+}
+
+.conv-toggle:hover,
+.conv-icon-btn:hover,
+.conv-tab:hover {
+  background: var(--wov-04);
+  color: var(--text-hi);
+}
+
+.conv-toggle.is-on {
+  background: var(--wov-05);
+  color: var(--text-hi);
+}
+
+.conv-icon-btn {
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+}
+
+/* ── Thread ────────────────────────────────────────────────────────── */
+.conv-scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 32px 24px 24px;
+  scrollbar-width: thin;
+}
+
+.conv-thread {
+  /* Korean breaks at spaces and punctuation only; long tokens still wrap (see .home-guest). */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  display: flex;
+  flex-direction: column;
+  gap: 32px;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 0;
+  list-style: none;
+}
+
+.conv-turn.is-user {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.conv-bubble {
+  max-width: min(80%, 560px);
+  margin: 0;
+  padding: 10px 16px;
+  border-radius: 12px 12px 4px 12px;
+  background: var(--wov-06);
+  color: var(--text-hi);
+  font-size: 15px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+
+.conv-turn.is-assistant {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+.conv-assistant-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.conv-assistant-name {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.conv-assistant-role {
+  font-size: 12px;
+  color: var(--text-muted);
+}
+
+.conv-assistant-role::before {
+  content: '·';
+  margin-right: 6px;
+}
+
+.conv-status {
+  margin: 0;
+  font-size: 13px;
+  line-height: 1.5;
+  color: var(--text-muted);
+}
+
+.conv-status.is-live {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.conv-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--indigo);
+  animation: conv-pulse 1.2s ease-in-out infinite;
+}
+
+.conv-status summary {
+  width: fit-content;
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.conv-status summary:hover {
+  color: var(--text-hi);
+}
+
+.conv-status-detail {
+  margin: 8px 0 0;
+  padding: 8px 0 0 12px;
+  border-left: 2px solid var(--wov-10);
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── Markdown answer ───────────────────────────────────────────────── */
+.conv-markdown {
+  font-size: 15px;
+  line-height: 1.75;
+  color: var(--text);
+  overflow-wrap: anywhere;
+}
+
+.conv-markdown > :first-child { margin-top: 0; }
+.conv-markdown > :last-child { margin-bottom: 0; }
+
+.conv-markdown p,
+.conv-markdown ul,
+.conv-markdown ol {
+  margin: 0 0 12px;
+}
+
+.conv-markdown ul,
+.conv-markdown ol {
+  padding-left: 20px;
+}
+
+.conv-markdown h1,
+.conv-markdown h2,
+.conv-markdown h3 {
+  margin: 24px 0 8px;
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.conv-markdown strong {
+  color: var(--text-hi);
+}
+
+.conv-markdown code {
+  padding: 1px 4px;
+  border-radius: 4px;
+  background: var(--wov-06);
+  font-size: 0.9em;
+}
+
+.conv-markdown a {
+  color: var(--text-hi);
+  text-underline-offset: 3px;
+}
+
+/* Citations: quiet superscript result numbers, one popover, and a 참고 논문 list (citation UX spec). */
+.conv-cite-group {
+  margin-left: 1px;
+  font-size: 0.75em;
+  line-height: 0;
+  vertical-align: super;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* 6px padding with an equal negative margin: a ~24px target without changing line height. */
+.conv-cite {
+  display: inline;
+  margin: -6px 0;
+  padding: 6px 1px;
+  border: 0;
+  border-radius: 3px;
+  background: none;
+  color: var(--indigo);
+  font: inherit;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+
+.conv-cite:hover {
+  background: var(--ibd-15);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.conv-cite:focus-visible {
+  outline: 2px solid var(--indigo);
+  outline-offset: 1px;
+}
+
+.conv-cite.is-missing {
+  color: var(--text-muted);
+  cursor: default;
+}
+
+.conv-cite-peek {
+  position: fixed;
+  z-index: 50;
+  width: max-content;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 8px 10px;
+  border: var(--home-line);
+  border-radius: 8px;
+  background: var(--bg-elev2);
+  color: var(--text);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.18);
+  pointer-events: none;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.conv-cite-peek-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.conv-cite-peek-meta {
+  margin-top: 2px;
+  color: var(--text-muted);
+}
+
+.conv-cite-peek-hint {
+  margin-top: 4px;
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .conv-cite-peek {
+    animation: conv-peek-in 120ms ease-out;
+  }
+}
+
+@keyframes conv-peek-in {
+  from { opacity: 0; transform: translateY(-2px); }
+}
+
+/* ── 참고 논문 ─────────────────────────────────────────────────────── */
+.conv-refs {
+  margin-top: 16px;
+  padding-top: 10px;
+  border-top: var(--home-line);
+}
+
+.conv-refs-title {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.conv-refs-count {
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
+}
+
+.conv-refs-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conv-ref {
+  display: grid;
+  grid-template-columns: 2.5ch 1fr auto;
+  column-gap: 8px;
+  align-items: baseline;
+  padding: 4px 0;
+}
+
+.conv-ref-n {
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-muted);
+  text-align: right;
+}
+
+.conv-ref-body {
+  min-width: 0;
+}
+
+.conv-ref-title {
+  display: block;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-hi);
+  font: inherit;
+  font-size: 13.5px;
+  line-height: 1.45;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.conv-ref-title:hover,
+.conv-ref-title:focus-visible {
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.conv-ref-meta {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--text-muted);
+}
+
+.conv-ref-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  color: var(--text-muted);
+  text-decoration: none;
+}
+
+.conv-ref-link:hover {
+  color: var(--text-hi);
+  background: var(--wov-04);
+}
+
+@media (max-width: 600px) {
+  .conv-ref-title {
+    white-space: normal;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+  }
+}
+
+/* ── Inline results ────────────────────────────────────────────────── */
+.conv-results-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conv-results-list li {
+  border-top: var(--home-line);
+}
+
+.conv-results-list li:last-child {
+  border-bottom: var(--home-line);
+}
+
+.conv-result {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  box-sizing: border-box;
+  width: calc(100% + 24px);
+  min-height: 48px;
+  margin: 0 -12px;
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-hi);
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background var(--home-ease);
+}
+
+.conv-result:hover,
+.conv-result:focus-visible {
+  background: var(--wov-04);
+}
+
+.conv-result-rank {
+  flex-shrink: 0;
+  width: 20px;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 20px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.conv-result-text {
+  flex: 1;
+  min-width: 0;
+}
+
+.conv-result-title {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.conv-result-meta {
+  display: block;
+  margin-top: 2px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.conv-results-more,
+.conv-link-btn {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.conv-results-more {
+  margin-top: 12px;
+  min-height: 32px;
+}
+
+.conv-results-more:hover,
+.conv-link-btn:hover {
+  color: var(--text-hi);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.conv-link-btn {
+  margin-left: 8px;
+}
+
+/* ── Deep review block + report ────────────────────────────────────── */
+.conv-review {
+  padding: 12px 0;
+  border-top: var(--home-line);
+  border-bottom: var(--home-line);
+}
+
+.conv-review-title {
+  margin: 0 0 8px;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  color: var(--text-hi);
+}
+
+.conv-review-row {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  font-size: 13px;
+}
+
+.conv-review-row .conv-results-more {
+  margin-top: 0;
+}
+
+.conv-review-progress {
+  min-width: 0;
+  color: var(--text-muted);
+}
+
+.conv-report {
+  padding: 16px 20px 24px;
+}
+
+/* ── 리뷰 tab: actions, verification table, poster ─────────────────── */
+.conv-btn {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--wov-15);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-hi);
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.conv-btn:hover:not(:disabled) {
+  background: var(--wov-04);
+}
+
+.conv-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.conv-btn-primary {
+  border-color: transparent;
+  background: var(--text-hi);
+  color: var(--bg);
+}
+
+.conv-btn-primary:hover:not(:disabled) {
+  background: var(--text-hi);
+  opacity: 0.88;
+}
+
+.conv-error-text {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  color: var(--danger);
+}
+
+.conv-report-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.conv-report-section {
+  margin-top: 28px;
+  padding-top: 16px;
+  border-top: var(--home-line);
+}
+
+.conv-report-heading {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.conv-claims {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12.5px;
+  line-height: 1.5;
+}
+
+.conv-claims th {
+  padding: 6px 8px;
+  border-bottom: var(--home-line);
+  font-weight: 600;
+  text-align: left;
+  color: var(--text-muted);
+}
+
+.conv-claims td {
+  padding: 8px;
+  border-bottom: var(--home-line);
+  vertical-align: top;
+  color: var(--text);
+}
+
+.conv-claims td:nth-child(2) {
+  white-space: nowrap;
+}
+
+.conv-claim-status {
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--wov-05);
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.conv-claim-status.is-verified { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); }
+.conv-claim-status.is-partially_verified { background: color-mix(in srgb, var(--amber) 16%, transparent); color: var(--amber); }
+.conv-claim-status.is-contradicted { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+
+.conv-poster {
+  width: 100%;
+  height: 520px;
+  border: var(--home-line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.conv-bookmarks-list li {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 100%;
+}
+
+.conv-bookmark-review {
+  flex-shrink: 0;
+  min-height: 32px;
+  padding: 0 8px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--indigo);
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.conv-bookmark-review:hover {
+  background: var(--wov-04);
+}
+
+.conv-report-stats {
+  margin: 0 0 16px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  background: var(--wov-04);
+  font-size: 12.5px;
+  line-height: 1.6;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+/* ── PDF highlights block + PDF tab ─────────────────────────────────── */
+.conv-highlights {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.conv-highlights .conv-review-title {
+  margin: 0;
+}
+
+.conv-highlight {
+  align-items: flex-start;
+}
+
+.conv-highlight-text {
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--text);
+}
+
+/* One tone per category family, as tinted chips (the PDF overlay keeps its own colours). */
+.conv-hl-chip {
+  flex-shrink: 0;
+  margin-top: 1px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--wov-05);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 16px;
+  white-space: nowrap;
+}
+
+.conv-hl-chip.is-finding { background: color-mix(in srgb, var(--green) 14%, transparent); color: var(--green); }
+.conv-hl-chip.is-method { background: var(--ibd-12); color: var(--indigo); }
+.conv-hl-chip.is-limit { background: color-mix(in srgb, var(--danger) 14%, transparent); color: var(--danger); }
+.conv-hl-chip.is-assume { background: color-mix(in srgb, var(--amber) 16%, transparent); color: var(--amber); }
+
+.conv-pdf {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.conv-pdf-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+  padding: 6px 16px;
+  border-bottom: var(--home-line);
+}
+
+.conv-pdf-bar .conv-results-more {
+  margin-top: 0;
+  text-decoration: none;
+}
+
+.conv-pdf .paper-viewer-panel {
+  flex: 1;
+  min-height: 0;
+}
+
+/* The artifact header already names the paper; the viewer's one-item paper list is noise here. */
+.conv-artifact .paper-viewer-list {
+  display: none;
+}
+
+/* ── Bookmark references ──────────────────────────────────────────── */
+.conv-bookmarks {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.conv-bookmarks-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.conv-bookmarks-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.conv-bookmark-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: 100%;
+  min-height: 32px;
+  box-sizing: border-box;
+  padding: 0 10px;
+  border: 1px solid var(--wov-12);
+  border-radius: 8px;
+  color: var(--text-hi);
+  font-size: 12.5px;
+  text-decoration: none;
+  transition: background var(--home-ease), border-color var(--home-ease);
+}
+
+.conv-bookmark-chip:hover,
+.conv-bookmark-chip:focus-visible {
+  background: var(--wov-04);
+  border-color: var(--wov-20);
+}
+
+.conv-bookmark-n {
+  font-weight: 700;
+  color: var(--indigo);
+  font-variant-numeric: tabular-nums;
+}
+
+.conv-bookmark-title {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.conv-bookmark-meta {
+  flex-shrink: 0;
+  color: var(--text-muted);
+}
+
+.conv-bookmark-tag {
+  margin-left: 8px;
+  vertical-align: 1px;
+}
+
+.conv-note {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-muted);
+}
+
+.conv-error {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, var(--danger) 30%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--danger) 8%, transparent);
+  font-size: 13px;
+  color: var(--text);
+}
+
+.conv-error span {
+  flex: 1;
+  min-width: 0;
+}
+
+.conv-error button {
+  min-height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--wov-15);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-hi);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.conv-load-error {
+  max-width: 760px;
+  margin: 0 auto;
+  box-sizing: border-box;
+}
+
+/* Skeleton keeps the thread's geometry so the first paint does not jump. */
+.conv-skeleton {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 760px;
+  margin: 0 auto;
+}
+
+.conv-skeleton span {
+  display: block;
+  border-radius: 8px;
+  background: var(--wov-05);
+  animation: conv-pulse 1.4s ease-in-out infinite;
+}
+
+.conv-skeleton-bubble {
+  align-self: flex-end;
+  width: 40%;
+  height: 44px;
+  margin-bottom: 20px;
+}
+
+.conv-skeleton-line {
+  width: 100%;
+  height: 16px;
+}
+
+.conv-skeleton-line.is-short {
+  width: 60%;
+}
+
+/* ── Composer ──────────────────────────────────────────────────────── */
+.conv-composer {
+  flex-shrink: 0;
+  padding: 0 24px 16px;
+}
+
+.conv-composer .home-composer,
+.conv-disclaimer {
+  max-width: 760px;
+  margin-left: auto;
+  margin-right: auto;
+}
+
+.conv-disclaimer {
+  margin-top: 8px;
+  margin-bottom: 0;
+  font-size: 12px;
+  text-align: center;
+  color: var(--text-faint);
+}
+
+/* ── Sample conversation: sign-in call to action in place of the composer ── */
+.conv-sample-cta {
+  word-break: keep-all;
+  overflow-wrap: anywhere;
+  max-width: 760px;
+  margin: 0 auto;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px;
+  border: var(--home-line);
+  border-radius: 12px;
+  background: var(--bg-elev);
+}
+
+.conv-sample-cta-text {
+  margin: 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--text);
+}
+
+.conv-sample-others {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 6px 12px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.conv-sample-others a {
+  color: var(--text-hi);
+  text-underline-offset: 3px;
+}
+
+/* Phones: the card sits under the thread, so keep it compact and the thread readable. */
+@media (max-width: 600px) {
+  .conv-sample-cta {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .conv-sample-cta-text {
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  .conv-sample-others {
+    gap: 4px 10px;
+    font-size: 12px;
+  }
+}
+
+/* ── Artifact panel ────────────────────────────────────────────────── */
+.conv-artifact {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  height: calc(100vh - var(--home-header));
+  border-left: var(--home-line);
+  background: var(--bg);
+}
+
+.conv-artifact-bar {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-height: 56px;
+  padding: 0 12px 0 16px;
+  border-bottom: var(--home-line);
+}
+
+.conv-tabs {
+  display: flex;
+  gap: 4px;
+}
+
+.conv-tab {
+  min-height: 32px;
+  padding: 0 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.conv-tab.is-active {
+  background: var(--wov-06);
+  color: var(--text-hi);
+}
+
+.conv-artifact-query {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+.conv-artifact-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+}
+
+.conv-artifact-empty {
+  margin: auto;
+  padding: 24px;
+  max-width: 320px;
+  font-size: 13px;
+  line-height: 1.6;
+  text-align: center;
+  color: var(--text-muted);
+}
+
+.conv-artifact-empty p {
+  margin: 0;
+}
+
+/* The panel is narrower than the results page's graph column: give the graph header
+   its two-row layout (stats/caption, then view modes), as GraphView does below 900px. */
+.conv-artifact .graph-insight-bar {
+  flex-wrap: wrap;
+  row-gap: 6px;
+  padding: 6px 2px;
+}
+
+.conv-artifact .graph-insight-copy {
+  flex: 1 1 100%;
+  flex-wrap: wrap;
+  row-gap: 4px;
+}
+
+.conv-artifact .graph-selection-summary {
+  flex-wrap: wrap;
+  row-gap: 2px;
+}
+
+.conv-artifact .graph-selection-summary span {
+  flex-shrink: 1;
+}
+
+.conv-artifact .graph-selection-summary strong {
+  max-width: 100%;
+}
+
+.conv-artifact-detail {
+  position: relative;
+  flex-shrink: 0;
+  max-height: 45%;
+  overflow-y: auto;
+  border-top: var(--home-line);
+}
+
+.conv-detail-close {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 1;
+}
+
+.conv-shell :focus-visible {
+  outline: 2px solid var(--indigo-mid);
+  outline-offset: 2px;
+}
+
+@keyframes conv-pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+
+/* ≥1100px: sidebar / thread / artifact side by side. */
+@media (min-width: 1101px) {
+  .conv-shell.has-artifact {
+    grid-template-columns: 300px minmax(0, 1fr) min(46%, 720px);
+  }
+}
+
+/* Below 1100px the artifact is a full-width sheet over the thread. */
+@media (max-width: 1100px) {
+  .conv-artifact {
+    position: fixed;
+    inset: var(--home-header) 0 0 0;
+    height: auto;
+    border-left: 0;
+    z-index: 40;
+    animation: home-fade-in 160ms ease;
+  }
+}
+
+@media (max-width: 860px) {
+  /* Room for the drawer's 기록 button, which sits in the top-left corner. */
+  .conv-topbar {
+    min-height: 68px;
+    padding: 0 16px 0 84px;
+  }
+
+  .conv-scroll {
+    padding: 24px 16px 16px;
+  }
+
+  .conv-composer {
+    padding: 0 16px 12px;
+  }
+
+  .conv-bubble {
+    max-width: 88%;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .conv-status-dot,
+  .conv-skeleton span,
+  .conv-artifact {
+    animation: none;
+  }
+}

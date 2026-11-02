@@ -38,7 +38,7 @@ const staticContent = `
           <h3>How are claims in an AI paper review verified?</h3>
           <p>Jiphyeonjeon locates the source passages behind important claims and labels them as direct quotation, paraphrase, inference, or unverified.</p>
           <h3>What can I use without signing in?</h3>
-          <p>You can search papers and read public reviews immediately. Sign in only when you want to save reviews, notes, and bookmarks in your personal research workspace.</p>
+          <p>You can read public reviews immediately. Sign in to search papers and to save reviews, notes, and bookmarks in your personal research workspace.</p>
         </section>
         <section id="claude">
           <h2>Use Jiphyeonjeon with Claude</h2>
@@ -84,7 +84,7 @@ const koreanStaticContent = `
           <h3>AI 논문 리뷰의 주장은 어떻게 검증하나요?</h3>
           <p>중요한 주장을 뒷받침하는 원문 구절을 찾고, 직접 인용·의역·추론·미확인을 구분해 표시합니다.</p>
           <h3>로그인 없이 무엇을 사용할 수 있나요?</h3>
-          <p>논문 검색과 공개 논문 리뷰 읽기는 바로 시작할 수 있습니다. 개인 연구 공간의 리뷰·메모·북마크 저장은 로그인 후 이용합니다.</p>
+          <p>공개 논문 리뷰 읽기는 바로 시작할 수 있습니다. 논문 검색과 개인 연구 공간의 리뷰·메모·북마크 저장은 로그인 후 이용합니다.</p>
         </section>
         <section id="claude">
           <h2>Claude에서 집현전 활용하기</h2>

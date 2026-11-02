@@ -9,8 +9,10 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import logging
 import math
 import os
+import re
 import resource
 import sqlite3
 import stat
@@ -33,10 +35,13 @@ from src.recommendation_candidates import (
     TrustedReceiverPolicy,
     load_candidate_snapshot,
     load_current_candidate_snapshot,
+    make_candidate_snapshot,
     merge_candidate_pool,
+    normalize_candidate,
 )
 from src.recommendation_profiles import (
     RecommendationProfile,
+    _tokenize_terms,
     build_recommendation_profile,
     load_user_event_signals,
 )
@@ -64,9 +69,12 @@ from src.recommendations_artifacts import (
     safe_str,
     validate_delivery,
 )
+from src.storage.soul_db import read_profile_readonly
 from src.storage.user_db import AccountLifecycleError, UserDB
 from src.storage.bookmark_db import bookmark_belongs_to_account
 from src.utils.paper_utils import generate_result_key
+
+logger = logging.getLogger(__name__)
 
 DEFAULT_LIMIT = 12
 DEFAULT_MIN_SCORE = 0.6
@@ -425,6 +433,151 @@ def _score_paper(
     return overlap + recency + metadata if overlap > 0 else recency * 0.25 + metadata
 
 
+PROFILE_TERM_WEIGHT = 6.0  # positive-term weight of a research-profile interest of weight 1.0
+PROFILE_KEYWORD_WEIGHT = 0.6  # profile keywords count like a 0.6-weight interest
+
+
+def _use_research_profile() -> bool:
+    """RECOMMEND_USE_PROFILE (default on) lets the user's research profile steer ranking."""
+    return os.getenv("RECOMMEND_USE_PROFILE", "1").strip().lower() not in {"0", "false", "off", "no"}
+
+
+def research_profile_terms(research: dict[str, Any] | None) -> list[tuple[str, tuple[str, ...], float]]:
+    """(label, tokens, weight) from a research profile's interests (weight 0–1) and keywords."""
+    if not isinstance(research, dict):
+        return []
+    out = []
+    for item in research.get("interests") or []:
+        if isinstance(item, dict) and isinstance(item.get("label"), str):
+            weight = item.get("weight")
+            weight = min(1.0, max(0.0, float(weight))) if isinstance(weight, (int, float)) else 0.5
+            out.append((item["label"], _tokenize_terms((item["label"],)), weight))
+    for keyword in research.get("keywords") or []:
+        if isinstance(keyword, str):
+            out.append((keyword, _tokenize_terms((keyword,)), PROFILE_KEYWORD_WEIGHT))
+    return [entry for entry in out if entry[1]]
+
+
+def apply_research_profile(
+    profile: RecommendationProfile, v1_terms: Counter[str], terms: list[tuple[str, tuple[str, ...], float]]
+) -> None:
+    """Add profile terms as positive interests for both rankers (v2 profile and v1 term counter)."""
+    for _, tokens, weight in terms:
+        for token in tokens:
+            profile.positive_terms[token] += PROFILE_TERM_WEIGHT * weight
+            v1_terms[token] += PROFILE_TERM_WEIGHT * weight
+
+
+_RANKED_FIELDS = ("final_rank", "score", "reason", "score_breakdown")
+# Profile-keyword candidates: recent arXiv papers per account, as a private owner_local
+# snapshot (the existing per-owner source; no new source in the delivery contract).
+PROFILE_PROVENANCE = "research-profile-v1"
+MAX_PROFILE_KEYWORDS = 3
+PROFILE_RESULTS_PER_KEYWORD = 10
+MAX_PROFILE_CANDIDATES = 30
+PROFILE_FETCH_SECONDS = 60.0  # total network time per run, across accounts
+_ENGLISH_LABEL = re.compile(r"[A-Za-z][A-Za-z0-9 +./-]*")
+
+
+def profile_keywords(research: dict[str, Any] | None) -> list[str]:
+    """≤3 English search phrases: heaviest English interest labels first, then profile keywords."""
+    if not isinstance(research, dict):
+        return []
+    interests = sorted(
+        (i for i in research.get("interests") or [] if isinstance(i, dict) and isinstance(i.get("label"), str)),
+        key=lambda i: i.get("weight") if isinstance(i.get("weight"), (int, float)) else 0, reverse=True,
+    )
+    labels = [i["label"].strip() for i in interests if _ENGLISH_LABEL.fullmatch(i["label"].strip())]
+    keywords = [k.strip() for k in research.get("keywords") or [] if isinstance(k, str) and k.strip()]
+    return list(dict.fromkeys(labels + keywords))[:MAX_PROFILE_KEYWORDS]
+
+
+def _arxiv_recent(keyword: str, deadline: float) -> list[dict[str, Any]]:
+    """Newest arXiv papers for *keyword* with the search pipeline's own client."""
+    from src.collector.paper.arxiv_searcher import ArxivSearcher
+
+    return ArxivSearcher().search(
+        keyword, max_results=PROFILE_RESULTS_PER_KEYWORD, sort_by="submittedDate", deadline=deadline
+    )
+
+
+def _as_candidate(paper: dict[str, Any]) -> dict[str, Any]:
+    """arXiv collector record → candidate record fields (normalize_candidate validates the rest)."""
+    out = {key: paper.get(key) for key in ("title", "abstract", "authors", "categories", "pdf_url", "arxiv_id")}
+    out["publication_date"] = paper.get("published_date") or None
+    if paper.get("doi"):
+        out["doi"] = paper["doi"]
+    if paper.get("url"):
+        out["url"] = paper["url"]
+    return {key: value for key, value in out.items() if value}
+
+
+def fetch_profile_candidates(
+    keywords: list[str],
+    *,
+    now: datetime,
+    deadline: float,
+    monotonic: Callable[[], float],
+    fetch: Callable[[str, float], list[dict[str, Any]]] = _arxiv_recent,
+) -> tuple[list[dict[str, Any]], dict[str, str]]:
+    """Recent (year ≥ now−1) candidates for the keywords, ≤30, and canonical_key → keyword.
+
+    Each keyword stops at *deadline*; any provider failure skips that keyword.
+    """
+    raws: list[dict[str, Any]] = []
+    keyword_of: dict[str, str] = {}
+    for keyword in keywords:
+        if monotonic() >= deadline or len(raws) >= MAX_PROFILE_CANDIDATES:
+            break
+        try:
+            papers = fetch(keyword, deadline)
+        except Exception as exc:  # network, parsing — recommendations go on without them
+            logger.warning("research-profile candidate fetch skipped: %s", type(exc).__name__)
+            continue
+        for paper in papers or []:
+            raw = _as_candidate(paper)
+            try:
+                record = normalize_candidate(raw)
+            except CandidateValidationError:
+                continue
+            if record.metadata.get("year", 0) < now.year - 1 or record.canonical_key in keyword_of:
+                continue
+            keyword_of[record.canonical_key] = keyword
+            raws.append(raw)
+            if len(raws) >= MAX_PROFILE_CANDIDATES:
+                break
+    return raws, keyword_of
+
+
+def tag_profile_reasons(
+    items: list[dict[str, Any]],
+    terms: list[tuple[str, tuple[str, ...], float]],
+    feature_cache: dict[str, Counter[str]],
+    fetched: dict[str, str] | None = None,
+) -> None:
+    """Prefix "연구 프로필: <interest>" to the reason of items a profile term matched (heaviest match wins),
+    or "연구 프로필: <keyword> · 최근 arXiv" to candidates the profile keywords fetched.
+
+    Reuses the ranking pass's per-paper token cache instead of re-tokenizing.
+    """
+    fetched = fetched or {}
+    if not terms and not fetched:
+        return
+    for item in items:
+        if item.get("canonical_key") in fetched:
+            keyword = fetched[item["canonical_key"]]
+            item["reason"] = f"연구 프로필: {keyword} · 최근 arXiv · {item.get('reason', '')}"[:512]
+            item["score_breakdown"] = {**item.get("score_breakdown", {}), "research_profile": 1.0}
+            continue
+        paper = {k: v for k, v in item.items() if k not in _RANKED_FIELDS}
+        paper_terms = feature_cache.get(_hash(paper)) or _paper_terms(paper)
+        matches = [(weight, label) for label, tokens, weight in terms if any(t in paper_terms for t in tokens)]
+        if matches:
+            weight, label = max(matches)
+            item["reason"] = f"연구 프로필: {label} · {item.get('reason', '')}"[:512]
+            item["score_breakdown"] = {**item.get("score_breakdown", {}), "research_profile": round(weight, 6)}
+
+
 def recommend_for_user(
     papers: list[dict[str, Any]],
     *,
@@ -775,6 +928,8 @@ def generate_daily_recommendations(
     events_db: Path,
     artifacts_dir: Path,
     bookmarks_db: Path | None = None,
+    souls_db: Path | None = None,
+    profile_fetch: Callable[[str, float], list[dict[str, Any]]] | None = None,
     registrations: Iterable[SourceRegistration] = DEFAULT_REGISTRATIONS,
     limit: int = DEFAULT_LIMIT,
     min_score: float = DEFAULT_MIN_SCORE,
@@ -804,6 +959,7 @@ def generate_daily_recommendations(
         started + job_seconds,
     )
     run_id = now.strftime("%Y%m%dT%H%M%S") + f"-{now.microsecond:06d}"
+    profile_fetch_deadline = started + PROFILE_FETCH_SECONDS
     registrations = tuple(registrations)
     if len(registrations) > 100:
         raise ValueError("registration_limit")
@@ -950,6 +1106,34 @@ def generate_daily_recommendations(
                                 ),
                             }
                         )
+                research = (
+                    read_profile_readonly(souls_db, username, incarnation)
+                    if souls_db is not None and _use_research_profile()
+                    else None
+                )
+                fetched: dict[str, str] = {}
+                keywords = profile_keywords(research)
+                if keywords and monotonic() < profile_fetch_deadline:
+                    raws, fetched = fetch_profile_candidates(
+                        keywords,
+                        now=now,
+                        deadline=min(profile_fetch_deadline, compute_deadline),
+                        monotonic=monotonic,
+                        fetch=profile_fetch or _arxiv_recent,
+                    )
+                    if raws:
+                        try:
+                            snapshots.append(make_candidate_snapshot(
+                                raws,
+                                policy=TrustedReceiverPolicy(
+                                    "owner_local", "private", PROFILE_PROVENANCE, account_incarnation=incarnation
+                                ),
+                                source_run_id="research-profile",
+                                collected_at=now,
+                                now=now,
+                            ))
+                        except CandidateValidationError:
+                            fetched = {}
                 pool = merge_candidate_pool(snapshots, account_incarnation=incarnation)
                 papers = [entry.to_paper() for entry in pool.records]
                 public_papers = {
@@ -1029,9 +1213,13 @@ def generate_daily_recommendations(
                 # bibliographic topic transfer is restricted to public metadata.
                 profile.positive_paper_ids.update(policy.interested)
                 profile.negative_paper_ids.update(policy.topic_less)
+                # The research profile (derived from the user's soul) is one more interest signal.
+                research_terms = research_profile_terms(research)
+                apply_research_profile(profile, durable.positive_terms, research_terms)
                 feature_inputs = {
                     "bookmark_terms": dict(terms),
                     "bookmark_count": len(bookmarks),
+                    "research_profile_terms": [[label, list(tokens), weight] for label, tokens, weight in research_terms],
                     "events": [
                         {**asdict(signal), "created_at": signal.created_at.isoformat()}
                         for signal in events.signals
@@ -1089,6 +1277,7 @@ def generate_daily_recommendations(
                     )
                     if mode != "metadata":
                         mode = "v1_fallback"
+                tag_profile_reasons(items, research_terms, feature_cache, fetched)
                 summary["rank_success"] += 1
                 if not items:
                     reasons.append(
@@ -1218,6 +1407,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--users-db", type=Path, default=Path("data/users.db"))
     parser.add_argument("--events-db", type=Path, default=Path("data/events.db"))
     parser.add_argument("--bookmarks-db", type=Path, default=Path("data/bookmarks.db"))
+    parser.add_argument("--souls-db", type=Path, default=Path("data/souls.db"), help="read-only research profiles")
     parser.add_argument(
         "--artifacts-dir", type=Path, default=Path("data/recommendations")
     )
@@ -1236,6 +1426,7 @@ def main(argv: list[str] | None = None) -> int:
         candidate_root=args.candidate_root,
         events_db=args.events_db,
         bookmarks_db=args.bookmarks_db,
+        souls_db=args.souls_db,
         artifacts_dir=args.artifacts_dir,
         run_at=args.run_at,
         usernames=args.users,

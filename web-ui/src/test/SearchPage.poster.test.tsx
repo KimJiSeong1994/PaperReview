@@ -14,6 +14,9 @@ import {
 import { api } from '../api/base';
 import { useDeepReview } from '../hooks/useDeepReview';
 
+// The home composer (first screen) or the results-page search bar.
+const SEARCH_BOX = /^(논문 검색|궁금한 주제나 질문을 편하게 적어 주세요)$/;
+
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 vi.mock('../api/client', async () => {
@@ -21,6 +24,8 @@ vi.mock('../api/client', async () => {
   return {
     classifyPosterError: reviewApi.classifyPosterError,
     classifyPosterResponse: reviewApi.classifyPosterResponse,
+    // This suite drives the results page: a failed conversation create falls back to direct search.
+    createConversation: vi.fn().mockRejectedValue(new Error('conversations unavailable')),
     downloadPosterPdf: vi.fn(),
     fetchBatchReferences: vi.fn(),
     generatePoster: vi.fn(),
@@ -52,7 +57,7 @@ vi.mock('../analytics/events', () => ({
 
 async function submitSearch(query: string) {
   await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText('논문 검색'), { target: { value: query } });
+    fireEvent.change(screen.getByPlaceholderText(SEARCH_BOX), { target: { value: query } });
     fireEvent.click(screen.getByRole('button', { name: '논문 검색' }));
   });
 }
@@ -84,6 +89,18 @@ async function renderSearched() {
 /** Drops authentication the way logout() does: state flips, SearchPage stays mounted. */
 async function deauthenticate(rerender: (ui: ReactElement) => void) {
   authState.isAuthenticated = false;
+  await act(async () => {
+    rerender(
+      <MemoryRouter initialEntries={['/']}>
+        <SearchPage />
+      </MemoryRouter>,
+    );
+  });
+}
+
+/** The next user signs in on the same mounted page; search needs that now. */
+async function reauthenticate(rerender: (ui: ReactElement) => void) {
+  authState.isAuthenticated = true;
   await act(async () => {
     rerender(
       <MemoryRouter initialEntries={['/']}>
@@ -272,6 +289,7 @@ describe('Poster survives closing the modal', () => {
 
     expect(screen.queryByRole('button', { name: /tools/i })).not.toBeInTheDocument();
     expect(screen.queryByTitle('Poster Preview')).not.toBeInTheDocument();
+    await reauthenticate(rerender);
     await submitSearch('fresh search after logout');
     await act(async () => {
       fireEvent.click(await screen.findByRole('button', { name: /tools/i }));
@@ -306,6 +324,7 @@ describe('Poster survives closing the modal', () => {
     await deauthenticate(rerender);
 
     expect(screen.queryByRole('checkbox', { name: /리뷰 선택/ })).not.toBeInTheDocument();
+    await reauthenticate(rerender);
     await submitSearch('fresh search after logout');
     expect(screen.getByRole('checkbox', { name: /리뷰 선택/ })).not.toBeChecked();
   });

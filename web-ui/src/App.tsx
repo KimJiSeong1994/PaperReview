@@ -1,9 +1,8 @@
-import { lazy, Suspense, type ComponentProps, type ComponentType } from 'react';
+import { lazy, Suspense, useEffect, type ComponentProps, type ComponentType } from 'react';
 import { Link, Routes, Route, Navigate, useLocation, useNavigate, useParams } from 'react-router-dom';
 import './App.css';
 import LoginModal from './components/LoginPage';
 import AnalyticsConsentBanner from './components/AnalyticsConsentBanner';
-import RecommendationBell from './components/RecommendationBell';
 import SEOHead from './components/SEOHead';
 import SiteFooter from './components/SiteFooter';
 import ThemeToggle from './components/ThemeToggle';
@@ -22,6 +21,8 @@ const SearchPage = lazy(() => import('./components/SearchPage'));
 const PaperViewerRoute = lazy(() => import('./components/PaperViewerRoute'));
 const SeriesPage = lazy(() => import('./components/SeriesPage'));
 const IntroducePage = lazy(() => import('./components/IntroducePage'));
+const ConversationPage = lazy(() => import('./components/conversation/ConversationPage'));
+const SampleConversationPage = lazy(() => import('./components/conversation/SampleConversationPage'));
 
 const HOME_TITLE = 'AI 논문 검색·리뷰 도구 | 집현전';
 const HOME_DESCRIPTION = '집현전은 여러 학술 소스의 AI 논문 검색, 다중 논문 비교·딥리뷰, 원문 근거 검증, 인용 그래프와 다음 읽기를 한곳에서 잇는 연구 도구입니다.';
@@ -40,6 +41,24 @@ type BlogComponent = ComponentType<ComponentProps<typeof LazyBlogPage>>;
 function BlogPostRoute({ isAdmin, Page }: { isAdmin: boolean; Page: BlogComponent }) {
   const { slug } = useParams<{ slug: string }>();
   return <Page isAdmin={isAdmin} slug={slug} />;
+}
+
+function ConversationRoute() {
+  const { id = '' } = useParams<{ id: string }>();
+  // One mount per conversation, so its state never leaks into the next one.
+  return <ConversationPage key={id} id={id} />;
+}
+
+function SampleRoute() {
+  const { slug = '' } = useParams<{ slug: string }>();
+  return <SampleConversationPage key={slug} slug={slug} />;
+}
+
+/** Conversations are per account: a guest lands on the home with the login dialog open. */
+function SignInRedirect() {
+  const { setShowLoginModal } = useAuth();
+  useEffect(() => setShowLoginModal(true), [setShowLoginModal]);
+  return <Navigate to="/" replace />;
 }
 
 function BlogSeriesRoute() {
@@ -82,7 +101,7 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
 
   // Shared by the root route and /introduce. The other routes ship their own
   // headers (BlogPage, AdminPage, ...), so this stays a plain element rather
-  // than a component — no remount of RecommendationBell on App re-render.
+  // than a component — no remount of header children on App re-render.
   const header = (
     <header className="app-header">
       <div className="header-nav">
@@ -114,7 +133,6 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
         </a>
         <div className="header-right">
         <nav className="header-actions" aria-label={englishChrome ? 'Main navigation' : '주요 메뉴'}>
-          {isAuthenticated && <RecommendationBell />}
           {isAuthenticated && userRole === 'admin' && (
             <button className="nav-btn" onClick={() => navigate('/admin')}>
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="16" height="16" style={{ marginRight: '6px', verticalAlign: 'middle' }}>
@@ -147,7 +165,10 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
               <circle cx="12" cy="7" r="4"></circle>
             </svg>
-            {englishChrome ? 'My Page' : '마이페이지'}
+            {/* Guests get the login dialog from this button, so it says so. */}
+            {isAuthenticated
+              ? (englishChrome ? 'My Page' : '마이페이지')
+              : (englishChrome ? 'Log in' : '로그인')}
           </button>
           {isAuthenticated && (
             <button className="nav-btn" onClick={logout}>
@@ -312,6 +333,40 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
           }
         />
         <Route
+          path="/c/:id"
+          element={
+            isAuthenticated ? (
+              <>
+                {header}
+                <Suspense fallback={<div className="app-loading">불러오는 중...</div>}>
+                  <ConversationRoute />
+                </Suspense>
+              </>
+            ) : (
+              <SignInRedirect />
+            )
+          }
+        />
+        {/* Read-only sample conversations: public, for guests to see an answer before signing in. */}
+        <Route
+          path="/samples/:slug"
+          element={
+            <>
+              <SEOHead
+                title="상담 예시 | 집현전"
+                description="집현전에 논문 질문을 하면 어떻게 답하는지 보여 주는 상담 예시입니다."
+                canonical={`${SITE_URL}${location.pathname}`}
+                locale="ko_KR"
+                robots="noindex,follow"
+              />
+              {header}
+              <Suspense fallback={<div className="app-loading">불러오는 중...</div>}>
+                <SampleRoute />
+              </Suspense>
+            </>
+          }
+        />
+        <Route
           path="/introduce"
           element={
             <>
@@ -377,7 +432,8 @@ function App({ initialBlogPage: BlogPage = LazyBlogPage }: { initialBlogPage?: B
           }
         />
       </Routes>
-      <SiteFooter />
+      {/* The home/search workspace and conversations are app surfaces; the site footer lives on the introduce, blog and other reading pages. */}
+      {location.pathname !== '/' && !location.pathname.startsWith('/c/') && !location.pathname.startsWith('/samples/') && <SiteFooter />}
     </div>
   );
 }

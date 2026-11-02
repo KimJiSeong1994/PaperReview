@@ -54,11 +54,27 @@ export interface RecommendationReceipt {
   applied_at: string;
 }
 
-export async function fetchRecommendationNotifications(limit = 5, signal?: AbortSignal): Promise<RecommendationNotificationResponse> {
-  const response = await api.get<RecommendationNotificationResponse>('/api/recommendations/notifications', {
-    params: { limit }, signal,
+// The header bell and the home rail mount together and ask for the same list;
+// one request serves both. Entries clear when the request settles, so a
+// refetch after a mutation still hits the server.
+const inflightNotifications = new Map<number, Promise<RecommendationNotificationResponse>>();
+
+export function fetchRecommendationNotifications(limit = 5, signal?: AbortSignal): Promise<RecommendationNotificationResponse> {
+  let shared = inflightNotifications.get(limit);
+  if (!shared) {
+    shared = api.get<RecommendationNotificationResponse>('/api/recommendations/notifications', { params: { limit } })
+      .then(response => response.data)
+      .finally(() => { inflightNotifications.delete(limit); });
+    inflightNotifications.set(limit, shared);
+  }
+  if (!signal) return shared;
+  // Each caller keeps its own cancellation without aborting the shared request.
+  return new Promise((resolve, reject) => {
+    const onAbort = () => reject(new DOMException('Request aborted', 'AbortError'));
+    if (signal.aborted) { onAbort(); return; }
+    signal.addEventListener('abort', onAbort, { once: true });
+    shared!.then(resolve, reject).finally(() => signal.removeEventListener('abort', onAbort));
   });
-  return response.data;
 }
 
 export async function mutateRecommendation(body: RecommendationMutation, signal?: AbortSignal): Promise<RecommendationReceipt> {

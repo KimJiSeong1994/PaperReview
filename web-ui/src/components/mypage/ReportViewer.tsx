@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect, useMemo, Fragment } from 'react';
 import { copyToClipboard } from '../../utils/clipboard';
+import { viewerHrefForPaper } from '../../utils/blogPaperReference';
 import type React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -26,10 +27,6 @@ export interface ReportViewerProps {
   loadingDetail: boolean;
   hasSelectedBookmark: boolean;
   reportScrollRef: React.RefObject<HTMLDivElement | null>;
-  // Highlight evidence
-  highlightTerms: string[];
-  setHighlightTerms: (terms: string[]) => void;
-  highlightChildren: (children: React.ReactNode) => React.ReactNode;
   // User highlights
   userHighlights: HighlightItem[];
   sortedHighlights: HighlightItem[];
@@ -78,12 +75,15 @@ export interface ReportViewerProps {
   shareLoading: boolean;
   onCreateShare: () => void;
   onRevokeShare: () => void;
+  /** "대화에서 열기": start a conversation about this bookmark's report. */
+  onOpenInConversation?: () => void;
+  openingConversation?: boolean;
+  conversationError?: string | null;
 }
 
 export default function ReportViewer({
   bookmarkDetail, loadingDetail, hasSelectedBookmark,
   reportScrollRef,
-  highlightTerms, setHighlightTerms, highlightChildren,
   userHighlights, sortedHighlights, applyUserHighlights,
   expandedHighlightId, setExpandedHighlightId,
   highlightPopover, popoverPos, setHighlightPopover,
@@ -98,6 +98,7 @@ export default function ReportViewer({
   onGenerateCitationTree, onDeleteCitationTree,
   onRenameBookmark,
   shareInfo, shareLoading, onCreateShare, onRevokeShare,
+  onOpenInConversation, openingConversation = false, conversationError = null,
 }: ReportViewerProps) {
   const shareExpired = isShareExpired(shareInfo);
   const [activeTab, setActiveTab] = useState<'report' | 'further-reading'>('report');
@@ -187,6 +188,9 @@ export default function ReportViewer({
           </svg>
           <p className="mypage-report-empty-title">북마크를 선택하세요</p>
           <p className="mypage-report-empty-subtitle">왼쪽 목록에서 북마크를 고르면 리포트가 열립니다</p>
+          <p className="mypage-report-empty-subtitle">
+            북마크에 대해 묻고 싶으면 &lsquo;대화에서 열기&rsquo;를 누르거나 홈에서 &lsquo;내 북마크에서 …&rsquo;라고 물어보세요
+          </p>
         </div>
       </div>
     );
@@ -204,16 +208,6 @@ export default function ReportViewer({
 
   return (
     <div className="mypage-report-panel" role="region" aria-label="리서치 리포트">
-      {/* Highlight indicator */}
-      {highlightTerms.length > 0 && (
-        <div className="mypage-highlight-bar">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
-            <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-          </svg>
-          <span>인용 키워드 표시 중</span>
-          <button className="mypage-highlight-clear" onClick={() => setHighlightTerms([])}>지우기</button>
-        </div>
-      )}
 
       {/* Header */}
       <div className="mypage-report-header">
@@ -290,6 +284,19 @@ export default function ReportViewer({
               </>
             )}
           </button>
+          {onOpenInConversation && (
+            <button
+              className="mypage-export-btn"
+              onClick={onOpenInConversation}
+              disabled={openingConversation}
+              title="이 북마크의 리포트를 바탕으로 대화를 시작합니다"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12" aria-hidden="true">
+                <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+              </svg>
+              {openingConversation ? '여는 중…' : '대화에서 열기'}
+            </button>
+          )}
           {bookmarkDetail.report_markdown && (
             <button className="mypage-export-btn" onClick={onExportReport} title="마크다운으로 내보내기">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" width="12" height="12">
@@ -360,6 +367,10 @@ export default function ReportViewer({
         </div>
       )}
 
+      {conversationError && (
+        <div className="mypage-citation-table-error" role="alert">{conversationError}</div>
+      )}
+
       {/* Tab bar */}
       <div className="mypage-report-tabs">
         <button
@@ -406,6 +417,15 @@ export default function ReportViewer({
                       <span className="mypage-detail-paper-meta">
                         {p.authors?.slice(0, 2).join(', ')}{p.authors?.length > 2 ? ' et al.' : ''} {p.year && `(${p.year})`}
                       </span>
+                      {/* The PDF used to open in MyPage's own tab; it now opens the standalone viewer. */}
+                      <a
+                        className="mypage-detail-paper-pdf"
+                        href={viewerHrefForPaper(p, 'bookmark')}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        PDF 보기 ↗
+                      </a>
                     </div>
                   ))}
                 </div>
@@ -428,23 +448,20 @@ export default function ReportViewer({
                 <ReactMarkdown
                   remarkPlugins={[remarkGfm]}
                   rehypePlugins={[rehypeSlug]}
-                  components={(highlightTerms.length > 0 || userHighlights.length > 0) ? {
+                  components={userHighlights.length > 0 ? {
                     p: ({ children }) => {
                       let c: React.ReactNode = children;
-                      if (userHighlights.length > 0) c = applyUserHighlights(c);
-                      if (highlightTerms.length > 0) c = highlightChildren(c);
+                      c = applyUserHighlights(c);
                       return <p>{c}</p>;
                     },
                     li: ({ children }) => {
                       let c: React.ReactNode = children;
-                      if (userHighlights.length > 0) c = applyUserHighlights(c);
-                      if (highlightTerms.length > 0) c = highlightChildren(c);
+                      c = applyUserHighlights(c);
                       return <li>{c}</li>;
                     },
                     td: ({ children }) => {
                       let c: React.ReactNode = children;
-                      if (userHighlights.length > 0) c = applyUserHighlights(c);
-                      if (highlightTerms.length > 0) c = highlightChildren(c);
+                      c = applyUserHighlights(c);
                       return <td>{c}</td>;
                     },
                   } : undefined}

@@ -16,10 +16,11 @@ from contextlib import contextmanager, nullcontext
 from datetime import datetime
 from functools import partial
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel, Field
+from starlette.concurrency import run_in_threadpool
 from starlette.requests import Request
 from starlette.responses import Response
 
@@ -1082,6 +1083,67 @@ def _generate_fallback_report(
     return "\n".join(report)
 
 
+def _fetch_full_text(paper: Dict[str, Any]) -> str:
+    """Full text from the paper's PDF (pdf_url or arXiv id) via the allowed-URL download; '' if unavailable."""
+    url = paper.get("pdf_url") or (
+        f"https://arxiv.org/pdf/{str(paper['arxiv_id']).split('v')[0]}" if paper.get("arxiv_id") else ""
+    )
+    if not url:
+        return ""
+    from app.assistant.tools import _download_pdf, has_word_spaces, pdf_bytes_to_text
+
+    try:
+        text = pdf_bytes_to_text(_download_pdf(url))
+    except Exception as exc:
+        logger.warning("[Deep Review] Full text unavailable for verification: %s", type(exc).__name__)
+        return ""
+    return text if has_word_spaces(text) else ""
+
+
+def _claims_source_markdown(papers: List[Dict[str, Any]], paper_ids: List[str], analyses: List[Dict[str, Any]]) -> str:
+    """'### Paper N: Title' sections from the researchers' analyses — the shape the claim extractor parses."""
+    by_id = {a.get("paper_id"): a for a in analyses}
+    parts = []
+    for i, paper in enumerate(papers):
+        entry = by_id.get(paper_ids[i] if i < len(paper_ids) else None) or (analyses[i] if i < len(analyses) else {})
+        body = (entry.get("analysis") or {}).get("analysis", "")
+        parts.append(f"### Paper {i + 1}: {paper.get('title', 'Untitled')}\n\n"
+                     f"{body if isinstance(body, str) else json.dumps(body, ensure_ascii=False)}")
+    return "\n\n".join(parts)
+
+
+def _verify_deep_review(
+    session_id: str, workspace: Any, paper_ids: List[str], papers_data: Optional[List[Dict[str, Any]]]
+) -> Dict[str, Any]:
+    """Claim extraction + evidence linking for a full (non-fast) review; {} when it cannot run.
+
+    DeepReviewAgent has no verification step of its own, so this runs the
+    orchestrator's verify_report_claims on the researchers' analyses, with the
+    papers' full text when their PDF can be fetched (abstract otherwise).
+    """
+    if not papers_data:
+        return {}
+    papers = [dict(p) for p in papers_data]
+    for paper in papers:
+        if not paper.get("full_text"):
+            paper["full_text"] = _fetch_full_text(paper)
+    with_text = sum(1 for p in papers if p["full_text"])
+    with review_sessions_lock:
+        if session_id in review_sessions:
+            review_sessions[session_id]["progress"] = (
+                "Verifying claims against the paper text..." if with_text
+                else "Verifying claims against abstracts (PDF full text unavailable)..."
+            )
+    try:
+        from app.DeepAgent.review_orchestrator import verify_report_claims
+
+        analyses = workspace.load_all_analyses()
+        return verify_report_claims(_claims_source_markdown(papers, paper_ids, analyses), papers, analyses, workspace)
+    except Exception:
+        logger.exception("[Deep Review] Claim verification failed for session %s", session_id)
+        return {}
+
+
 def run_deep_review_background(
     session_id: str,
     paper_ids: List[str],
@@ -1180,6 +1242,9 @@ def run_deep_review_background(
                     report_error,
                 )
 
+        if not fast_mode and report_generation_error is None and result.get("status") == "completed":
+            result["verification"] = _verify_deep_review(session_id, workspace, paper_ids, papers_data)
+
         with review_sessions_lock:
             if session_id in review_sessions:
                 # F-06: if report generation raised, fail loudly rather
@@ -1268,6 +1333,71 @@ def run_deep_review_background(
 # ── Endpoints ──────────────────────────────────────────────────────────
 
 
+# Strong references for reviews scheduled outside a request's BackgroundTasks.
+_scheduled_reviews: set = set()
+
+
+async def start_review_session(
+    papers: Optional[List[Dict[str, Any]]],
+    paper_ids: List[str],
+    principal: Optional[AuthenticatedPrincipal],
+    *,
+    fast_mode: Optional[bool] = True,
+    num_researchers: Optional[int] = 3,
+    model: Optional[str] = None,
+    schedule: Optional[Callable[..., Any]] = None,
+) -> str:
+    """Create a principal-stamped review session and schedule the background review.
+
+    ``schedule(fn, **kwargs)`` defaults to a task running *fn* in anyio's worker
+    pool (as BackgroundTasks does), not the default executor that routing and
+    streaming threads share; the HTTP route passes ``BackgroundTasks.add_task``.
+    Raises 401 (HTTPException) when the principal's account is gone.
+    """
+    from app.DeepAgent.workspace_manager import WorkspaceManager
+
+    _cleanup_expired_sessions()
+    workspace = WorkspaceManager()
+    session_id = workspace.session_id
+
+    with (
+        _account_guard(principal) if principal is not None else nullcontext(),
+        review_sessions_lock,
+    ):
+        review_sessions[session_id] = {
+            "status": "processing",
+            "paper_ids": paper_ids,
+            "papers_data": papers,
+            "num_papers": len(paper_ids),
+            "workspace_path": str(workspace.session_path),
+            "created_at": datetime.now().isoformat(),
+            "username": principal.username if principal is not None else None,
+            "account_incarnation": principal.account_incarnation
+            if principal is not None
+            else None,
+        }
+
+    mcp_measurement = await record_job_started("deep_review", session_id)
+    kwargs = dict(
+        session_id=session_id,
+        paper_ids=paper_ids,
+        papers_data=papers,
+        num_researchers=num_researchers,
+        model=model,
+        workspace=workspace,
+        fast_mode=fast_mode,
+        mcp_measurement=mcp_measurement,
+        owner_principal=principal,
+    )
+    if schedule is not None:
+        schedule(run_deep_review_background, **kwargs)
+    else:
+        task = asyncio.create_task(run_in_threadpool(run_deep_review_background, **kwargs))
+        _scheduled_reviews.add(task)
+        task.add_done_callback(_scheduled_reviews.discard)
+    return session_id
+
+
 @router.post("/deep-review")
 @limiter.limit("5/minute")
 async def start_deep_review(
@@ -1280,47 +1410,19 @@ async def start_deep_review(
     principal = getattr(request.state, "authenticated_principal", None)
     if username is None:
         principal = None
-    _cleanup_expired_sessions()
 
     try:
-        from app.DeepAgent.workspace_manager import WorkspaceManager
-
         logger.info(
             "[Deep Review] Starting with %s papers", len(review_request.paper_ids)
         )
-
-        workspace = WorkspaceManager()
-        session_id = workspace.session_id
-
-        with (
-            _account_guard(principal) if principal is not None else nullcontext(),
-            review_sessions_lock,
-        ):
-            review_sessions[session_id] = {
-                "status": "processing",
-                "paper_ids": review_request.paper_ids,
-                "papers_data": review_request.papers,
-                "num_papers": len(review_request.paper_ids),
-                "workspace_path": str(workspace.session_path),
-                "created_at": datetime.now().isoformat(),
-                "username": principal.username if principal is not None else None,
-                "account_incarnation": principal.account_incarnation
-                if principal is not None
-                else None,
-            }
-
-        mcp_measurement = await record_job_started("deep_review", session_id)
-        background_tasks.add_task(
-            run_deep_review_background,
-            session_id=session_id,
-            paper_ids=review_request.paper_ids,
-            papers_data=review_request.papers,
+        session_id = await start_review_session(
+            review_request.papers,
+            review_request.paper_ids,
+            principal,
+            fast_mode=review_request.fast_mode,
             num_researchers=review_request.num_researchers,
             model=review_request.model,
-            workspace=workspace,
-            fast_mode=review_request.fast_mode,
-            mcp_measurement=mcp_measurement,
-            owner_principal=principal,
+            schedule=background_tasks.add_task,
         )
 
         attribution = [{"status": "not_attributed", "reason": "anonymous"}]
@@ -1501,6 +1603,14 @@ async def get_verification_detail(
                 claims_data = data.get("claims", [])
         except Exception as e:
             logger.warning("Failed to load claims: %s", e)
+    # Sessions saved before per-claim results were persisted lack these fields.
+    # Imported here: a module-level import cycles through routers.schemas and
+    # silently disables the claim extractor's strict schema.
+    from app.DeepAgent.tools.fact_verification import VERIFICATION_FIELDS
+
+    claims_data = [
+        {**dict.fromkeys(VERIFICATION_FIELDS), **claim} for claim in claims_data if isinstance(claim, dict)
+    ]
 
     # Load cross-references and consensus
     crossrefs_data = []
