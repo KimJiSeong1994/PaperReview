@@ -1,4 +1,9 @@
 import { describe, expect, it } from 'vitest';
+import { INTRODUCE_FAQ } from '../seo/introduceFaq';
+
+const rawFile = (glob: Record<string, unknown>) => Object.values(glob)[0] as string;
+const indexHtml = rawFile(import.meta.glob('../../index.html', { eager: true, import: 'default', query: '?raw' }));
+const staticRoutes = rawFile(import.meta.glob('../../scripts/create-static-routes.mjs', { eager: true, import: 'default', query: '?raw' }));
 import {
   SITE_URL,
   OG_DEFAULT_IMAGE,
@@ -7,6 +12,9 @@ import {
   softwareApplicationNode,
   homeGraph,
   introduceGraph,
+  APP_DESCRIPTION,
+  APP_FEATURES,
+  INTRODUCE_META,
   blogCanonical,
   blogPostingGraph,
   blogAuthorNode,
@@ -117,6 +125,38 @@ describe('introduceGraph', () => {
     expect(about.inLanguage).toBe('ko');
     expect(about.name).toContain('집현전 소개');
     expect((breadcrumb.itemListElement as Record<string, unknown>[])[1].name).toBe('소개');
+  });
+});
+
+describe('introduce FAQ and copies kept in sync', () => {
+  it.each(['en', 'ko'] as const)('adds a FAQPage that repeats the %s FAQ word for word', (locale) => {
+    const graph = introduceGraph(locale)['@graph'] as Record<string, unknown>[];
+    const faq = graph.find((node) => node['@type'] === 'FAQPage')!;
+    expect(faq.inLanguage).toBe(locale);
+    const entities = faq.mainEntity as { name: string; acceptedAnswer: { text: string } }[];
+    expect(entities.map(entity => [entity.name, entity.acceptedAnswer.text]))
+      .toEqual(INTRODUCE_FAQ[locale].map(item => [item.question, item.answer]));
+    expect(entities).toHaveLength(5);
+  });
+
+  it('keeps the static prerender FAQ and descriptions identical to the page', () => {
+    for (const locale of ['en', 'ko'] as const) {
+      for (const item of INTRODUCE_FAQ[locale]) {
+        expect(staticRoutes).toContain(`'${item.question}'`);
+        expect(staticRoutes).toContain(`'${item.answer}'`);
+      }
+    }
+    // The script concatenates its description strings; compare with the pieces joined.
+    const joined = staticRoutes.replace(/'\s*\n\s*\+\s*'/g, '');
+    expect(joined).toContain(INTRODUCE_META.en.description);
+    expect(joined).toContain(INTRODUCE_META.ko.description);
+  });
+
+  it('keeps index.html\'s WebApplication node identical to softwareApplicationNode', () => {
+    const graph = JSON.parse(indexHtml.match(/<script type="application\/ld\+json" id="home-json-ld">([\s\S]*?)<\/script>/)![1]);
+    const app = graph['@graph'].find((node: { '@type': string }) => node['@type'] === 'WebApplication');
+    expect(app.description).toBe(APP_DESCRIPTION);
+    expect(app.featureList).toEqual(APP_FEATURES);
   });
 });
 
