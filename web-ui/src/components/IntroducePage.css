@@ -362,6 +362,40 @@
 }
 
 /* One column below 1000px, with the site's 16px mobile gutters (as the guest home). */
+@media (min-width: 1000px) {
+  .introduce-page {
+    padding-top: 32px;
+  }
+
+  .introduce-hero-copy {
+    gap: 20px;
+  }
+
+  .introduce-sample-head {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .introduce-sample-body {
+    gap: 14px;
+    padding-top: 16px;
+    padding-bottom: 16px;
+  }
+
+  .introduce-sample-answer {
+    gap: 10px;
+  }
+
+  .introduce-sample-results li {
+    padding: 5px 0;
+  }
+
+  .introduce-sample-foot {
+    padding-top: 10px;
+    padding-bottom: 10px;
+  }
+}
+
 @media (max-width: 999px) {
   .introduce-page {
     padding: 32px 16px 0;

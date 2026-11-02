@@ -699,6 +699,111 @@
     align-items: start;
     column-gap: 40px;
   }
+
+  /* Compact desktop rhythm (about 20% shorter); type sizes and 44px targets unchanged. */
+  .intro-section {
+    padding: 52px 0 48px;
+  }
+
+  .landing-section-header {
+    margin-bottom: 20px;
+  }
+
+  .landing-section-lead {
+    margin-top: 8px;
+  }
+
+  .intro-specimen-chips {
+    gap: 4px 6px;
+  }
+
+  .intro-steps {
+    gap: 12px;
+  }
+
+  .intro-step {
+    padding: 20px;
+  }
+
+  .intro-step-body {
+    margin-bottom: 14px;
+  }
+
+  .intro-specimen {
+    gap: 6px;
+    height: 120px;
+    padding: 10px 16px;
+  }
+
+  .intro-specimen-split {
+    padding-top: 6px;
+  }
+
+  .intro-eyebrow.landing-workflow-next {
+    margin-top: 12px;
+  }
+
+  .intro-evidence {
+    margin-bottom: 28px;
+    padding: 20px 24px;
+  }
+
+  .landing-evidence-head {
+    padding-bottom: 12px;
+  }
+
+  .landing-evidence-cell {
+    padding-top: 12px;
+    padding-bottom: 12px;
+  }
+
+  .intro-verdict {
+    padding-top: 14px;
+  }
+
+  .landing-output {
+    padding-top: 14px;
+    padding-bottom: 14px;
+  }
+
+  .landing-output-arrow {
+    top: 14px;
+  }
+
+  .landing-output-more {
+    margin-top: 8px;
+  }
+
+  .intro-faq-item {
+    padding: 16px 0;
+  }
+
+  /* The answer column is 716px; let answers use it instead of wrapping at 40em. */
+  .intro-faq-item p {
+    max-width: none;
+    margin-top: 4px;
+  }
+
+  .landing-install {
+    padding: 18px 20px;
+  }
+
+  .intro-closing {
+    margin: 52px 0 48px;
+  }
+
+  .intro-closing-body {
+    padding: 32px 40px 0;
+  }
+
+  .intro-closing-actions {
+    margin-top: 16px;
+  }
+
+  .intro-closing-art {
+    height: 140px;
+    margin-top: 20px;
+  }
 }
 
 @media (max-width: 999px) {
