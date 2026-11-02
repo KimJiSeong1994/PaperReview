@@ -974,6 +974,24 @@
   text-underline-offset: 3px;
 }
 
+/* Phones: the card sits under the thread, so keep it compact and the thread readable. */
+@media (max-width: 600px) {
+  .conv-sample-cta {
+    gap: 8px;
+    padding: 12px;
+  }
+
+  .conv-sample-cta-text {
+    font-size: 12.5px;
+    line-height: 1.5;
+  }
+
+  .conv-sample-others {
+    gap: 4px 10px;
+    font-size: 12px;
+  }
+}
+
 /* ── Artifact panel ────────────────────────────────────────────────── */
 .conv-artifact {
   display: flex;

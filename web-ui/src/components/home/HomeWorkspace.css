@@ -3,6 +3,8 @@
    The composer is the only elevated object. The header is fixed at 70px (App.css). */
 .home-shell {
   --home-header: 70px;
+  /* Reading-page width, shared with the introduce page (.introduce-page max-width). */
+  --page-max: 1120px;
   --home-top: 40px;
   --home-ease: 160ms ease;
   --home-line: 1px solid var(--wov-08);
@@ -685,7 +687,8 @@
 
 .home-guest {
   display: grid;
-  grid-template-columns: minmax(0, 580px) minmax(0, 820px);
+  /* 460 + 40 + 620 = the 1120px page width, between 24px gutters (content-box). */
+  grid-template-columns: minmax(0, 460px) minmax(0, 620px);
   grid-template-areas:
     "intro replay"
     "reviews replay"
@@ -693,8 +696,11 @@
   grid-template-rows: auto auto 1fr;
   justify-content: center;
   align-items: start;
-  column-gap: 60px;
+  column-gap: 40px;
   row-gap: 40px;
+  box-sizing: content-box;
+  max-width: var(--page-max);
+  margin: 0 auto;
   padding: 48px 24px 56px;
 }
 
@@ -737,7 +743,7 @@
 
 .home-guest-intro .home-title {
   margin: -8px 0 0;
-  font-size: clamp(32px, 3vw, 44px);
+  font-size: clamp(30px, 2.6vw, 40px);
 }
 
 .home-guest-mascot {
@@ -960,6 +966,7 @@
     grid-template-columns: minmax(0, 640px);
     grid-template-areas: "intro" "replay" "reviews" "disclaimer";
     grid-template-rows: none;
+    /* The site's 16px mobile gutters. */
     padding: 32px 16px 40px;
   }
 

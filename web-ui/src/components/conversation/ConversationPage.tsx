@@ -31,6 +31,7 @@ import ReviewBlock, { type CompletedReview } from './ReviewBlock';
 import SearchResultsBlock from './SearchResultsBlock';
 import {
   BOOKMARK_CITE_PREFIX,
+  canAutoOpenArtifact,
   bookmarkRefsOf,
   CITE_PREFIX,
   citationLabel,
@@ -207,7 +208,7 @@ export function ConversationView({
   const latestArtifactSeq = Math.max(latestGraphSeq, latestPdfSeq);
   const artifactOpen = artifactPref && artifactPref.artifactSeq === latestArtifactSeq
     ? artifactPref.open
-    : latestArtifactSeq >= 0;
+    : latestArtifactSeq >= 0 && canAutoOpenArtifact();
   const autoTab: ArtifactTab = latestArtifactSeq >= 0 && latestArtifactSeq === latestPdfSeq ? 'pdf' : 'graph';
   const tab = tabPref && tabPref.artifactSeq === latestArtifactSeq ? tabPref.tab : autoTab;
   const setTab = (next: ArtifactTab) => setTabPref({ artifactSeq: latestArtifactSeq, tab: next });

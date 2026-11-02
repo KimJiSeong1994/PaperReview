@@ -248,3 +248,17 @@ export function verificationStatusLabel(status: string | undefined): string | nu
 export function claimEvidence(claim: { evidence?: string; evidences?: { text?: string }[] }): string | null {
   return claim.evidence?.trim() || claim.evidences?.find(item => item.text?.trim())?.text?.trim() || null;
 }
+
+/**
+ * Whether the artifact may open by itself (a sample loading, a search's
+ * results arriving). Only where it is a third column (≥1101px, as
+ * `.conv-shell.has-artifact`); below that it is a full-width sheet that would
+ * cover the thread, so it waits for the reader to tap 아티팩트.
+ */
+export const canAutoOpenArtifact = (): boolean => {
+  try {
+    return window.matchMedia?.('(min-width: 1101px)').matches === true;
+  } catch {
+    return false;
+  }
+};

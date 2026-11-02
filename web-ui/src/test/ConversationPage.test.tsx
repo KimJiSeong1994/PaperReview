@@ -65,6 +65,11 @@ const papers: Paper[] = [
   { doc_id: 'd2', result_key: 'k2', title: 'HippoRAG', authors: [], year: 2024, source: 'openalex' },
 ];
 
+// The artifact opens by itself only where it is a third column (≥1101px).
+const setViewport = (wide: boolean) => vi.stubGlobal('matchMedia', (query: string) => ({
+  matches: wide && query === '(min-width: 1101px)', media: query,
+}));
+
 let live: TurnStreamHandlers | null = null;
 
 function renderPage(state: unknown = { run: true }) {
@@ -78,7 +83,10 @@ function renderPage(state: unknown = { run: true }) {
 }
 
 describe('ConversationPage', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   beforeEach(() => {
+    setViewport(true);
     storage.clear();
     live = null;
     vi.mocked(streamTurn).mockReset().mockImplementation(async (_id, _message, handlers) => { live = handlers; });
@@ -724,6 +732,21 @@ describe('ConversationPage', () => {
     expect(await within(scroll as HTMLElement).findByRole('link', { name: /그래프 RAG/ })).toBeTruthy();
     expect(nav.lastElementChild!.className).toBe('home-account');
     expect(scroll.contains(nav.querySelector('.home-account'))).toBe(false);
+  });
+
+  it('keeps the artifact closed on a narrow screen when results arrive, until 아티팩트 is tapped', async () => {
+    setViewport(false);
+    renderPage();
+    await screen.findByRole('heading', { name: '그래프 RAG' });
+    act(() => {
+      live!.onBlock({ type: 'search_results', query: 'q', total: 2, query_hash: 'h1', partial: false, degraded: [], papers });
+      live!.onBlock({ type: 'graph', query_hash: 'h1', graph: { nodes: [], edges: [] } });
+      live!.onDone({ turn_id: 'a1', intent: 'search' });
+    });
+    expect(screen.getByRole('region', { name: '검색 결과 2편' })).toBeTruthy();
+    expect(screen.queryByRole('complementary', { name: '검색 결과 아티팩트' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '아티팩트' }));
+    expect(screen.getByRole('complementary', { name: '검색 결과 아티팩트' })).toBeTruthy();
   });
 
   it('shows a load error with a way back', async () => {

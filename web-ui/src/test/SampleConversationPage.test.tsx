@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes, useParams } from 'react-router-dom';
-import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import SampleConversationPage from '../components/conversation/SampleConversationPage';
 import { createConversation } from '../api/conversations';
 import type { Paper } from '../types';
@@ -37,6 +37,11 @@ const papers: Paper[] = [
   { doc_id: 'd2', result_key: 'k2', title: 'LightRAG', authors: ['Zirui Guo'], year: 2024, source: 'arxiv' },
 ];
 
+// The artifact opens by itself only where it is a third column (≥1101px).
+const setViewport = (wide: boolean) => vi.stubGlobal('matchMedia', (query: string) => ({
+  matches: wide && query === '(min-width: 1101px)', media: query,
+}));
+
 function ConversationProbe() {
   const { id } = useParams();
   return <p>conversation {id}</p>;
@@ -54,7 +59,10 @@ function routes() {
 }
 
 describe('SampleConversationPage', () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   beforeEach(() => {
+    setViewport(true);
     authState.isAuthenticated = false;
     authState.setShowLoginModal.mockClear();
     vi.mocked(createConversation).mockReset().mockResolvedValue({ id: 'conv-7', title: 't', turn_id: 'u' });
@@ -106,6 +114,15 @@ describe('SampleConversationPage', () => {
     await act(async () => { view.rerender(routes()); });
     expect(createConversation).toHaveBeenCalledWith('GraphRAG가 RAG보다 나은 경우는?');
     expect(await screen.findByText('conversation conv-7')).toBeTruthy();
+  });
+
+  it('opens on the conversation, not the graph sheet, on a narrow screen', async () => {
+    setViewport(false);
+    render(routes());
+    expect(await screen.findByText(/전역 질문에는 GraphRAG가 유리합니다/)).toBeTruthy();
+    expect(screen.queryByRole('complementary', { name: '검색 결과 아티팩트' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: '아티팩트' }));
+    expect(screen.getByRole('complementary', { name: '검색 결과 아티팩트' })).toBeTruthy();
   });
 
   it('says so when the sample does not exist', async () => {
