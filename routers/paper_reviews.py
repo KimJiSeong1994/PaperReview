@@ -416,58 +416,8 @@ async def auto_highlight_paper_review(
     }
 
 
-@router.post("/pdf-highlights")
-@limiter.limit("10/minute")
-def pdf_highlights_endpoint(
-    request: Request,
-    body: PdfHighlightRequest,
-    username: str = Depends(get_current_user),
-):
-    """Extract highlights from raw PDF text for overlay display.
-
-    This endpoint is independent of bookmarks — it takes arbitrary text
-    (typically extracted from a PDF via pdfjs) and returns highlight
-    spans with category, color, and reviewer commentary.
-
-    Uses the PDF-specific prompt and preprocessing pipeline for better
-    accuracy on academic paper text.
-
-    F-34: IP rate-limited to 10/min because each call invokes an LLM on
-    up to several KB of PDF text.  The decorator-provided 429 is the
-    outer budget; the inner try/except still surfaces upstream 429/504.
-    """
-    from openai import APIError, APITimeoutError, RateLimitError
-
-    text = body.text.strip()
-    if not text or len(text) < 50:
-        raise HTTPException(
-            status_code=400,
-            detail="PDF text is too short to generate meaningful highlights.",
-        )
-
-    title = body.title.strip()
-
-    client = get_openai_client()
-    try:
-        llm_highlights = generate_pdf_highlights_llm(text, title, client)
-    except APITimeoutError:
-        raise HTTPException(
-            status_code=504,
-            detail="LLM analysis timed out. Please retry.",
-        )
-    except RateLimitError:
-        raise HTTPException(
-            status_code=429,
-            detail="Rate limited. Please wait and retry.",
-        )
-    except APIError as e:
-        raise HTTPException(
-            status_code=502,
-            detail=f"LLM service error: {e.message}",
-        )
-    except ValueError as e:
-        raise HTTPException(status_code=502, detail=str(e))
-
+def build_pdf_highlights(llm_highlights: list[dict], text: str) -> list[dict]:
+    """Normalise raw LLM PDF highlights into the HighlightItem dicts the overlay uses."""
     highlights: list[dict] = []
     valid_categories = set(PDF_CATEGORY_CONFIG.keys())
 
@@ -534,7 +484,62 @@ def pdf_highlights_endpoint(
             "created_at": datetime.now().isoformat(),
         })
 
-    return {"highlights": highlights}
+    return highlights
+
+
+@router.post("/pdf-highlights")
+@limiter.limit("10/minute")
+def pdf_highlights_endpoint(
+    request: Request,
+    body: PdfHighlightRequest,
+    username: str = Depends(get_current_user),
+):
+    """Extract highlights from raw PDF text for overlay display.
+
+    This endpoint is independent of bookmarks — it takes arbitrary text
+    (typically extracted from a PDF via pdfjs) and returns highlight
+    spans with category, color, and reviewer commentary.
+
+    Uses the PDF-specific prompt and preprocessing pipeline for better
+    accuracy on academic paper text.
+
+    F-34: IP rate-limited to 10/min because each call invokes an LLM on
+    up to several KB of PDF text.  The decorator-provided 429 is the
+    outer budget; the inner try/except still surfaces upstream 429/504.
+    """
+    from openai import APIError, APITimeoutError, RateLimitError
+
+    text = body.text.strip()
+    if not text or len(text) < 50:
+        raise HTTPException(
+            status_code=400,
+            detail="PDF text is too short to generate meaningful highlights.",
+        )
+
+    title = body.title.strip()
+
+    client = get_openai_client()
+    try:
+        llm_highlights = generate_pdf_highlights_llm(text, title, client)
+    except APITimeoutError:
+        raise HTTPException(
+            status_code=504,
+            detail="LLM analysis timed out. Please retry.",
+        )
+    except RateLimitError:
+        raise HTTPException(
+            status_code=429,
+            detail="Rate limited. Please wait and retry.",
+        )
+    except APIError as e:
+        raise HTTPException(
+            status_code=502,
+            detail=f"LLM service error: {e.message}",
+        )
+    except ValueError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    return {"highlights": build_pdf_highlights(llm_highlights, text)}
 
 
 # ── Math formula explanation ────────────────────────────────────────

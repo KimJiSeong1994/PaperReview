@@ -16,6 +16,9 @@ import PaperList from '../components/PaperList';
 import SigmaGraphView from '../components/graph/SigmaGraphView';
 import type { ReactNode } from 'react';
 
+// The home composer (first screen) or the results-page search bar.
+const SEARCH_BOX = /^(논문 검색|궁금한 주제나 질문을 편하게 적어 주세요)$/;
+
 const sigmaMock = vi.hoisted(() => ({
   registerEvents: vi.fn(),
   setSettings: vi.fn(),
@@ -59,6 +62,8 @@ vi.mock('../api/client', async () => {
   return {
     classifyPosterError: reviewApi.classifyPosterError,
     classifyPosterResponse: reviewApi.classifyPosterResponse,
+    // This suite drives the results page: a failed conversation create falls back to direct search.
+    createConversation: vi.fn().mockRejectedValue(new Error('conversations unavailable')),
     fetchBatchReferences: vi.fn(),
     generatePoster: vi.fn(),
     generatePosterDirect: vi.fn(),
@@ -107,7 +112,7 @@ function deferred<T>() {
 
 async function submitSearch(query: string) {
   await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText('논문 검색'), { target: { value: query } });
+    fireEvent.change(screen.getByPlaceholderText(SEARCH_BOX), { target: { value: query } });
     fireEvent.click(screen.getByRole('button', { name: '논문 검색' }));
   });
 }
@@ -208,7 +213,7 @@ describe('SearchPage result ordering', () => {
     await submitSearch('first list');
 
     expect(renderedTitles(container)).toEqual(['First list result']);
-    expect(screen.getByPlaceholderText('논문 검색')).not.toBeDisabled();
+    expect(screen.getByPlaceholderText(SEARCH_BOX)).not.toBeDisabled();
     expect(getGraphData).toHaveBeenCalledTimes(1);
     expect(fetchBatchReferences).toHaveBeenCalledTimes(1);
 
@@ -761,7 +766,7 @@ describe('SearchPage result ordering', () => {
 
     const view = render(<MemoryRouter><SearchPage /></MemoryRouter>);
     await act(async () => {
-      fireEvent.change(screen.getByPlaceholderText('논문 검색'), { target: { value: 'mid-search logout' } });
+      fireEvent.change(screen.getByPlaceholderText(SEARCH_BOX), { target: { value: 'mid-search logout' } });
       fireEvent.click(screen.getByRole('button', { name: '논문 검색' }));
     });
     await waitFor(() => expect(screen.getByText('집현전 서고 탐색 중')).toBeInTheDocument());
@@ -771,12 +776,13 @@ describe('SearchPage result ordering', () => {
       view.rerender(<MemoryRouter><SearchPage /></MemoryRouter>);
     });
     expect(screen.queryByText('집현전 서고 탐색 중')).not.toBeInTheDocument();
-    const searchButton = screen.getByRole('button', { name: '논문 검색' });
+    // Signed out, the home composer's button reads "무료로 물어보기".
+    const searchButton = screen.getByRole('button', { name: '무료로 물어보기' });
     expect(searchButton).toBeDisabled();
-    fireEvent.change(screen.getByPlaceholderText('논문 검색'), {
+    fireEvent.change(screen.getByPlaceholderText(SEARCH_BOX), {
       target: { value: 'fresh auth query' },
     });
-    expect(screen.getByRole('button', { name: '논문 검색' })).not.toBeDisabled();
+    expect(screen.getByRole('button', { name: '무료로 물어보기' })).not.toBeDisabled();
 
     view.unmount();
     await act(async () => {
@@ -806,7 +812,7 @@ describe('SearchPage result ordering', () => {
       view.rerender(<MemoryRouter><SearchPage /></MemoryRouter>);
     });
     expect(renderedTitles(container)).toEqual([]);
-    expect(screen.getByPlaceholderText('논문 검색')).toHaveValue('');
+    expect(screen.getByPlaceholderText(SEARCH_BOX)).toHaveValue('');
     expect(screen.queryByText('관계를 확장하는 중')).not.toBeInTheDocument();
 
     authState.isAuthenticated = true;
@@ -814,7 +820,7 @@ describe('SearchPage result ordering', () => {
       view.rerender(<MemoryRouter><SearchPage /></MemoryRouter>);
     });
     expect(renderedTitles(container)).toEqual([]);
-    expect(screen.getByPlaceholderText('논문 검색')).toHaveValue('');
+    expect(screen.getByPlaceholderText(SEARCH_BOX)).toHaveValue('');
 
     await act(async () => {
       graph.resolve({ nodes: [], edges: [] });

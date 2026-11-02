@@ -564,3 +564,33 @@ def test_stale_admin_principal_cannot_delete_after_actor_recreation(stores):
     result = _delete(s, actor=s.actor)
     assert result.partial_failures == ["account_inactive_or_mismatch"]
     assert s.db.get("alice") is not None
+
+
+def test_conversations_stage_deletes_only_target_user(stores, monkeypatch):
+    from src.storage.conversation_db import ConversationDB
+
+    s = stores
+    conversations = ConversationDB(s.tmp / "conversations.db")
+    monkeypatch.setattr(s.deletion, "_get_conversation_db", lambda: conversations)
+    mine = conversations.create_conversation("alice", s.incarnation, "mine")
+    conversations.append_turn(mine["id"], "user", "hi")
+    conversations.create_conversation("bob", "bob-inc", "theirs")
+    result = _delete(s)
+    assert result.deleted and "conversations" not in result.partial_failures
+    assert conversations.get_conversation(mine["id"], "alice", s.incarnation) is None
+    assert len(conversations.list_conversations("bob", "bob-inc")) == 1
+
+
+def test_souls_stage_deletes_only_target_user(stores, monkeypatch):
+    from src.storage.soul_db import SoulDB
+
+    s = stores
+    souls = SoulDB(s.tmp / "souls.db")
+    monkeypatch.setattr(s.deletion, "_get_soul_db", lambda: souls)
+    souls.set_user_md("alice", s.incarnation, "profile")
+    souls.add_memories("alice", s.incarnation, [{"kind": "topic", "text": "GraphRAG"}], None)
+    souls.add_memories("bob", "bob-inc", [{"kind": "topic", "text": "kept"}], None)
+    result = _delete(s)
+    assert result.deleted and "souls" not in result.partial_failures
+    assert souls.get_soul("alice", s.incarnation) == {"user_md": "", "memories": []}
+    assert len(souls.get_soul("bob", "bob-inc")["memories"]) == 1

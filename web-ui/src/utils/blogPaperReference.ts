@@ -110,7 +110,7 @@ export function blogSeoMeta(
   return { title: `${base} | Jiphyeonjeon Blog`, description: excerpt };
 }
 
-export type PaperViewerSource = 'blog-reference' | 'search' | 'recommendation' | 'curriculum';
+export type PaperViewerSource = 'blog-reference' | 'search' | 'recommendation' | 'curriculum' | 'bookmark';
 
 export function buildPaperViewerHref(ref: BlogPaperReference, source: PaperViewerSource = 'blog-reference'): string {
   const params = new URLSearchParams();

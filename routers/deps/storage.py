@@ -161,6 +161,38 @@ def _get_user_db():
         return _user_dbs[key]
 
 
+_conversation_dbs: Dict[str, Any] = {}
+_conversation_dbs_lock = threading.Lock()
+
+
+def _get_conversation_db():
+    """Return the ConversationDB at ``DATA_DIR/conversations.db`` (resolved per call)."""
+    from src.storage.conversation_db import ConversationDB
+
+    db_path = Path(str(DATA_DIR)) / "conversations.db"
+    key = str(db_path.resolve())
+    with _conversation_dbs_lock:
+        if key not in _conversation_dbs:
+            _conversation_dbs[key] = ConversationDB(db_path)
+        return _conversation_dbs[key]
+
+
+_soul_dbs: Dict[str, Any] = {}
+_soul_dbs_lock = threading.Lock()
+
+
+def _get_soul_db():
+    """Return the SoulDB at ``DATA_DIR/souls.db`` (resolved per call)."""
+    from src.storage.soul_db import SoulDB
+
+    db_path = Path(str(DATA_DIR)) / "souls.db"
+    key = str(db_path.resolve())
+    with _soul_dbs_lock:
+        if key not in _soul_dbs:
+            _soul_dbs[key] = SoulDB(db_path)
+        return _soul_dbs[key]
+
+
 # ── Bookmarks public API ──────────────────────────────────────────────
 
 

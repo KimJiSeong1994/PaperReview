@@ -1,6 +1,4 @@
-import type { ChatMessage, ChatSource, HighlightItem } from '../../api/client';
-
-export const CHAT_STORAGE_KEY = 'mypage_chat_history';
+import type { HighlightItem } from '../../api/client';
 
 export interface Bookmark {
   id: string;
@@ -49,4 +47,4 @@ export interface CitationTreeData {
   skipped_papers?: string[];
 }
 
-export type { ChatMessage, ChatSource, HighlightItem };
+export type { HighlightItem };

@@ -12,7 +12,6 @@ const share = { token: 'tok123', share_url: '/share/tok123', created_at: '2026-0
 const base: ComponentProps<typeof ReportViewer> = {
   bookmarkDetail: detail, loadingDetail: false, hasSelectedBookmark: true,
   reportScrollRef: createRef<HTMLDivElement>(),
-  highlightTerms: [], setHighlightTerms: vi.fn(), highlightChildren: (children: ReactNode) => children,
   userHighlights: [], sortedHighlights: [], applyUserHighlights: (children: ReactNode) => children,
   expandedHighlightId: null, setExpandedHighlightId: vi.fn(),
   highlightPopover: null, popoverPos: null, setHighlightPopover: vi.fn(),
@@ -36,7 +35,39 @@ const setClipboard = (writeText: unknown) => {
 beforeEach(() => vi.clearAllMocks());
 afterEach(() => setClipboard(undefined));
 
+describe('ReportViewer without a chat panel or PDF tab', () => {
+  it('points the empty state at conversations for questions about bookmarks', () => {
+    render(<ReportViewer {...base} hasSelectedBookmark={false} />);
+    expect(screen.getByText(/북마크에 대해 묻고 싶으면 ‘대화에서 열기’를 누르거나 홈에서 ‘내 북마크에서 …’라고 물어보세요/)).toBeTruthy();
+  });
+
+  it('opens each listed paper in the standalone viewer, in a new tab', () => {
+    const papers = [{ title: 'HippoRAG', authors: ['B. Gutiérrez', 'Y. Shu'], year: 2024, pdf_url: 'https://arxiv.org/pdf/2405.14831' }];
+    render(<ReportViewer {...base} bookmarkDetail={{ ...detail, papers }} papersCollapsed={false} />);
+    const link = screen.getByRole('link', { name: /PDF 보기/ });
+    const href = new URL(link.getAttribute('href')!, 'https://x');
+    expect(href.pathname).toBe('/paper-viewer');
+    expect(href.searchParams.get('title')).toBe('HippoRAG');
+    expect(href.searchParams.get('pdf_url')).toBe('https://arxiv.org/pdf/2405.14831');
+    expect(href.searchParams.get('authors')).toBe('B. Gutiérrez;Y. Shu');
+    expect(href.searchParams.get('year')).toBe('2024');
+    expect(href.searchParams.get('source')).toBe('bookmark');
+    expect(link.getAttribute('target')).toBe('_blank');
+  });
+});
+
 describe('ReportViewer header', () => {
+  it('offers 대화에서 열기 beside the export actions and shows its error inline', () => {
+    const onOpenInConversation = vi.fn();
+    const { rerender } = render(<ReportViewer {...base} onOpenInConversation={onOpenInConversation} />);
+    fireEvent.click(screen.getByRole('button', { name: /대화에서 열기/ }));
+    expect(onOpenInConversation).toHaveBeenCalledTimes(1);
+    rerender(<ReportViewer {...base} onOpenInConversation={onOpenInConversation} openingConversation />);
+    expect(screen.getByRole('button', { name: /여는 중/ })).toBeDisabled();
+    rerender(<ReportViewer {...base} onOpenInConversation={onOpenInConversation} conversationError="대화를 시작하지 못했어요." />);
+    expect(screen.getByRole('alert').textContent).toBe('대화를 시작하지 못했어요.');
+  });
+
   it('calls the highlight pass what it is, and shows the question the report answered', () => {
     render(<ReportViewer {...base} />);
     expect(screen.queryByText('Auto Review')).not.toBeInTheDocument();
@@ -76,12 +107,6 @@ describe('ReportViewer header', () => {
     expect(header).toHaveAttribute('aria-expanded', 'false');
     fireEvent.keyDown(header, { key: 'Enter' });
     expect(base.setPapersCollapsed).toHaveBeenCalledWith(false);
-  });
-
-  it('labels the citation keyword bar honestly', () => {
-    render(<ReportViewer {...base} highlightTerms={['retrieval']} />);
-    expect(screen.getByText('인용 키워드 표시 중')).toBeInTheDocument();
-    expect(screen.queryByText('Evidence highlighted')).not.toBeInTheDocument();
   });
 
   it('does not claim a copy that did not happen', async () => {

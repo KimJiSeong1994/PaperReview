@@ -4,10 +4,13 @@ import { MemoryRouter } from 'react-router-dom';
 import SearchPage from '../components/SearchPage';
 import { searchPapers } from '../api/client';
 
+// The home composer (first screen) or the results-page search bar.
+const SEARCH_BOX = /^(논문 검색|궁금한 주제나 질문을 편하게 적어 주세요)$/;
+
 (globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
 const authState = vi.hoisted(() => ({
-  isAuthenticated: false,
+  isAuthenticated: true,
   setShowLoginModal: vi.fn(),
 }));
 
@@ -16,6 +19,8 @@ vi.mock('../api/client', async () => {
   return {
     classifyPosterError: reviewApi.classifyPosterError,
     classifyPosterResponse: reviewApi.classifyPosterResponse,
+    // This suite drives the results page: a failed conversation create falls back to direct search.
+    createConversation: vi.fn().mockRejectedValue(new Error('conversations unavailable')),
     fetchBatchReferences: vi.fn(),
     generatePoster: vi.fn(),
     generatePosterDirect: vi.fn(),
@@ -73,7 +78,7 @@ function createDeferred<T>() {
 
 async function submit(query: string) {
   await act(async () => {
-    fireEvent.change(screen.getByPlaceholderText('논문 검색'), {
+    fireEvent.change(screen.getByPlaceholderText(SEARCH_BOX), {
       target: { value: query },
     });
     fireEvent.click(screen.getByRole('button', { name: '논문 검색' }));

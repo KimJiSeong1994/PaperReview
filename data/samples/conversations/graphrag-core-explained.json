@@ -1,0 +1,1995 @@
+{
+ "id": "sample-graphrag-core-explained",
+ "slug": "graphrag-core-explained",
+ "title": "GraphRAG 비교 논문 핵심 설명",
+ "question": "GraphRAG와 기존 RAG를 비교한 논문 찾아서 핵심 내용 설명해줘",
+ "asof": "2026-11-02",
+ "turns": [
+  {
+   "seq": 1,
+   "role": "user",
+   "content": "GraphRAG와 기존 RAG를 비교한 논문 찾아서 핵심 내용 설명해줘",
+   "blocks": [],
+   "intent": null
+  },
+  {
+   "seq": 2,
+   "role": "assistant",
+   "content": "GraphRAG와 기존 RAG를 비교한 논문을 찾아볼게요.\n\nGraphRAG는 전체적으로 정확도보다 근거성·다중홉 추론에서 강점을 보이며, 단순 페이지나 문서 단위 검색에서는 기존 RAG가 더 나은 경우도 있습니다.\n\n핵심 내용\n\n**RAG vs. GraphRAG: A Systematic Evaluation and Key Insights [1]**\n기존 RAG와 GraphRAG의 장단점을 같은 기준으로 체계 비교합니다. 비정형 텍스트를 그래프로 바꿔 추론과 근거 제시를 돕는 반면, 평가 프로토콜이 제각각이라 비교가 어렵다는 문제를 다룹니다. 넓은 벤치마크에서 두 계열의 강점과 절충점을 정리하는 점이 중요합니다.\n\n**Structured Knowledge for Multi-hop QA: A Comparative Study of GraphRAG and RAG [2]**\n다중홉 질문에서 RAG와 지식그래프 기반 GraphRAG를 비교합니다. GraphRAG는 구조화된 트리플을 뽑아 질문 유형과 추론 패턴에 맞는 정보만 쓰도록 설계해 환각을 줄이려 합니다. HotpotQA 500문항으로 비교하며, RAG가 못 푼 질문도 GraphRAG로 재평가해 차이를 봅니다.\n\n**Comparing RAG and GraphRAG for Page-Level Retrieval Question Answering on a Math Textbook [6]**\n교재의 특정 페이지를 찾는 과제에서 두 방법을 비교합니다. 임베딩 기반 RAG와 BM25가 GraphRAG보다 페이지 검색 정확도와 답변 품질에서 더 좋았습니다. 그래프 구조가 항상 유리하지 않으며, 세밀한 위치 찾기에는 전통적 검색이 강하다는 점을 보여줍니다.\n\n**RAG vs. GraphRAG for Industrial Technical Documentation: A Controlled Evaluation on Laser Manufacturing Manuals [7]**\n산업 매뉴얼 질의응답에서 두 방식을 같은 조건으로 평가합니다. 검색 정확도는 둘 다 낮았지만, GraphRAG는 faithfulness를 높여 환각을 줄였습니다. 복잡한 기술 문서에서는 정답 적중보다 답의 근거성이 더 개선될 수 있음을 보여줍니다.\n\n**Comparative Evaluation of RAG and GraphRAG for Open-Ended Question Answering [5]**\n개방형 질의응답에서 표준 RAG와 GraphRAG를 비교합니다. 독일 정책 문서를 바탕으로 lexical·semantic 지표를 함께 봅니다. 그래프 기반 표현이 구조화된 질문에 유리한지를 실험적으로 확인하는 구성입니다.\n\n비교·정리\n\n[1][2][5][7]은 GraphRAG의 근거성, 구조 활용, 다중홉 추론을 강조합니다. [6]은 세밀한 검색 과제에서 기존 RAG가 더 강하다고 보여줍니다. 이번 검색은 일반 비교보다 비교 평가와 실험 결과를 직접 다룬 논문이 더 두드러집니다.\n\n더 좁혀서, 한국어 자료나 arXiv만 따로 골라드릴까요?",
+   "blocks": [
+    {
+     "type": "search_results",
+     "query": "GraphRAG 기존 RAG 비교",
+     "executed_query": "(ti:GraphRAG OR ti:\"traditional RAG\") OR (abs:GraphRAG AND abs:\"retrieval-augmented generation\")",
+     "total": 20,
+     "query_hash": "9f2f9f9227fc",
+     "partial": true,
+     "degraded": [
+      "source_incomplete"
+     ],
+     "year_start": null,
+     "year_end": null,
+     "papers": [
+      {
+       "title": "RAG vs. GraphRAG: A Systematic Evaluation and Key Insights",
+       "authors": [
+        "Haoyu Han",
+        "Li Ma",
+        "Yu Wang",
+        "Harry Shomer",
+        "Kai Guo",
+        "Yongjia Lei",
+        "Zhisheng Qi",
+        "Zhigang Hua",
+        "Bo Long",
+        "Hui Liu",
+        "Charų C. Aggarwal",
+        "Jiliang Tang"
+       ],
+       "abstract": "Retrieval-Augmented Generation (RAG) improves large language models (LLMs) by retrieving relevant information from external sources and has been widely adopted for text-based tasks. For structured data, such as knowledge graphs, Graph Retrieval-Augmented Generation (GraphRAG) retrieves and aggregates information along graph structures. More recently, GraphRAG has been extended to general text settings by organizing unstructured text into graph representations, showing promise for reasoning and grounding. Despite these advances, existing GraphRAG systems for text data are often tailored to specific tasks, datasets, and system designs, resulting in heterogeneous evaluation protocols. Consequently, a systematic understanding of the relative strengths, limitations, and trade-offs between RAG and GraphRAG on widely used text benchmarks remains limited. In this paper, we present a comprehensive benchmark study comparing RAG and GraphRAG on established text-based tasks, including question answering and query-based summarization. We introduce a unified evaluation protocol that standardizes data preprocessing, retrieval configurations, and generation settings, enabling fair and reproducible comparisons. Our results highlight the distinct strengths of RAG and GraphRAG across different tasks and evaluation perspectives. Building on these findings, we explore selection and integration strategies that combine the strengths of both paradigms, leading to consistent performance improvements. We further analyze failure modes, efficiency trade-offs, and evaluation biases, and highlight key considerations for designing and evaluating retrieval-augmented generation systems.",
+       "url": "https://doi.org/10.1145/3770855.3817575",
+       "pdf_url": "https://arxiv.org/pdf/2502.11371v3",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 13,
+       "doi": "10.1145/3770855.3817575",
+       "openalex_id": "https://openalex.org/W4407697889",
+       "relevance_score": 89.81772,
+       "venue": "ACM SIGKDD Conference on Knowledge Discovery and Data Mining (KDD)",
+       "_result_source": "openalex",
+       "published_date": "2025-02-17",
+       "updated_date": "2026-03-04",
+       "arxiv_id": "2502.11371v3",
+       "categories": [
+        "cs.IR"
+       ],
+       "_found_in_sources": [
+        "OpenAlex",
+        "arXiv"
+       ],
+       "result_key": "doi:10.1145/3770855.3817575",
+       "doc_id": "2045386731",
+       "_rank": 0,
+       "_hybrid_score": 0.061796765422483524,
+       "_score_breakdown": {
+        "bm25": 0.9292,
+        "semantic": 0.7412,
+        "citations": 0.5194,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.014085,
+        "rrf_semantic": 0.016393,
+        "rrf_citations": 0.014925,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 3.0,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 859,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 253
+        }
+       }
+      },
+      {
+       "title": "Structured Knowledge for Multi-hop QA: A Comparative Study of GraphRAG and RAG",
+       "authors": [
+        "Nimet Aksoy",
+        "Murat Osman Ünalır"
+       ],
+       "abstract": "Abstract This study comparatively examines the classical RAG approach and the knowledge graph-based GraphRAG architecture in multi-hop question answering. While RAG uses external knowledge in an unstructured manner, GraphRAG aims to provide more controlled and meaningful answers by relying on structured knowledge triples, thereby reducing hallucinations. In the experiments, both architectures were tested on 500 questions selected from the HotpotQA dataset, and their performances were compared. In particular, the questions that the RAG system answered with “I don’t know” were re-evaluated using GraphRAG. In the GraphRAG pipeline, knowledge triples were first extracted from the context, and then the same language model performed question analysis—identifying the question type, the expected reasoning pattern, and selecting the most relevant triples. Answers were generated using only filtered and contextually appropriate structured information.The results show that incorporating structured knowledge provides a clear improvement in semantic answer quality. On average, both cosine similarity and BERT F1 scores increased by 20–30% across the tested subsets. Moreover, GraphRAG successfully answered approximately 80% of the questions that the classical RAG system could not answer. These findings demonstrate that structured knowledge enables more reliable reasoning in multi-step QA and highlight the potential of the GraphRAG approach as a stronger alternative for complex question answering tasks.",
+       "url": "https://doi.org/10.21203/rs.3.rs-8283065/v1",
+       "pdf_url": "https://www.researchsquare.com/article/rs-8283065/latest.pdf",
+       "source": "OpenAlex",
+       "year": "2025",
+       "citations": 0,
+       "doi": "10.21203/rs.3.rs-8283065/v1",
+       "openalex_id": "https://openalex.org/W4417147195",
+       "relevance_score": 72.51485,
+       "venue": "Research Square",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.21203/rs.3.rs-8283065/v1",
+       "doc_id": "1473744104",
+       "_rank": 1,
+       "_hybrid_score": 0.06001966904487617,
+       "_score_breakdown": {
+        "bm25": 0.9994,
+        "semantic": 0.6696,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.016129,
+        "rrf_semantic": 0.015152,
+        "rrf_citations": 0.012346,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 3.0,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 842,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 295
+        }
+       }
+      },
+      {
+       "title": "Is GraphRAG Needed? From Basic RAG to Graph-/Agentic Solutions with Context Optimization",
+       "authors": [
+        "Association for Computational Linguistics 2026",
+        "Long Chen"
+       ],
+       "abstract": "As advanced RAG variants like GraphRAG and Agentic RAG emerge, one leading question is when and how to use them. Here, we introduce a framework for different RAG scenarios evaluation and comparison on semi-structured knowledge bases, including regular RAG, GraphRAG, Modular RAG and Agentic RAG. We provide implementation for 9 standardized RAG scenarios, and conduct experiments for a comprehensive comparison. These scenarios are designed for real use cases regarding data and domain restrictions, spanning from simple document-based retrieval to advanced features such as hybrid text-graph retrieval, integration with computed or pre-defined domain knowledge graphs, agentic multi-step planning, and agent-graph integration. Besides, we present a novel context engineering method for GraphRAG and Agentic RAG, addressing the context/memory overflow issues, efficiently managing text and graph retrievals with new representations and agentic loop design, leading to 19%-53% reduction on token usage. Moreover, further analysis identifies a retrieval-generation gap where expanded retrieval does not proportionally improve generation quality, suggesting retrieval-oriented metrics overstate advanced retrieval benefits. This work provides data-driven insights on when and how to use them for building production-ready intelligent RAG systems.",
+       "url": "https://doi.org/10.48448/6e5x-fs50",
+       "pdf_url": "",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.48448/6e5x-fs50",
+       "openalex_id": "https://openalex.org/W7170038903",
+       "relevance_score": 86.6157,
+       "venue": "Underline Science Inc.",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.48448/6e5x-fs50",
+       "doc_id": "956809676",
+       "_rank": 2,
+       "_hybrid_score": 0.05794547084164571,
+       "_score_breakdown": {
+        "bm25": 0.9061,
+        "semantic": 0.6879,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.013333,
+        "rrf_semantic": 0.015873,
+        "rrf_citations": 0.012346,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 3.0,
+         "confidence": 1.0,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.0,
+          "3": 1.0
+         },
+         "usage": {
+          "input_tokens": 813,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 258
+        }
+       }
+      },
+      {
+       "title": "Do We Still Need GraphRAG? Benchmarking RAG and GraphRAG for Agentic Search Systems",
+       "authors": [
+        "Dongzhe Fan",
+        "Zheyi Xue",
+        "Siyuan Liu",
+        "Qiaoyu Tan"
+       ],
+       "abstract": "Retrieval-augmented generation (RAG) and its graph-based extensions (GraphRAG) are effective paradigms for improving large language model (LLM) reasoning by grounding generation in external knowledge. However, most existing RAG and GraphRAG systems operate under static or one-shot retrieval, where a fixed set of documents is provided to the LLM in a single pass. In contrast, recent agentic search systems enable dynamic, multi-round retrieval and sequential decision-making during inference, and have shown strong gains when combined with vanilla RAG by introducing implicit structure through interaction. This progress raises a fundamental question: can agentic search compensate for the absence of explicit graph structure, reducing the need for costly GraphRAG pipelines? To answer this question, we introduce RAGSearch, a unified benchmark that evaluates dense RAG and representative GraphRAG methods as retrieval infrastructures under agentic search. RAGSearch covers both training-free and training-based agentic inference across multiple question answering benchmarks. To ensure fair and reproducible comparison, we standardize the LLM backbone, retrieval budgets, and inference protocols, and report results on full test sets. Beyond answer accuracy, we report offline preprocessing cost, online inference efficiency, and stability. Our results show that agentic search substantially improves dense RAG and narrows the performance gap to GraphRAG, particularly in RL-based settings. Nevertheless, GraphRAG remains advantageous for complex multi-hop reasoning, exhibiting more stable agentic search behavior when its offline cost is amortized. Together, these findings clarify the complementary roles of explicit graph structure and agentic search, and provide practical guidance on retrieval design for modern agentic RAG systems.",
+       "url": "https://arxiv.org/abs/2604.09666",
+       "pdf_url": "https://arxiv.org/pdf/2604.09666",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.48550/arxiv.2604.09666",
+       "openalex_id": "https://openalex.org/W7154387502",
+       "relevance_score": 83.01507,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "published_date": "2026-04-01",
+       "updated_date": "2026-04-01",
+       "arxiv_id": "2604.09666v1",
+       "categories": [
+        "cs.IR",
+        "cs.AI"
+       ],
+       "_found_in_sources": [
+        "OpenAlex",
+        "arXiv"
+       ],
+       "result_key": "doi:10.48550/arxiv.2604.09666",
+       "doc_id": "724893454",
+       "_rank": 3,
+       "_hybrid_score": 0.0595740362463022,
+       "_score_breakdown": {
+        "bm25": 0.9417,
+        "semantic": 0.6902,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.014706,
+        "rrf_semantic": 0.016129,
+        "rrf_citations": 0.012346,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.99,
+         "confidence": 0.99,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.01,
+          "3": 0.99
+         },
+         "usage": {
+          "input_tokens": 915,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 260
+        }
+       }
+      },
+      {
+       "title": "Comparative Evaluation of RAG and GraphRAG for Open-Ended Question Answering",
+       "authors": [
+        "Jadesola Osinowo",
+        "Abiodun Adebayo",
+        "Sonya Coleman",
+        "Dermot Kerr",
+        "JP Quinn"
+       ],
+       "abstract": "Retrieval-Augmented Generation (RAG) has become the basis in modern question answering (QA) systems, combining Large Language Models (LLMs) with external document retrieval. However, traditional RAG architectures often struggle with retrieving semantically structured or context-rich content, which can impact accuracy and relevance. This paper presents a comparative evaluation of a standard RAG model and a GraphRAG model. The GraphRAG approach combines graph-based document representation within the retrieval pipeline to assess their efficiency on a structured question answering task. This research leverages two modern Ollama-hosted models, Phi-4 and LLaMA 3.2 3B, as the base language models for both retrieval pipelines. Using a custom dataset derived from German coalition policy documents, this research evaluates performance through both lexical and semantic metrics. The results demonstrate that GraphRAG consistently outperforms traditional RAG in semantic alignment and contextual accuracy, particularly when paired with Phi-4. These findings aim to contribute to the growing body of work on hybrid retrieval strategies and support the case for graph-enhanced architectures in long-form QA systems, which are central to advancing structured and knowledge-aware retrieval methods in complex information domains.",
+       "url": "https://pure.ulster.ac.uk/en/publications/15a5c4a6-02a9-4b70-b7de-e8e7b189549e",
+       "pdf_url": "https://pure.ulster.ac.uk/ws/files/241931102/cognitive_2026_2_100_40051.cleaned.pdf",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "",
+       "openalex_id": "https://openalex.org/W7222990367",
+       "relevance_score": 64.3452,
+       "venue": "Ulster University Research Portal (Ulster University)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "provider:openalex:https://openalex.org/W7222990367",
+       "doc_id": "1518754839",
+       "_rank": 4,
+       "_hybrid_score": 0.05927525217142704,
+       "_score_breakdown": {
+        "bm25": 0.9548,
+        "semantic": 0.683,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.015152,
+        "rrf_semantic": 0.015385,
+        "rrf_citations": 0.012346,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.99,
+         "confidence": 0.99,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.01,
+          "3": 0.99
+         },
+         "usage": {
+          "input_tokens": 806,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 261
+        }
+       }
+      },
+      {
+       "title": "Comparing RAG and GraphRAG for Page-Level Retrieval Question Answering on a Math Textbook",
+       "authors": [
+        "Eason Chen",
+        "Chengfei Li",
+        "Siyi Li",
+        "Xiao, Zimo",
+        "Jionghao Lin",
+        "Kenneth R. Koedinger"
+       ],
+       "abstract": "Large language models (LLMs) show promise as educational aids but often lack alignment with specific course materials. We investigate Retrieval-Augmented Generation (RAG) and GraphRAG for page-level question answering on an undergraduate mathematics textbook. Using a curated dataset of 477 question-answer pairs, each tied to a specific textbook page, we compare five embedding-based RAG models, a BM25 baseline, and GraphRAG across two metrics: retrieval accuracy (whether the correct page is retrieved) and answer quality (F1 score). Our results show that embedding-based RAG outperforms GraphRAG for page-level retrieval, with \\texttt{voyage-3-large} achieving 99.4\\\\% accuracy at top-10 (bootstrap 95\\\\% CI for top-1: [.644, .728]). BM25 proves a strong baseline, outperforming several embedding models. Error analysis reveals that 63.3\\\\% of top-1 failures retrieve same-chapter content, suggesting pedagogical relevance even in failure cases. GraphRAG retrieves excessive context ($\\sim$47K tokens vs.\\ $\\sim$3.7K for RAG), reducing generation quality. We further replicate key experiments using an open-source local LLM (Qwen3.5-35B-A3B), finding that RAG benefits are proportionally larger for weaker models (+39\\\\% vs.\\ +16\\\\% relative F1 improvement), an important result for cost-sensitive educational deployments. These findings inform the design of AI tutoring systems that reference specific textbook pages.",
+       "url": "https://arxiv.org/abs/2509.16780",
+       "pdf_url": "https://arxiv.org/pdf/2509.16780",
+       "source": "OpenAlex",
+       "year": "2025",
+       "citations": 2,
+       "doi": "10.48550/arxiv.2509.16780",
+       "openalex_id": "https://openalex.org/W4415252572",
+       "relevance_score": 57.329895,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "published_date": "2025-09-20",
+       "updated_date": "2026-07-28",
+       "arxiv_id": "2509.16780v3",
+       "categories": [
+        "cs.IR",
+        "cs.AI",
+        "cs.HC"
+       ],
+       "comment": "6 pages, 1 figure",
+       "_found_in_sources": [
+        "OpenAlex",
+        "arXiv"
+       ],
+       "result_key": "doi:10.48550/arxiv.2509.16780",
+       "doc_id": "767154172",
+       "_rank": 6,
+       "_hybrid_score": 0.05895210161996599,
+       "_score_breakdown": {
+        "bm25": 0.9788,
+        "semantic": 0.6315,
+        "citations": 0.2162,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.015873,
+        "rrf_semantic": 0.012987,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.98,
+         "confidence": 0.98,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.02,
+          "3": 0.98
+         },
+         "usage": {
+          "input_tokens": 906,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 267
+        }
+       }
+      },
+      {
+       "title": "RAG vs. GraphRAG for Industrial Technical Documentation: A Controlled Evaluation on Laser Manufacturing Manuals",
+       "authors": [
+        "Abdul Hady Bin Zaydie",
+        "Weidong Lin",
+        "Malcolm Yoke Hean Low",
+        "Pei Wang"
+       ],
+       "abstract": "Retrieval-Augmented Generation (RAG) enables large language models to answer questions grounded in external documents, yet its effectiveness on specialized industrial documentation remains underexplored. We present, to our knowledge, the first controlled comparison of conventional vector-based RAG and graph-augmented RAG (GraphRAG) on a laser-manufacturing operators manual. Both systems are evaluated on 1,000 queries sharing identical chunking (1,000-character segments, 200-character overlap), embedding (nomic-embed-text), generation (Gemma 3 12B via Ollama), and on-premises hardware (RTX 4090, 64 GB RAM). Retrieval accuracy is low for both architectures: baseline RAG achieves Hit@5 of 32.50% (MRR 0.217) and GraphRAG reaches 34.70% (MRR 0.229). However, GraphRAG improves faithfulness from 71.60% to 86.90% (+15.3 pp), suggesting that graph-augmented retrieval reduces hallucination even when chunk-level retrieval precision improves only marginally. Error analysis identifies four manufacturing-specific failure categories (navigational queries, technical identifiers, command syntax, and figure references) that are absent from general-domain RAG benchmarks. These results indicate that, in this industrial setting, retrieval quality rather than generation capability is the primary performance bottleneck, and point toward hybrid retrieval strategies for safety-critical manufacturing environments.",
+       "url": "https://doi.org/10.25447/sit.33980941",
+       "pdf_url": "",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.25447/sit.33980941",
+       "openalex_id": "https://openalex.org/W7214208028",
+       "relevance_score": 69.43789,
+       "venue": "Singapore Institute of Technology",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.25447/sit.33980941",
+       "doc_id": "417287442",
+       "_rank": 7,
+       "_hybrid_score": 0.056218888245497894,
+       "_score_breakdown": {
+        "bm25": 0.9061,
+        "semantic": 0.652,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.012987,
+        "rrf_semantic": 0.014493,
+        "rrf_citations": 0.012346,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.96,
+         "confidence": 0.96,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.04,
+          "3": 0.96
+         },
+         "usage": {
+          "input_tokens": 897,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 323
+        }
+       }
+      },
+      {
+       "title": "PROPEX-RAG: Enhanced GraphRAG Using Prompt-Driven Prompt Execution",
+       "authors": [
+        "Tejas Sarnaik",
+        "Manan Shah",
+        "Ravi Hegde"
+       ],
+       "abstract": "",
+       "url": "https://doi.org/10.1007/978-3-032-18477-1_21",
+       "pdf_url": "https://arxiv.org/pdf/2511.01802",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 1,
+       "doi": "10.1007/978-3-032-18477-1_21",
+       "openalex_id": "https://openalex.org/W4416440156",
+       "relevance_score": 63.289017,
+       "venue": "Lecture notes in computer science",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.1007/978-3-032-18477-1_21",
+       "doc_id": "770590110",
+       "_rank": 8,
+       "_hybrid_score": 0.056887148214547975,
+       "_score_breakdown": {
+        "bm25": 0.9558,
+        "semantic": 0.6146,
+        "citations": 0.1364,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.015625,
+        "rrf_semantic": 0.012048,
+        "rrf_citations": 0.012821,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true
+       }
+      },
+      {
+       "title": "Development and validation of Retrieval Augmented Generation (RAG) and GraphRAG for complex clinical cases",
+       "authors": [
+        "M. Berkan Sesen",
+        "Joshua Au Yeung",
+        "Elham Asgari"
+       ],
+       "abstract": "Abstract Objective Chronic Kidney Disease (CKD) is a progressive condition requiring evidence-based management, but adherence to complex guidelines remains challenging. Large Language Models (LLMs) could support clinical decision-making, yet their unreliability limits direct use. This study aimed to evaluate whether Retrieval-Augmented Generation (RAG), particularly a knowledge graph-enhanced pipeline (GraphRAG), improves guideline-based clinical decision support (CDS) in CKD management. Methods and Analysis We compared three approaches: a baseline LLM (GPT-4o), a vector-indexed RAG pipeline, and a GraphRAG pipeline. Each model answered nine clinically relevant questions for a synthetic cohort of 70 CKD patients. Outputs were assessed for clinical correctness, patient-specificity, and clarity, using both clinician-led evaluations and an LLM-as-Judge framework. Results RAG-based methods outperformed the baseline LLM in clinical correctness and guideline adherence. GraphRAG achieved the highest patient-specificity by leveraging multi-hop relationships across a knowledge graph derived from NICE CKD guidelines, particularly for tasks involving thresholds, algorithmic decisions, or open-ended management. However, GraphRAG scored lower in clarity, as its graph walks often returned long guideline excerpts that obscured key recommendations. All RAG systems were limited by the scope of the indexed guideline and performed poorly when essential information was missing. Conclusions RAG and GraphRAG provide a scalable, auditable foundation for guideline-aligned CDS in CKD, with GraphRAG showing particular strengths in tailoring advice to patient data. Nonetheless, trade-offs remain between specificity and clarity, and effective deployment will require robust content management, transparent validation pipelines, and integration within established clinical governance frameworks. Key points - LLMs have comprehensive medical knowledge but require access to up-to-date, evidence-based, and locally relevant guidelines to be effective in CDS. - Hallucinations (the generation of inaccurate or misleading information) remain a major limitation for LLMs in healthcare. - Traditional information retrieval methods face several challenges in providing accurate, context-specific evidence. - Retrieval-Augmented Generation (RAG) and graph-based RAG approaches have emerged as promising solutions to overcome these limitations. - Renal medicine provides an ideal test domain to evaluate these models, given its complexity and reliance on nuanced, multidisciplinary decision-making. - Studying LLM performance in kidney health can yield valuable insights into how such models can safely and effectively support complex clinical decision-making.",
+       "url": "https://doi.org/10.1101/2025.11.25.25341010",
+       "pdf_url": "https://www.medrxiv.org/content/medrxiv/early/2025/11/27/2025.11.25.25341010.full.pdf",
+       "source": "OpenAlex",
+       "year": "2025",
+       "citations": 2,
+       "doi": "10.1101/2025.11.25.25341010",
+       "openalex_id": "https://openalex.org/W4416754409",
+       "relevance_score": 64.75528,
+       "venue": "medRxiv",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.1101/2025.11.25.25341010",
+       "doc_id": "1049070951",
+       "_rank": 9,
+       "_hybrid_score": 0.05262132344452761,
+       "_score_breakdown": {
+        "bm25": 0.9038,
+        "semantic": 0.5777,
+        "citations": 0.2162,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.012821,
+        "rrf_semantic": 0.009709,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.91,
+         "confidence": 0.91,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.09,
+          "3": 0.91
+         },
+         "usage": {
+          "input_tokens": 1085,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 187
+        }
+       }
+      },
+      {
+       "title": "GraphRAG: Leveraging Graph-Based Efficiency to Minimize Hallucinations in LLM-Driven RAG for Finance Data",
+       "authors": [
+        "Mariam Barry",
+        "Gaëtan Caillaut",
+        "Pierre Halftermeyer",
+        "Raheel Qader",
+        "Mehdi Mouayad",
+        "Cariolaro, Dimitri",
+        "Fabrice Le Deit",
+        "Joseph Gesnouin"
+       ],
+       "abstract": "This study explores the integration of graphbased methods into Retrieval-Augmented Generation (RAG) systems to enhance efficiency, reduce hallucinations, and improve explainability, with a particular focus on financial and regulatory document retrieval. We propose two strategies-FactRAG and HybridRAG-which leverage knowledge graphs to improve RAG performance. Experiments conducted using Finance Bench, a benchmark for AI in finance, demonstrate that these approaches achieve a 6% reduction in hallucinations and an 80% decrease in token usage compared to conventional RAG methods. Furthermore, we evaluate HybridRAG by comparing the Digital Operational Resilience Act (DORA) from the European Union with the Federal Financial Institutions Examination Council (FFIEC) guidelines from the United States. The results reveal a significant improvement in computational efficiency, reducing contradiction detection complexity from O(n 2 ) to O(k •n)-where n is the number of chunks-and a remarkable 734-fold decrease in token consumption. Graph-based retrieval methods can improve the efficiency and cost-effectiveness of large language model (LLM) applications, though their performance and token usage depend on the dataset, knowledge graph design, and retrieval task.",
+       "url": "https://hal.science/hal-04907346",
+       "pdf_url": "https://hal.science/hal-04907346v1/document",
+       "source": "OpenAlex",
+       "year": "2025",
+       "citations": 4,
+       "doi": "",
+       "openalex_id": "https://openalex.org/W4407054581",
+       "relevance_score": 60.768078,
+       "venue": "HAL",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "provider:openalex:https://openalex.org/W4407054581",
+       "doc_id": "673531772",
+       "_rank": 10,
+       "_hybrid_score": 0.05237495670745787,
+       "_score_breakdown": {
+        "bm25": 0.0475,
+        "semantic": 0.6485,
+        "citations": 0.3167,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.007812,
+        "rrf_semantic": 0.014085,
+        "rrf_citations": 0.014085,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.87,
+         "confidence": 0.88,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.12,
+          "3": 0.88
+         },
+         "usage": {
+          "input_tokens": 820,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 184
+        }
+       }
+      },
+      {
+       "title": "Document GraphRAG: Knowledge Graph Enhanced Retrieval Augmented Generation for Document Question Answering Within the Manufacturing Domain",
+       "authors": [
+        "Simon Knollmeyer",
+        "Oğuz Caymazer",
+        "Daniel Großmann"
+       ],
+       "abstract": "Retrieval-Augmented Generation (RAG) systems have shown significant potential for domain-specific Question Answering (QA) tasks, although persistent challenges in retrieval precision and context selection continue to hinder their effectiveness. This study introduces Document Graph RAG (GraphRAG), a novel framework that bolsters retrieval robustness and enhances answer generation by incorporating Knowledge Graphs (KGs) built upon a document’s intrinsic structure into the RAG pipeline. Through the application of the Design Science Research methodology, we systematically design, implement, and evaluate GraphRAG, leveraging graph-based document structuring and a keyword-based semantic linking mechanism to improve retrieval quality. The evaluation, conducted on well-established datasets including SQuAD, HotpotQA, and a newly developed manufacturing dataset, demonstrates consistent performance gains over a naive RAG baseline across both retrieval and generation metrics. The results indicate that GraphRAG improves Context Relevance metrics, with task-dependent optimizations for chunk size, keyword density, and top-k retrieval further enhancing performance. Notably, multi-hop questions benefit most from GraphRAG’s structured retrieval strategy, highlighting its advantages in complex reasoning tasks.",
+       "url": "https://doi.org/10.3390/electronics14112102",
+       "pdf_url": "https://www.mdpi.com/2079-9292/14/11/2102/pdf?version=1747904257",
+       "source": "OpenAlex",
+       "year": "2025",
+       "citations": 61,
+       "doi": "10.3390/electronics14112102",
+       "openalex_id": "https://openalex.org/W4410600121",
+       "relevance_score": 63.836628,
+       "venue": "Electronics",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.3390/electronics14112102",
+       "doc_id": "1494504023",
+       "_rank": 12,
+       "_hybrid_score": 0.05013273208345606,
+       "_score_breakdown": {
+        "bm25": 0.522,
+        "semantic": 0.5676,
+        "citations": 0.8122,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.008264,
+        "rrf_semantic": 0.009346,
+        "rrf_citations": 0.016129,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.79,
+         "confidence": 0.79,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.0,
+          "2": 0.21,
+          "3": 0.79
+         },
+         "usage": {
+          "input_tokens": 802,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 221
+        }
+       }
+      },
+      {
+       "title": "Advancing CERN's AccGPT: Agentic and Graph-Enhanced RAG for Scientific Knowledge Retrieval",
+       "authors": [
+        "van Leijenhorst, Luke Jason"
+       ],
+       "abstract": "CERN’s extensive documentation spans 71 years of particle physics research and presents significant knowledge retrieval challenges. While the baseline AccGPT system already provides basic RAG capabilities, it struggles with structural relationships, complex queries, and specialized terminology. This thesis presents four enhancements to address these limitations. First, we implement GraphRAG which constructs a knowledge graph of 400,000 entities and 650,000 relationships from CERN’s documentation. This graph enables local entity-based and global community-based retrieval. Second, we develop AccGPT-Agentic which combines GraphRAG with iterative AccGPT retrieval using the ReAct agent framework that adaptively gathers information in multiple steps. Third, we integrate external sources via the Model Context Protocol (MCP) that provides real-time access to information sources like event schedules and publications. Fourth, we fine-tune an embedding model for CERN’s vocabulary using a knowledge-graph guided synthetic Q&A set. We evaluate these RAG pipelines using a comprehensive framework that combines individual metrics for each pipeline (DeepEval) with direct head-to-head LLM-judge comparisons. The results reveal a divergence where GraphRAG achieves the highest scores on individual metrics, yet AccGPT-Agentic decisively wins in direct comparison (52.6% preference rate on three-way comparison). This highlights that traditional RAG metrics may not predict actual answer quality with implications for how RAG pipelines should be evaluated. The pipelines demonstrate clear quality-latency trade-offs: AccGPT responds in 0.92s, GraphRAG in 4.34s, and Agentic in 11.81s on average. Domain-specific embedding fine-tuning yields strong improvements (Recall@10: +13.8%) with minimal training cost and hardware requirements. This work delivers two main contributions. For CERN, it provides domain-adapted advanced RAG architectures (GraphRAG and Agentic RAG) that improve answer and retrieval quality. For RAG research, it reveals a critical methodological insight where individual metrics and direct judge preferences can give contradictory results.",
+       "url": "https://doi.org/10.17181/8dmg9-xky56",
+       "pdf_url": "",
+       "source": "OpenAlex",
+       "year": "2025",
+       "citations": 0,
+       "doi": "10.17181/n8bz5-k4195",
+       "openalex_id": "https://openalex.org/W7115577307",
+       "relevance_score": 66.70344,
+       "venue": "CERN Document Server (European Organization for Nuclear Research)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.17181/n8bz5-k4195",
+       "doc_id": "84283830",
+       "_rank": 13,
+       "_hybrid_score": 0.049069358993397635,
+       "_score_breakdown": {
+        "bm25": 0.8241,
+        "semantic": 0.5777,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.010526,
+        "rrf_semantic": 0.009804,
+        "rrf_citations": 0.012346,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.58,
+         "confidence": 0.58,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.01,
+          "2": 0.4,
+          "3": 0.59
+         },
+         "usage": {
+          "input_tokens": 1008,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 242
+        }
+       }
+      },
+      {
+       "title": "Knowledge-enhancement-driven: a performance comparison study of GraphRAG and Agentic RAG",
+       "authors": [
+        "Qi Meng",
+        "Zhenglong Wu",
+        "Zhongshi Zhao"
+       ],
+       "abstract": "Addressing the limitations of general large language models (LLMs) in handling knowledge-intensive Q&A tasks within vertical domains—even after fine-tuning—this research explores knowledge enhancement technologies to mitigate challenges such as knowledge lag, factual inaccuracies, and insufficient professional depth. The research and development of knowledge enhancement technology of large language model were deeply discussed and analyzed. Through designed experiments, the performance gains of two advanced methods: GraphRAG and Agentic RAG were compared. Experimental results demonstrate that GraphRAG facilitates the rapid construction of domain-specific knowledge graphs, leveraging rich structured information to enhance model training. Overall, Agentic RAG proves more effective in improving model performance for vertical domain Q&A. The experimental design and adaptive optimization approaches proposed in this study offer valuable insights and references for similar industrial research.",
+       "url": "https://doi.org/10.1117/12.3107414",
+       "pdf_url": "",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.1117/12.3107414",
+       "openalex_id": "https://openalex.org/W7138938289",
+       "relevance_score": 73.23173,
+       "venue": "International Conference on Algorithms, High Performance Computing and Artificial Intelligence (AHPCAI)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.1117/12.3107414",
+       "doc_id": "1643521148",
+       "_rank": 14,
+       "_hybrid_score": 0.05430279264196529,
+       "_score_breakdown": {
+        "bm25": 0.9547,
+        "semantic": 0.6041,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.014925,
+        "rrf_semantic": 0.010638,
+        "rrf_citations": 0.012346,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.45,
+         "confidence": 0.52,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.01,
+          "2": 0.52,
+          "3": 0.47
+         },
+         "usage": {
+          "input_tokens": 724,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 190
+        }
+       }
+      },
+      {
+       "title": "How Significant Are the Real Performance Gains? An Unbiased Evaluation Framework for GraphRAG",
+       "authors": [
+        "Qiming Zeng",
+        "Hao Luo",
+        "Yuhao Lin",
+        "Yicheng Jin",
+        "Yuxiang Wang",
+        "Fangcheng Fu",
+        "Xiao Yan",
+        "Jiawei Jiang"
+       ],
+       "abstract": "By retrieving contexts from knowledge graphs, graph-based retrieval-augmented generation (GraphRAG) enhances large language models (LLMs) to generate quality answers for user questions. Many GraphRAG methods have been proposed and reported inspiring performance in answer quality. However, we observe that the current answer evaluation framework for GraphRAG has two critical flaws, i.e., unrelated questions and evaluation biases, which may lead to biased or even wrong conclusions on performance. To tackle the two flaws, we propose an unbiased evaluation framework that uses graph-text-grounded question generation to produce questions that are more related to the underlying dataset and an unbiased evaluation procedure to eliminate the biases in LLM-based answer assessment. We apply our unbiased framework to evaluate 3 representative GraphRAG methods and find that their performance gains are much more moderate than reported previously. Although our evaluation framework may still have flaws, it calls for scientific evaluations to lay solid foundations for GraphRAG research.",
+       "url": "http://arxiv.org/abs/2506.06331v2",
+       "pdf_url": "https://arxiv.org/pdf/2506.06331v2",
+       "published_date": "2025-05-31",
+       "updated_date": "2026-08-13",
+       "source": "arXiv",
+       "arxiv_id": "2506.06331v2",
+       "categories": [
+        "cs.CL",
+        "cs.AI",
+        "cs.IR"
+       ],
+       "doi": null,
+       "comment": null,
+       "journal_ref": null,
+       "_result_source": "arxiv",
+       "_found_in_sources": [
+        "arXiv"
+       ],
+       "result_key": "arxiv:2506.06331",
+       "doc_id": "1546238320",
+       "_rank": 15,
+       "_hybrid_score": 0.05123456790123457,
+       "_score_breakdown": {
+        "bm25": 0.9554,
+        "semantic": 0.6474,
+        "citations": 0.0,
+        "recency": 0.3,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.015385,
+        "rrf_semantic": 0.013889,
+        "rrf_citations": 0.012346,
+        "rrf_recency": 0.009615,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 2.33,
+         "confidence": 0.61,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.03,
+          "2": 0.61,
+          "3": 0.36
+         },
+         "usage": {
+          "input_tokens": 756,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 179
+        }
+       }
+      },
+      {
+       "title": "GraphRAG Under Fire",
+       "authors": [
+        "Jiacheng Liang",
+        "Yuhui Wang",
+        "Changjiang Li",
+        "Tanqiu Jiang",
+        "Rongyi Zhu",
+        "Neil Gong",
+        "Ting Wang"
+       ],
+       "abstract": "GraphRAG advances retrieval-augmented generation (RAG) by structuring external knowledge as multi-scale knowledge graphs, enabling language models to integrate both broad context and granular details in their generation. While GraphRAG has demonstrated success across domains, its security implications remain largely unexplored. To bridge this gap, this work examines GraphRAG's vulnerability to poisoning attacks, uncovering an intriguing security paradox: existing RAG poisoning attacks are less effective under GraphRAG than conventional RAG, due to GraphRAG's graph-based indexing and retrieval; yet, the same features also create new attack surfaces. We present GragPoison, a novel attack that exploits shared relations in the underlying knowledge graph to craft poisoning text capable of compromising multiple queries simultaneously. GragPoison employs three key strategies: (i) relation injection to introduce false knowledge, (ii) relation enhancement to amplify poisoning influence, and (iii) narrative generation to embed malicious content within coherent text. Empirical evaluation across diverse datasets and models shows that GragPoison substantially outperforms existing attacks in terms of effectiveness (up to 98% success rate) and scalability (using less than 68% poisoning text) on multiple variations of GraphRAG. We also explore potential defensive measures and their limitations, identifying promising directions for future research.",
+       "url": "https://doi.org/10.1109/sp63933.2026.00070",
+       "pdf_url": "https://arxiv.org/pdf/2501.14050",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 2,
+       "doi": "10.1109/sp63933.2026.00070",
+       "openalex_id": "https://openalex.org/W4406840517",
+       "relevance_score": 61.917427,
+       "venue": "IEEE Symposium on Security and Privacy (S&P)",
+       "_result_source": "openalex",
+       "published_date": "2025-01-23",
+       "updated_date": "2025-10-14",
+       "arxiv_id": "2501.14050v4",
+       "categories": [
+        "cs.LG",
+        "cs.AI",
+        "cs.CR"
+       ],
+       "comment": "13 pages. Accepted by IEEE Symposium on Security and Privacy 2026 (S&P 2026)",
+       "_found_in_sources": [
+        "OpenAlex",
+        "arXiv"
+       ],
+       "result_key": "doi:10.1109/sp63933.2026.00070",
+       "doc_id": "79008916",
+       "_rank": 16,
+       "_hybrid_score": 0.057891300559164915,
+       "_score_breakdown": {
+        "bm25": 0.9317,
+        "semantic": 0.6425,
+        "citations": 0.2162,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.014286,
+        "rrf_semantic": 0.013514,
+        "rrf_citations": 0.013699,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 1.96,
+         "confidence": 0.68,
+         "probabilities": {
+          "0": 0.01,
+          "1": 0.16,
+          "2": 0.69,
+          "3": 0.14
+         },
+         "usage": {
+          "input_tokens": 823,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 274
+        }
+       }
+      },
+      {
+       "title": "Relink: Constructing Query-Driven Evidence Graph On-the-Fly for GraphRAG",
+       "authors": [
+        "Manzong Huang",
+        "Chenyang Bu",
+        "Yi He",
+        "Xingrui Zhuo",
+        "Xindong Wu"
+       ],
+       "abstract": "Graph-based Retrieval-Augmented Generation (GraphRAG) mitigates hallucinations in Large Language Models (LLMs) by grounding them in structured knowledge. However, current GraphRAG methods are constrained by a prevailing build-then-reason paradigm, which relies on a static, pre-constructed Knowledge Graph (KG). This paradigm faces two critical challenges. First, the KG's inherent incompleteness often breaks reasoning paths. Second, the graph’s low signal-to-noise ratio introduces distractor facts, presenting query-relevant but misleading knowledge that disrupts the reasoning process. To address these challenges, we argue for a reason-and-construct paradigm and propose Relink, a framework that dynamically builds a query-specific evidence graph. To tackle incompleteness, Relink instantiates required facts from a latent relation pool derived from the original text corpus, repairing broken paths on the fly. To handle misleading or distractor facts, Relink employs a unified, query-aware evaluation strategy that jointly considers candidates from both the KG and latent relations, selecting those most useful for answering the query rather than relying on their pre-existence. This empowers Relink to actively discard distractor facts and construct the most faithful and precise evidence path for each query. Extensive experiments on five Open-Domain Question Answering benchmarks show that Relink achieves significant average improvements of 5.4% in EM and 5.2% in F1 over leading GraphRAG baselines, demonstrating the superiority of our proposed framework.",
+       "url": "https://doi.org/10.1609/aaai.v40i37.40382",
+       "pdf_url": "https://ojs.aaai.org/index.php/AAAI/article/download/40382/44343",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 1,
+       "doi": "10.1609/aaai.v40i37.40382",
+       "openalex_id": "https://openalex.org/W7138330418",
+       "relevance_score": 58.210533,
+       "venue": "Proceedings of the AAAI Conference on Artificial Intelligence",
+       "_result_source": "openalex",
+       "published_date": "2026-01-12",
+       "updated_date": "2026-01-12",
+       "arxiv_id": "2601.07192v1",
+       "categories": [
+        "cs.CL",
+        "cs.AI"
+       ],
+       "comment": "Accepted by AAAI 2026",
+       "_found_in_sources": [
+        "OpenAlex",
+        "arXiv"
+       ],
+       "result_key": "doi:10.1609/aaai.v40i37.40382",
+       "doc_id": "446037266",
+       "_rank": 17,
+       "_hybrid_score": 0.051460896489069874,
+       "_score_breakdown": {
+        "bm25": 0.8329,
+        "semantic": 0.6112,
+        "citations": 0.1364,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.010753,
+        "rrf_semantic": 0.011494,
+        "rrf_citations": 0.012821,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 1.95,
+         "confidence": 0.71,
+         "probabilities": {
+          "0": 0.0,
+          "1": 0.17,
+          "2": 0.71,
+          "3": 0.12
+         },
+         "usage": {
+          "input_tokens": 882,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 186
+        }
+       }
+      },
+      {
+       "title": "PoP-RAG: Holistic Query Planning for GraphRAG",
+       "authors": [
+        "Qiming Zeng",
+        "Xintong Hu",
+        "Yuhao Lin",
+        "Hao Luo",
+        "Susie Xi Rao",
+        "Xiao Yan",
+        "Jiawei Jiang"
+       ],
+       "abstract": "Graph-based retrieval-augmented generation (GraphRAG) leverages knowledge graphs to provide context for large language models (LLMs) to generate quality responses. Yet existing GraphRAG methods suffer from two drawbacks: connecting each entity to all passages that mention the entity causes one-to-many entity-passage mapping problem and retrieves redundant passages, and fixed graph traversal patterns fail to locate target information for hard queries. To tackle the two limitations, we propose PoP-RAG, which features a passage-on-edge (PoE) graph that links the passages with graph edges to resolve the one-to-many entity-passage mapping problem. PoP-RAG further introduces a query planning step that decomposes a query into sub-queries and builds a directed acyclic graph (DAG) to model their relationships. This design enables targeted retrieval for each sub-query and ensures transparent response derivation logic, thus enhancing explainability. Experimental results demonstrate that PoP-RAG outperforms existing GraphRAG methods, especially on complex queries.",
+       "url": "https://doi.org/10.53941/tgina.2026.100006",
+       "pdf_url": "https://media.sciltp.com/articles/2609005155/2609005155.pdf",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.53941/tgina.2026.100006",
+       "openalex_id": "https://openalex.org/W7213952763",
+       "relevance_score": 73.54546,
+       "venue": "Transactions on Graph Intelligence and Network Applications",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.53941/tgina.2026.100006",
+       "doc_id": "611815085",
+       "_rank": 18,
+       "_hybrid_score": 0.05463287372350231,
+       "_score_breakdown": {
+        "bm25": 0.8969,
+        "semantic": 0.6458,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.012195,
+        "rrf_semantic": 0.013699,
+        "rrf_citations": 0.012346,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 1.69,
+         "confidence": 0.6,
+         "probabilities": {
+          "0": 0.01,
+          "1": 0.34,
+          "2": 0.61,
+          "3": 0.04
+         },
+         "usage": {
+          "input_tokens": 767,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 176
+        }
+       }
+      },
+      {
+       "title": "Empowering GraphRAG with Knowledge Filtering and Integration",
+       "authors": [
+        "Kai Guo",
+        "Harry Shomer",
+        "Shenglai Zeng",
+        "Haoyu Han",
+        "Yu Wang",
+        "Jiliang Tang"
+       ],
+       "abstract": "In recent years, large language models (LLMs) have revolutionized the field of natural language processing.However, they often suffer from knowledge gaps and hallucinations.Graph retrieval-augmented generation (GraphRAG) enhances LLM reasoning by integrating structured knowledge from external graphs.However, we identify two key challenges that plague GraphRAG: (1) Retrieving noisy and irrelevant information can degrade performance and (2) Excessive reliance on external knowledge suppresses the model's intrinsic reasoning.To address these issues, we propose GraphRAG-FI (Filtering & Integration), consisting of GraphRAG-Filtering and GraphRAG-Integration. GraphRAG-Filtering employs a two-stage filtering mechanism to refine retrieved information.GraphRAG-Integration employs a logits-based selection strategy to balance external knowledge from GraphRAG with the LLM's intrinsic reasoning, reducing over-reliance on retrievals.Experiments on knowledge graph QA tasks demonstrate that GraphRAG-FI significantly improves reasoning performance across multiple backbone models, establishing a more reliable and effective GraphRAG framework.",
+       "url": "https://doi.org/10.18653/v1/2025.emnlp-main.1293",
+       "pdf_url": "https://aclanthology.org/2025.emnlp-main.1293.pdf",
+       "source": "OpenAlex",
+       "year": "2025",
+       "citations": 9,
+       "doi": "10.18653/v1/2025.emnlp-main.1293",
+       "openalex_id": "https://openalex.org/W4416035633",
+       "relevance_score": 64.46976,
+       "venue": "Conference on Empirical Methods in Natural Language Processing (EMNLP)",
+       "_result_source": "openalex",
+       "published_date": "2025-03-18",
+       "updated_date": "2025-03-18",
+       "arxiv_id": "2503.13804v1",
+       "categories": [
+        "cs.AI"
+       ],
+       "_found_in_sources": [
+        "OpenAlex",
+        "arXiv"
+       ],
+       "result_key": "doi:10.18653/v1/2025.emnlp-main.1293",
+       "doc_id": "268159988",
+       "_rank": 19,
+       "_hybrid_score": 0.05239398161636438,
+       "_score_breakdown": {
+        "bm25": 0.9027,
+        "semantic": 0.5511,
+        "citations": 0.4531,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.012658,
+        "rrf_semantic": 0.00885,
+        "rrf_citations": 0.014493,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true,
+        "jev": {
+         "model": "jev-1.13.0",
+         "rubric_version": "paper-relevance-v1",
+         "score": 1.48,
+         "confidence": 0.5,
+         "probabilities": {
+          "0": 0.01,
+          "1": 0.51,
+          "2": 0.47,
+          "3": 0.01
+         },
+         "usage": {
+          "input_tokens": 790,
+          "output_tokens": 19
+         },
+         "elapsed_ms": 187
+        }
+       }
+      },
+      {
+       "title": "Retrieval-Augmented Generation with Graphs (GraphRAG)",
+       "authors": [
+        "Haoyu Han",
+        "Yu Wang",
+        "Harry Shomer",
+        "Kai Guo",
+        "Jiayuan Ding",
+        "Lei, Yongjia",
+        "Mahantesh M. Halappanavar",
+        "Ryan A. Rossi",
+        "Subhabrata Mukherjee",
+        "Xianfeng Tang",
+        "Qi He",
+        "Zhigang Hua",
+        "Bo Long",
+        "Zhao, Tong",
+        "Neil Shah",
+        "Amin Javari",
+        "Yinglong Xia",
+        "Jiliang Tang"
+       ],
+       "abstract": "Retrieval-augmented generation (RAG) is a powerful technique that enhances downstream task execution by retrieving additional information, such as knowledge, skills, and tools from external sources. Graph, by its intrinsic \"nodes connected by edges\" nature, encodes massive heterogeneous and relational information, making it a golden resource for RAG in tremendous real-world applications. As a result, we have recently witnessed increasing attention on equipping RAG with Graph, i.e., GraphRAG. However, unlike conventional RAG, where the retriever, generator, and external data sources can be uniformly designed in the neural-embedding space, the uniqueness of graph-structured data, such as diverse-formatted and domain-specific relational knowledge, poses unique and significant challenges when designing GraphRAG for different domains. Given the broad applicability, the associated design challenges, and the recent surge in GraphRAG, a systematic and up-to-date survey of its key concepts and techniques is urgently desired. Following this motivation, we present a comprehensive and up-to-date survey on GraphRAG. Our survey first proposes a holistic GraphRAG framework by defining its key components, including query processor, retriever, organizer, generator, and data source. Furthermore, recognizing that graphs in different domains exhibit distinct relational patterns and require dedicated designs, we review GraphRAG techniques uniquely tailored to each domain. Finally, we discuss research challenges and brainstorm directions to inspire cross-disciplinary opportunities. Our survey repository is publicly maintained at https://github.com/Graph-RAG/GraphRAG/.",
+       "url": "http://arxiv.org/abs/2501.00309",
+       "pdf_url": "https://arxiv.org/pdf/2501.00309",
+       "source": "OpenAlex",
+       "year": "2024",
+       "citations": 34,
+       "doi": "10.48550/arxiv.2501.00309",
+       "openalex_id": "https://openalex.org/W4406031095",
+       "relevance_score": 78.179924,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "published_date": "2024-12-31",
+       "updated_date": "2025-01-08",
+       "arxiv_id": "2501.00309v2",
+       "categories": [
+        "cs.IR",
+        "cs.CL",
+        "cs.LG"
+       ],
+       "_found_in_sources": [
+        "OpenAlex",
+        "arXiv"
+       ],
+       "result_key": "doi:10.48550/arxiv.2501.00309",
+       "doc_id": "2009015479",
+       "_rank": 20,
+       "_hybrid_score": 0.048986976369495165,
+       "_score_breakdown": {
+        "bm25": 0.7944,
+        "semantic": 0.6396,
+        "citations": 0.6997,
+        "recency": 0.7,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.01,
+        "rrf_semantic": 0.013158,
+        "rrf_citations": 0.015625,
+        "rrf_recency": 0.010204,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true
+       }
+      },
+      {
+       "title": "Operationalizing Cyber Threat Intelligence with GraphRAG",
+       "authors": [
+        "Atul Kabra",
+        "Prakhar Paliwal",
+        "Manjesh K. Hanawal"
+       ],
+       "abstract": "When a security researcher publishes a report on a cyberattack, detection engineers are supposed to turn it into working detection rules. In practice, most automated attempts at this only extract the simplest clues from the report --- bad IP addresses, domain names, and file hashes --- and turn them into block lists. This is a weak strategy, because attackers can change these simple clues within hours or days, so the resulting detections stop working almost as soon as they are deployed. Security teams describe this idea with the Pyramid of Pain. This project asks whether feeding a report into a knowledge-graph retrieval system, Microsoft GraphRAG, rather than a standard vector-similarity retrieval system (Naive RAG), produces detection plans that rely more on these durable, top-of-pyramid clues. Both systems are given the same report, the same generation instructions, and the same language model to write the final plan; only the retrieval step differs. In a detailed case study of one APT28 report, the GraphRAG plan kept firing at 100\\% of its detections after every IP address, domain, and file hash in the report was rotated, while the Naive RAG plan kept firing at only 29\\%. Repeating the comparison across nine real CTI reports from four vendors confirms the same pattern: GraphRAG plans consistently reach higher, harder-to-evade levels of the pyramid, even when the two systems end up close on total score. The results support treating knowledge-graph-aware retrieval as the architecturally correct foundation for automatically generating SOC-deployable hunting plans, while showing that the wording of the generation prompt matters almost as much as the retrieval back-end itself.",
+       "url": "https://arxiv.org/abs/2608.13050",
+       "pdf_url": "https://arxiv.org/pdf/2608.13050",
+       "source": "OpenAlex",
+       "year": "2026",
+       "citations": 0,
+       "doi": "10.48550/arxiv.2608.13050",
+       "openalex_id": "https://openalex.org/W7203482635",
+       "relevance_score": 62.50642,
+       "venue": "arXiv (Cornell University)",
+       "_result_source": "openalex",
+       "_found_in_sources": [
+        "OpenAlex"
+       ],
+       "result_key": "doi:10.48550/arxiv.2608.13050",
+       "doc_id": "1022365601",
+       "_rank": 21,
+       "_hybrid_score": 0.04894939008482187,
+       "_score_breakdown": {
+        "bm25": 0.8151,
+        "semantic": 0.5789,
+        "citations": 0.0,
+        "recency": 1.0,
+        "cross_encoder": null,
+        "excluded_signals": {
+         "cross_encoder": "disabled_weight"
+        },
+        "rrf_bm25": 0.010309,
+        "rrf_semantic": 0.009901,
+        "rrf_citations": 0.012346,
+        "rrf_recency": 0.016393,
+        "rrf_cross_encoder": 0.0,
+        "cross_encoder_weight": 0.0,
+        "rrf_mode": true
+       }
+      }
+     ]
+    },
+    {
+     "type": "graph",
+     "query_hash": "9f2f9f9227fc",
+     "graph": {
+      "nodes": [
+       {
+        "id": "doi:10.1145/3770855.3817575",
+        "x": -0.11305622012552197,
+        "y": 0.05801847017750624,
+        "title": "RAG vs. GraphRAG: A Systematic Evaluation and Key Insights",
+        "year": "2026",
+        "citations": 13,
+        "authors": [
+         "Haoyu Han",
+         "Li Ma",
+         "Yu Wang",
+         "Harry Shomer",
+         "Kai Guo",
+         "Yongjia Lei",
+         "Zhisheng Qi",
+         "Zhigang Hua",
+         "Bo Long",
+         "Hui Liu",
+         "Charų C. Aggarwal",
+         "Jiliang Tang"
+        ],
+        "abstract": "Retrieval-Augmented Generation (RAG) improves large language models (LLMs) by retrieving relevant information from external sources and has been widely adopted for text-based tasks. For structured data, such as knowledge graphs, Graph Retrieval-Augmented Generation (GraphRAG) retrieves and aggregates information along graph structures. More recently, GraphRAG has been extended to general text settings by organizing unstructured text into graph representations, showing promise for reasoning and grounding. Despite these advances, existing GraphRAG systems for text data are often tailored to specific tasks, datasets, and system designs, resulting in heterogeneous evaluation protocols. Consequently, a systematic understanding of the relative strengths, limitations, and trade-offs between RAG and GraphRAG on widely used text benchmarks remains limited. In this paper, we present a comprehensive benchmark study comparing RAG and GraphRAG on established text-based tasks, including question answering and query-based summarization. We introduce a unified evaluation protocol that standardizes data preprocessing, retrieval configurations, and generation settings, enabling fair and reproducible comparisons. Our results highlight the distinct strengths of RAG and GraphRAG across different tasks and evaluation perspectives. Building on these findings, we explore selection and integration strategies that combine the strengths of both paradigms, leading to consistent performance improvements. We further analyze failure modes, efficiency trade-offs, and evaluation biases, and highlight key considerations for designing and evaluating retrieval-augmented generation systems.",
+        "url": "https://doi.org/10.1145/3770855.3817575",
+        "pdf_url": "https://arxiv.org/pdf/2502.11371v3",
+        "doi": "10.1145/3770855.3817575",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.1145/3770855.3817575",
+        "weight": 13,
+        "community_id": 0,
+        "community_label": "adaptive · attacks"
+       },
+       {
+        "id": "doi:10.21203/rs.3.rs-8283065/v1",
+        "x": 0.8682279285772097,
+        "y": 0.4416412675587263,
+        "title": "Structured Knowledge for Multi-hop QA: A Comparative Study of GraphRAG and RAG",
+        "year": "2025",
+        "citations": 0,
+        "authors": [
+         "Nimet Aksoy",
+         "Murat Osman Ünalır"
+        ],
+        "abstract": "Abstract This study comparatively examines the classical RAG approach and the knowledge graph-based GraphRAG architecture in multi-hop question answering. While RAG uses external knowledge in an unstructured manner, GraphRAG aims to provide more controlled and meaningful answers by relying on structured knowledge triples, thereby reducing hallucinations. In the experiments, both architectures were tested on 500 questions selected from the HotpotQA dataset, and their performances were compared. In particular, the questions that the RAG system answered with “I don’t know” were re-evaluated using GraphRAG. In the GraphRAG pipeline, knowledge triples were first extracted from the context, and then the same language model performed question analysis—identifying the question type, the expected reasoning pattern, and selecting the most relevant triples. Answers were generated using only filtered and contextually appropriate structured information.The results show that incorporating structured knowledge provides a clear improvement in semantic answer quality. On average, both cosine similarity and BERT F1 scores increased by 20–30% across the tested subsets. Moreover, GraphRAG successfully answered approximately 80% of the questions that the classical RAG system could not answer. These findings demonstrate that structured knowledge enables more reliable reasoning in multi-step QA and highlight the potential of the GraphRAG approach as a stronger alternative for complex question answering tasks.",
+        "url": "https://doi.org/10.21203/rs.3.rs-8283065/v1",
+        "pdf_url": "https://www.researchsquare.com/article/rs-8283065/latest.pdf",
+        "doi": "10.21203/rs.3.rs-8283065/v1",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.21203/rs.3.rs-8283065/v1",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.48448/6e5x-fs50",
+        "x": -0.4900471272969174,
+        "y": -0.8687242041813998,
+        "title": "Is GraphRAG Needed? From Basic RAG to Graph-/Agentic Solutions with Context Optimization",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Association for Computational Linguistics 2026",
+         "Long Chen"
+        ],
+        "abstract": "As advanced RAG variants like GraphRAG and Agentic RAG emerge, one leading question is when and how to use them. Here, we introduce a framework for different RAG scenarios evaluation and comparison on semi-structured knowledge bases, including regular RAG, GraphRAG, Modular RAG and Agentic RAG. We provide implementation for 9 standardized RAG scenarios, and conduct experiments for a comprehensive comparison. These scenarios are designed for real use cases regarding data and domain restrictions, spanning from simple document-based retrieval to advanced features such as hybrid text-graph retrieval, integration with computed or pre-defined domain knowledge graphs, agentic multi-step planning, and agent-graph integration. Besides, we present a novel context engineering method for GraphRAG and Agentic RAG, addressing the context/memory overflow issues, efficiently managing text and graph retrievals with new representations and agentic loop design, leading to 19%-53% reduction on token usage. Moreover, further analysis identifies a retrieval-generation gap where expanded retrieval does not proportionally improve generation quality, suggesting retrieval-oriented metrics overstate advanced retrieval benefits. This work provides data-driven insights on when and how to use them for building production-ready intelligent RAG systems.",
+        "url": "https://doi.org/10.48448/6e5x-fs50",
+        "pdf_url": "",
+        "doi": "10.48448/6e5x-fs50",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48448/6e5x-fs50",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.48550/arxiv.2604.09666",
+        "x": -0.07590519657547073,
+        "y": 0.040801961602886065,
+        "title": "Do We Still Need GraphRAG? Benchmarking RAG and GraphRAG for Agentic Search Systems",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Dongzhe Fan",
+         "Zheyi Xue",
+         "Siyuan Liu",
+         "Qiaoyu Tan"
+        ],
+        "abstract": "Retrieval-augmented generation (RAG) and its graph-based extensions (GraphRAG) are effective paradigms for improving large language model (LLM) reasoning by grounding generation in external knowledge. However, most existing RAG and GraphRAG systems operate under static or one-shot retrieval, where a fixed set of documents is provided to the LLM in a single pass. In contrast, recent agentic search systems enable dynamic, multi-round retrieval and sequential decision-making during inference, and have shown strong gains when combined with vanilla RAG by introducing implicit structure through interaction. This progress raises a fundamental question: can agentic search compensate for the absence of explicit graph structure, reducing the need for costly GraphRAG pipelines? To answer this question, we introduce RAGSearch, a unified benchmark that evaluates dense RAG and representative GraphRAG methods as retrieval infrastructures under agentic search. RAGSearch covers both training-free and training-based agentic inference across multiple question answering benchmarks. To ensure fair and reproducible comparison, we standardize the LLM backbone, retrieval budgets, and inference protocols, and report results on full test sets. Beyond answer accuracy, we report offline preprocessing cost, online inference efficiency, and stability. Our results show that agentic search substantially improves dense RAG and narrows the performance gap to GraphRAG, particularly in RL-based settings. Nevertheless, GraphRAG remains advantageous for complex multi-hop reasoning, exhibiting more stable agentic search behavior when its offline cost is amortized. Together, these findings clarify the complementary roles of explicit graph structure and agentic search, and provide practical guidance on retrieval design for modern agentic RAG systems.",
+        "url": "https://arxiv.org/abs/2604.09666",
+        "pdf_url": "https://arxiv.org/pdf/2604.09666",
+        "doi": "10.48550/arxiv.2604.09666",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2604.09666",
+        "weight": 1,
+        "community_id": 0,
+        "community_label": "adaptive · attacks"
+       },
+       {
+        "id": "provider:openalex:https://openalex.org/W7222990367",
+        "x": 0.38159942838950106,
+        "y": 0.8819158706764506,
+        "title": "Comparative Evaluation of RAG and GraphRAG for Open-Ended Question Answering",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Jadesola Osinowo",
+         "Abiodun Adebayo",
+         "Sonya Coleman",
+         "Dermot Kerr",
+         "JP Quinn"
+        ],
+        "abstract": "Retrieval-Augmented Generation (RAG) has become the basis in modern question answering (QA) systems, combining Large Language Models (LLMs) with external document retrieval. However, traditional RAG architectures often struggle with retrieving semantically structured or context-rich content, which can impact accuracy and relevance. This paper presents a comparative evaluation of a standard RAG model and a GraphRAG model. The GraphRAG approach combines graph-based document representation within the retrieval pipeline to assess their efficiency on a structured question answering task. This research leverages two modern Ollama-hosted models, Phi-4 and LLaMA 3.2 3B, as the base language models for both retrieval pipelines. Using a custom dataset derived from German coalition policy documents, this research evaluates performance through both lexical and semantic metrics. The results demonstrate that GraphRAG consistently outperforms traditional RAG in semantic alignment and contextual accuracy, particularly when paired with Phi-4. These findings aim to contribute to the growing body of work on hybrid retrieval strategies and support the case for graph-enhanced architectures in long-form QA systems, which are central to advancing structured and knowledge-aware retrieval methods in complex information domains.",
+        "url": "https://pure.ulster.ac.uk/en/publications/15a5c4a6-02a9-4b70-b7de-e8e7b189549e",
+        "pdf_url": "https://pure.ulster.ac.uk/ws/files/241931102/cognitive_2026_2_100_40051.cleaned.pdf",
+        "doi": "",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "provider:openalex:https://openalex.org/W7222990367",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.48550/arxiv.2509.16780",
+        "x": -0.12396064114879467,
+        "y": 0.13868174868978725,
+        "title": "Comparing RAG and GraphRAG for Page-Level Retrieval Question Answering on a Math Textbook",
+        "year": "2025",
+        "citations": 2,
+        "authors": [
+         "Eason Chen",
+         "Chengfei Li",
+         "Siyi Li",
+         "Xiao, Zimo",
+         "Jionghao Lin",
+         "Kenneth R. Koedinger"
+        ],
+        "abstract": "Large language models (LLMs) show promise as educational aids but often lack alignment with specific course materials. We investigate Retrieval-Augmented Generation (RAG) and GraphRAG for page-level question answering on an undergraduate mathematics textbook. Using a curated dataset of 477 question-answer pairs, each tied to a specific textbook page, we compare five embedding-based RAG models, a BM25 baseline, and GraphRAG across two metrics: retrieval accuracy (whether the correct page is retrieved) and answer quality (F1 score). Our results show that embedding-based RAG outperforms GraphRAG for page-level retrieval, with \\texttt{voyage-3-large} achieving 99.4\\\\% accuracy at top-10 (bootstrap 95\\\\% CI for top-1: [.644, .728]). BM25 proves a strong baseline, outperforming several embedding models. Error analysis reveals that 63.3\\\\% of top-1 failures retrieve same-chapter content, suggesting pedagogical relevance even in failure cases. GraphRAG retrieves excessive context ($\\sim$47K tokens vs.\\ $\\sim$3.7K for RAG), reducing generation quality. We further replicate key experiments using an open-source local LLM (Qwen3.5-35B-A3B), finding that RAG benefits are proportionally larger for weaker models (+39\\\\% vs.\\ +16\\\\% relative F1 improvement), an important result for cost-sensitive educational deployments. These findings inform the design of AI tutoring systems that reference specific textbook pages.",
+        "url": "https://arxiv.org/abs/2509.16780",
+        "pdf_url": "https://arxiv.org/pdf/2509.16780",
+        "doi": "10.48550/arxiv.2509.16780",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2509.16780",
+        "weight": 2,
+        "community_id": 0,
+        "community_label": "adaptive · attacks"
+       },
+       {
+        "id": "doi:10.25447/sit.33980941",
+        "x": 0.8797433207908426,
+        "y": -0.49347623053438705,
+        "title": "RAG vs. GraphRAG for Industrial Technical Documentation: A Controlled Evaluation on Laser Manufacturing Manuals",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Abdul Hady Bin Zaydie",
+         "Weidong Lin",
+         "Malcolm Yoke Hean Low",
+         "Pei Wang"
+        ],
+        "abstract": "Retrieval-Augmented Generation (RAG) enables large language models to answer questions grounded in external documents, yet its effectiveness on specialized industrial documentation remains underexplored. We present, to our knowledge, the first controlled comparison of conventional vector-based RAG and graph-augmented RAG (GraphRAG) on a laser-manufacturing operators manual. Both systems are evaluated on 1,000 queries sharing identical chunking (1,000-character segments, 200-character overlap), embedding (nomic-embed-text), generation (Gemma 3 12B via Ollama), and on-premises hardware (RTX 4090, 64 GB RAM). Retrieval accuracy is low for both architectures: baseline RAG achieves Hit@5 of 32.50% (MRR 0.217) and GraphRAG reaches 34.70% (MRR 0.229). However, GraphRAG improves faithfulness from 71.60% to 86.90% (+15.3 pp), suggesting that graph-augmented retrieval reduces hallucination even when chunk-level retrieval precision improves only marginally. Error analysis identifies four manufacturing-specific failure categories (navigational queries, technical identifiers, command syntax, and figure references) that are absent from general-domain RAG benchmarks. These results indicate that, in this industrial setting, retrieval quality rather than generation capability is the primary performance bottleneck, and point toward hybrid retrieval strategies for safety-critical manufacturing environments.",
+        "url": "https://doi.org/10.25447/sit.33980941",
+        "pdf_url": "",
+        "doi": "10.25447/sit.33980941",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.25447/sit.33980941",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.1007/978-3-032-18477-1_21",
+        "x": -0.7078036180230284,
+        "y": -0.6877911989760989,
+        "title": "PROPEX-RAG: Enhanced GraphRAG Using Prompt-Driven Prompt Execution",
+        "year": "2026",
+        "citations": 1,
+        "authors": [
+         "Tejas Sarnaik",
+         "Manan Shah",
+         "Ravi Hegde"
+        ],
+        "abstract": "",
+        "url": "https://doi.org/10.1007/978-3-032-18477-1_21",
+        "pdf_url": "https://arxiv.org/pdf/2511.01802",
+        "doi": "10.1007/978-3-032-18477-1_21",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.1007/978-3-032-18477-1_21",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.1101/2025.11.25.25341010",
+        "x": -0.2735911652796254,
+        "y": -0.10863178580848495,
+        "title": "Development and validation of Retrieval Augmented Generation (RAG) and GraphRAG for complex clinical cases",
+        "year": "2025",
+        "citations": 2,
+        "authors": [
+         "M. Berkan Sesen",
+         "Joshua Au Yeung",
+         "Elham Asgari"
+        ],
+        "abstract": "Abstract Objective Chronic Kidney Disease (CKD) is a progressive condition requiring evidence-based management, but adherence to complex guidelines remains challenging. Large Language Models (LLMs) could support clinical decision-making, yet their unreliability limits direct use. This study aimed to evaluate whether Retrieval-Augmented Generation (RAG), particularly a knowledge graph-enhanced pipeline (GraphRAG), improves guideline-based clinical decision support (CDS) in CKD management. Methods and Analysis We compared three approaches: a baseline LLM (GPT-4o), a vector-indexed RAG pipeline, and a GraphRAG pipeline. Each model answered nine clinically relevant questions for a synthetic cohort of 70 CKD patients. Outputs were assessed for clinical correctness, patient-specificity, and clarity, using both clinician-led evaluations and an LLM-as-Judge framework. Results RAG-based methods outperformed the baseline LLM in clinical correctness and guideline adherence. GraphRAG achieved the highest patient-specificity by leveraging multi-hop relationships across a knowledge graph derived from NICE CKD guidelines, particularly for tasks involving thresholds, algorithmic decisions, or open-ended management. However, GraphRAG scored lower in clarity, as its graph walks often returned long guideline excerpts that obscured key recommendations. All RAG systems were limited by the scope of the indexed guideline and performed poorly when essential information was missing. Conclusions RAG and GraphRAG provide a scalable, auditable foundation for guideline-aligned CDS in CKD, with GraphRAG showing particular strengths in tailoring advice to patient data. Nonetheless, trade-offs remain between specificity and clarity, and effective deployment will require robust content management, transparent validation pipelines, and integration within established clinical governance frameworks. Key points - LLMs have comprehensive medical knowledge but require access to up-to-date, evidence-based, and locally relevant guidelines to be effective in CDS. - Hallucinations (the generation of inaccurate or misleading information) remain a major limitation for LLMs in healthcare. - Traditional information retrieval methods face several challenges in providing accurate, context-specific evidence. - Retrieval-Augmented Generation (RAG) and graph-based RAG approaches have emerged as promising solutions to overcome these limitations. - Renal medicine provides an ideal test domain to evaluate these models, given its complexity and reliance on nuanced, multidisciplinary decision-making. - Studying LLM performance in kidney health can yield valuable insights into how such models can safely and effectively support complex clinical decision-making.",
+        "url": "https://doi.org/10.1101/2025.11.25.25341010",
+        "pdf_url": "https://www.medrxiv.org/content/medrxiv/early/2025/11/27/2025.11.25.25341010.full.pdf",
+        "doi": "10.1101/2025.11.25.25341010",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.1101/2025.11.25.25341010",
+        "weight": 2,
+        "community_id": 2,
+        "community_label": "augmented · generation"
+       },
+       {
+        "id": "provider:openalex:https://openalex.org/W4407054581",
+        "x": 0.43331160198512847,
+        "y": -0.8447530181873582,
+        "title": "GraphRAG: Leveraging Graph-Based Efficiency to Minimize Hallucinations in LLM-Driven RAG for Finance Data",
+        "year": "2025",
+        "citations": 4,
+        "authors": [
+         "Mariam Barry",
+         "Gaëtan Caillaut",
+         "Pierre Halftermeyer",
+         "Raheel Qader",
+         "Mehdi Mouayad",
+         "Cariolaro, Dimitri",
+         "Fabrice Le Deit",
+         "Joseph Gesnouin"
+        ],
+        "abstract": "This study explores the integration of graphbased methods into Retrieval-Augmented Generation (RAG) systems to enhance efficiency, reduce hallucinations, and improve explainability, with a particular focus on financial and regulatory document retrieval. We propose two strategies-FactRAG and HybridRAG-which leverage knowledge graphs to improve RAG performance. Experiments conducted using Finance Bench, a benchmark for AI in finance, demonstrate that these approaches achieve a 6% reduction in hallucinations and an 80% decrease in token usage compared to conventional RAG methods. Furthermore, we evaluate HybridRAG by comparing the Digital Operational Resilience Act (DORA) from the European Union with the Federal Financial Institutions Examination Council (FFIEC) guidelines from the United States. The results reveal a significant improvement in computational efficiency, reducing contradiction detection complexity from O(n 2 ) to O(k •n)-where n is the number of chunks-and a remarkable 734-fold decrease in token consumption. Graph-based retrieval methods can improve the efficiency and cost-effectiveness of large language model (LLM) applications, though their performance and token usage depend on the dataset, knowledge graph design, and retrieval task.",
+        "url": "https://hal.science/hal-04907346",
+        "pdf_url": "https://hal.science/hal-04907346v1/document",
+        "doi": "",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "provider:openalex:https://openalex.org/W4407054581",
+        "weight": 4,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.3390/electronics14112102",
+        "x": -0.23615011723379786,
+        "y": -0.16265224664400355,
+        "title": "Document GraphRAG: Knowledge Graph Enhanced Retrieval Augmented Generation for Document Question Answering Within the Manufacturing Domain",
+        "year": "2025",
+        "citations": 61,
+        "authors": [
+         "Simon Knollmeyer",
+         "Oğuz Caymazer",
+         "Daniel Großmann"
+        ],
+        "abstract": "Retrieval-Augmented Generation (RAG) systems have shown significant potential for domain-specific Question Answering (QA) tasks, although persistent challenges in retrieval precision and context selection continue to hinder their effectiveness. This study introduces Document Graph RAG (GraphRAG), a novel framework that bolsters retrieval robustness and enhances answer generation by incorporating Knowledge Graphs (KGs) built upon a document’s intrinsic structure into the RAG pipeline. Through the application of the Design Science Research methodology, we systematically design, implement, and evaluate GraphRAG, leveraging graph-based document structuring and a keyword-based semantic linking mechanism to improve retrieval quality. The evaluation, conducted on well-established datasets including SQuAD, HotpotQA, and a newly developed manufacturing dataset, demonstrates consistent performance gains over a naive RAG baseline across both retrieval and generation metrics. The results indicate that GraphRAG improves Context Relevance metrics, with task-dependent optimizations for chunk size, keyword density, and top-k retrieval further enhancing performance. Notably, multi-hop questions benefit most from GraphRAG’s structured retrieval strategy, highlighting its advantages in complex reasoning tasks.",
+        "url": "https://doi.org/10.3390/electronics14112102",
+        "pdf_url": "https://www.mdpi.com/2079-9292/14/11/2102/pdf?version=1747904257",
+        "doi": "10.3390/electronics14112102",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.3390/electronics14112102",
+        "weight": 61,
+        "community_id": 2,
+        "community_label": "augmented · generation"
+       },
+       {
+        "id": "doi:10.17181/n8bz5-k4195",
+        "x": -0.9221227900072162,
+        "y": -0.2052140110995888,
+        "title": "Advancing CERN's AccGPT: Agentic and Graph-Enhanced RAG for Scientific Knowledge Retrieval",
+        "year": "2025",
+        "citations": 0,
+        "authors": [
+         "van Leijenhorst, Luke Jason"
+        ],
+        "abstract": "CERN’s extensive documentation spans 71 years of particle physics research and presents significant knowledge retrieval challenges. While the baseline AccGPT system already provides basic RAG capabilities, it struggles with structural relationships, complex queries, and specialized terminology. This thesis presents four enhancements to address these limitations. First, we implement GraphRAG which constructs a knowledge graph of 400,000 entities and 650,000 relationships from CERN’s documentation. This graph enables local entity-based and global community-based retrieval. Second, we develop AccGPT-Agentic which combines GraphRAG with iterative AccGPT retrieval using the ReAct agent framework that adaptively gathers information in multiple steps. Third, we integrate external sources via the Model Context Protocol (MCP) that provides real-time access to information sources like event schedules and publications. Fourth, we fine-tune an embedding model for CERN’s vocabulary using a knowledge-graph guided synthetic Q&A set. We evaluate these RAG pipelines using a comprehensive framework that combines individual metrics for each pipeline (DeepEval) with direct head-to-head LLM-judge comparisons. The results reveal a divergence where GraphRAG achieves the highest scores on individual metrics, yet AccGPT-Agentic decisively wins in direct comparison (52.6% preference rate on three-way comparison). This highlights that traditional RAG metrics may not predict actual answer quality with implications for how RAG pipelines should be evaluated. The pipelines demonstrate clear quality-latency trade-offs: AccGPT responds in 0.92s, GraphRAG in 4.34s, and Agentic in 11.81s on average. Domain-specific embedding fine-tuning yields strong improvements (Recall@10: +13.8%) with minimal training cost and hardware requirements. This work delivers two main contributions. For CERN, it provides domain-adapted advanced RAG architectures (GraphRAG and Agentic RAG) that improve answer and retrieval quality. For RAG research, it reveals a critical methodological insight where individual metrics and direct judge preferences can give contradictory results.",
+        "url": "https://doi.org/10.17181/8dmg9-xky56",
+        "pdf_url": "",
+        "doi": "10.17181/n8bz5-k4195",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.17181/n8bz5-k4195",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.1117/12.3107414",
+        "x": 0.1070543429717244,
+        "y": 0.9648635507520628,
+        "title": "Knowledge-enhancement-driven: a performance comparison study of GraphRAG and Agentic RAG",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Qi Meng",
+         "Zhenglong Wu",
+         "Zhongshi Zhao"
+        ],
+        "abstract": "Addressing the limitations of general large language models (LLMs) in handling knowledge-intensive Q&A tasks within vertical domains—even after fine-tuning—this research explores knowledge enhancement technologies to mitigate challenges such as knowledge lag, factual inaccuracies, and insufficient professional depth. The research and development of knowledge enhancement technology of large language model were deeply discussed and analyzed. Through designed experiments, the performance gains of two advanced methods: GraphRAG and Agentic RAG were compared. Experimental results demonstrate that GraphRAG facilitates the rapid construction of domain-specific knowledge graphs, leveraging rich structured information to enhance model training. Overall, Agentic RAG proves more effective in improving model performance for vertical domain Q&A. The experimental design and adaptive optimization approaches proposed in this study offer valuable insights and references for similar industrial research.",
+        "url": "https://doi.org/10.1117/12.3107414",
+        "pdf_url": "",
+        "doi": "10.1117/12.3107414",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.1117/12.3107414",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "arxiv:2506.06331",
+        "x": -0.029772238353215817,
+        "y": 0.04713780650375358,
+        "title": "How Significant Are the Real Performance Gains? An Unbiased Evaluation Framework for GraphRAG",
+        "year": null,
+        "citations": 0,
+        "authors": [
+         "Qiming Zeng",
+         "Hao Luo",
+         "Yuhao Lin",
+         "Yicheng Jin",
+         "Yuxiang Wang",
+         "Fangcheng Fu",
+         "Xiao Yan",
+         "Jiawei Jiang"
+        ],
+        "abstract": "By retrieving contexts from knowledge graphs, graph-based retrieval-augmented generation (GraphRAG) enhances large language models (LLMs) to generate quality answers for user questions. Many GraphRAG methods have been proposed and reported inspiring performance in answer quality. However, we observe that the current answer evaluation framework for GraphRAG has two critical flaws, i.e., unrelated questions and evaluation biases, which may lead to biased or even wrong conclusions on performance. To tackle the two flaws, we propose an unbiased evaluation framework that uses graph-text-grounded question generation to produce questions that are more related to the underlying dataset and an unbiased evaluation procedure to eliminate the biases in LLM-based answer assessment. We apply our unbiased framework to evaluate 3 representative GraphRAG methods and find that their performance gains are much more moderate than reported previously. Although our evaluation framework may still have flaws, it calls for scientific evaluations to lay solid foundations for GraphRAG research.",
+        "url": "http://arxiv.org/abs/2506.06331v2",
+        "pdf_url": "https://arxiv.org/pdf/2506.06331v2",
+        "doi": null,
+        "source": "arXiv",
+        "journal": "",
+        "doc_id": "arxiv:2506.06331",
+        "weight": 1,
+        "community_id": 0,
+        "community_label": "adaptive · attacks"
+       },
+       {
+        "id": "doi:10.1109/sp63933.2026.00070",
+        "x": 0.22386022040350226,
+        "y": -0.9809117654773902,
+        "title": "GraphRAG Under Fire",
+        "year": "2026",
+        "citations": 2,
+        "authors": [
+         "Jiacheng Liang",
+         "Yuhui Wang",
+         "Changjiang Li",
+         "Tanqiu Jiang",
+         "Rongyi Zhu",
+         "Neil Gong",
+         "Ting Wang"
+        ],
+        "abstract": "GraphRAG advances retrieval-augmented generation (RAG) by structuring external knowledge as multi-scale knowledge graphs, enabling language models to integrate both broad context and granular details in their generation. While GraphRAG has demonstrated success across domains, its security implications remain largely unexplored. To bridge this gap, this work examines GraphRAG's vulnerability to poisoning attacks, uncovering an intriguing security paradox: existing RAG poisoning attacks are less effective under GraphRAG than conventional RAG, due to GraphRAG's graph-based indexing and retrieval; yet, the same features also create new attack surfaces. We present GragPoison, a novel attack that exploits shared relations in the underlying knowledge graph to craft poisoning text capable of compromising multiple queries simultaneously. GragPoison employs three key strategies: (i) relation injection to introduce false knowledge, (ii) relation enhancement to amplify poisoning influence, and (iii) narrative generation to embed malicious content within coherent text. Empirical evaluation across diverse datasets and models shows that GragPoison substantially outperforms existing attacks in terms of effectiveness (up to 98% success rate) and scalability (using less than 68% poisoning text) on multiple variations of GraphRAG. We also explore potential defensive measures and their limitations, identifying promising directions for future research.",
+        "url": "https://doi.org/10.1109/sp63933.2026.00070",
+        "pdf_url": "https://arxiv.org/pdf/2501.14050",
+        "doi": "10.1109/sp63933.2026.00070",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.1109/sp63933.2026.00070",
+        "weight": 2,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.1609/aaai.v40i37.40382",
+        "x": 0.05898698798723392,
+        "y": 0.06189684841192715,
+        "title": "Relink: Constructing Query-Driven Evidence Graph On-the-Fly for GraphRAG",
+        "year": "2026",
+        "citations": 1,
+        "authors": [
+         "Manzong Huang",
+         "Chenyang Bu",
+         "Yi He",
+         "Xingrui Zhuo",
+         "Xindong Wu"
+        ],
+        "abstract": "Graph-based Retrieval-Augmented Generation (GraphRAG) mitigates hallucinations in Large Language Models (LLMs) by grounding them in structured knowledge. However, current GraphRAG methods are constrained by a prevailing build-then-reason paradigm, which relies on a static, pre-constructed Knowledge Graph (KG). This paradigm faces two critical challenges. First, the KG's inherent incompleteness often breaks reasoning paths. Second, the graph’s low signal-to-noise ratio introduces distractor facts, presenting query-relevant but misleading knowledge that disrupts the reasoning process. To address these challenges, we argue for a reason-and-construct paradigm and propose Relink, a framework that dynamically builds a query-specific evidence graph. To tackle incompleteness, Relink instantiates required facts from a latent relation pool derived from the original text corpus, repairing broken paths on the fly. To handle misleading or distractor facts, Relink employs a unified, query-aware evaluation strategy that jointly considers candidates from both the KG and latent relations, selecting those most useful for answering the query rather than relying on their pre-existence. This empowers Relink to actively discard distractor facts and construct the most faithful and precise evidence path for each query. Extensive experiments on five Open-Domain Question Answering benchmarks show that Relink achieves significant average improvements of 5.4% in EM and 5.2% in F1 over leading GraphRAG baselines, demonstrating the superiority of our proposed framework.",
+        "url": "https://doi.org/10.1609/aaai.v40i37.40382",
+        "pdf_url": "https://ojs.aaai.org/index.php/AAAI/article/download/40382/44343",
+        "doi": "10.1609/aaai.v40i37.40382",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.1609/aaai.v40i37.40382",
+        "weight": 1,
+        "community_id": 1,
+        "community_label": "ace-graphrag · compact"
+       },
+       {
+        "id": "doi:10.53941/tgina.2026.100006",
+        "x": -0.46047300736050395,
+        "y": 0.9114851140027692,
+        "title": "PoP-RAG: Holistic Query Planning for GraphRAG",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Qiming Zeng",
+         "Xintong Hu",
+         "Yuhao Lin",
+         "Hao Luo",
+         "Susie Xi Rao",
+         "Xiao Yan",
+         "Jiawei Jiang"
+        ],
+        "abstract": "Graph-based retrieval-augmented generation (GraphRAG) leverages knowledge graphs to provide context for large language models (LLMs) to generate quality responses. Yet existing GraphRAG methods suffer from two drawbacks: connecting each entity to all passages that mention the entity causes one-to-many entity-passage mapping problem and retrieves redundant passages, and fixed graph traversal patterns fail to locate target information for hard queries. To tackle the two limitations, we propose PoP-RAG, which features a passage-on-edge (PoE) graph that links the passages with graph edges to resolve the one-to-many entity-passage mapping problem. PoP-RAG further introduces a query planning step that decomposes a query into sub-queries and builds a directed acyclic graph (DAG) to model their relationships. This design enables targeted retrieval for each sub-query and ensures transparent response derivation logic, thus enhancing explainability. Experimental results demonstrate that PoP-RAG outperforms existing GraphRAG methods, especially on complex queries.",
+        "url": "https://doi.org/10.53941/tgina.2026.100006",
+        "pdf_url": "https://media.sciltp.com/articles/2609005155/2609005155.pdf",
+        "doi": "10.53941/tgina.2026.100006",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.53941/tgina.2026.100006",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       },
+       {
+        "id": "doi:10.18653/v1/2025.emnlp-main.1293",
+        "x": 0.018631198167069762,
+        "y": 0.10665695371752942,
+        "title": "Empowering GraphRAG with Knowledge Filtering and Integration",
+        "year": "2025",
+        "citations": 9,
+        "authors": [
+         "Kai Guo",
+         "Harry Shomer",
+         "Shenglai Zeng",
+         "Haoyu Han",
+         "Yu Wang",
+         "Jiliang Tang"
+        ],
+        "abstract": "In recent years, large language models (LLMs) have revolutionized the field of natural language processing.However, they often suffer from knowledge gaps and hallucinations.Graph retrieval-augmented generation (GraphRAG) enhances LLM reasoning by integrating structured knowledge from external graphs.However, we identify two key challenges that plague GraphRAG: (1) Retrieving noisy and irrelevant information can degrade performance and (2) Excessive reliance on external knowledge suppresses the model's intrinsic reasoning.To address these issues, we propose GraphRAG-FI (Filtering & Integration), consisting of GraphRAG-Filtering and GraphRAG-Integration. GraphRAG-Filtering employs a two-stage filtering mechanism to refine retrieved information.GraphRAG-Integration employs a logits-based selection strategy to balance external knowledge from GraphRAG with the LLM's intrinsic reasoning, reducing over-reliance on retrievals.Experiments on knowledge graph QA tasks demonstrate that GraphRAG-FI significantly improves reasoning performance across multiple backbone models, establishing a more reliable and effective GraphRAG framework.",
+        "url": "https://doi.org/10.18653/v1/2025.emnlp-main.1293",
+        "pdf_url": "https://aclanthology.org/2025.emnlp-main.1293.pdf",
+        "doi": "10.18653/v1/2025.emnlp-main.1293",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.18653/v1/2025.emnlp-main.1293",
+        "weight": 9,
+        "community_id": 3,
+        "community_label": "conflicts · empowering"
+       },
+       {
+        "id": "doi:10.48550/arxiv.2501.00309",
+        "x": -0.17856019385826155,
+        "y": -0.07185750662926378,
+        "title": "Retrieval-Augmented Generation with Graphs (GraphRAG)",
+        "year": "2024",
+        "citations": 34,
+        "authors": [
+         "Haoyu Han",
+         "Yu Wang",
+         "Harry Shomer",
+         "Kai Guo",
+         "Jiayuan Ding",
+         "Lei, Yongjia",
+         "Mahantesh M. Halappanavar",
+         "Ryan A. Rossi",
+         "Subhabrata Mukherjee",
+         "Xianfeng Tang",
+         "Qi He",
+         "Zhigang Hua",
+         "Bo Long",
+         "Zhao, Tong",
+         "Neil Shah",
+         "Amin Javari",
+         "Yinglong Xia",
+         "Jiliang Tang"
+        ],
+        "abstract": "Retrieval-augmented generation (RAG) is a powerful technique that enhances downstream task execution by retrieving additional information, such as knowledge, skills, and tools from external sources. Graph, by its intrinsic \"nodes connected by edges\" nature, encodes massive heterogeneous and relational information, making it a golden resource for RAG in tremendous real-world applications. As a result, we have recently witnessed increasing attention on equipping RAG with Graph, i.e., GraphRAG. However, unlike conventional RAG, where the retriever, generator, and external data sources can be uniformly designed in the neural-embedding space, the uniqueness of graph-structured data, such as diverse-formatted and domain-specific relational knowledge, poses unique and significant challenges when designing GraphRAG for different domains. Given the broad applicability, the associated design challenges, and the recent surge in GraphRAG, a systematic and up-to-date survey of its key concepts and techniques is urgently desired. Following this motivation, we present a comprehensive and up-to-date survey on GraphRAG. Our survey first proposes a holistic GraphRAG framework by defining its key components, including query processor, retriever, organizer, generator, and data source. Furthermore, recognizing that graphs in different domains exhibit distinct relational patterns and require dedicated designs, we review GraphRAG techniques uniquely tailored to each domain. Finally, we discuss research challenges and brainstorm directions to inspire cross-disciplinary opportunities. Our survey repository is publicly maintained at https://github.com/Graph-RAG/GraphRAG/.",
+        "url": "http://arxiv.org/abs/2501.00309",
+        "pdf_url": "https://arxiv.org/pdf/2501.00309",
+        "doi": "10.48550/arxiv.2501.00309",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2501.00309",
+        "weight": 34,
+        "community_id": 2,
+        "community_label": "augmented · generation"
+       },
+       {
+        "id": "doi:10.48550/arxiv.2608.13050",
+        "x": 0.6346533299022996,
+        "y": -0.6945295886911514,
+        "title": "Operationalizing Cyber Threat Intelligence with GraphRAG",
+        "year": "2026",
+        "citations": 0,
+        "authors": [
+         "Atul Kabra",
+         "Prakhar Paliwal",
+         "Manjesh K. Hanawal"
+        ],
+        "abstract": "When a security researcher publishes a report on a cyberattack, detection engineers are supposed to turn it into working detection rules. In practice, most automated attempts at this only extract the simplest clues from the report --- bad IP addresses, domain names, and file hashes --- and turn them into block lists. This is a weak strategy, because attackers can change these simple clues within hours or days, so the resulting detections stop working almost as soon as they are deployed. Security teams describe this idea with the Pyramid of Pain. This project asks whether feeding a report into a knowledge-graph retrieval system, Microsoft GraphRAG, rather than a standard vector-similarity retrieval system (Naive RAG), produces detection plans that rely more on these durable, top-of-pyramid clues. Both systems are given the same report, the same generation instructions, and the same language model to write the final plan; only the retrieval step differs. In a detailed case study of one APT28 report, the GraphRAG plan kept firing at 100\\% of its detections after every IP address, domain, and file hash in the report was rotated, while the Naive RAG plan kept firing at only 29\\%. Repeating the comparison across nine real CTI reports from four vendors confirms the same pattern: GraphRAG plans consistently reach higher, harder-to-evade levels of the pyramid, even when the two systems end up close on total score. The results support treating knowledge-graph-aware retrieval as the architecturally correct foundation for automatically generating SOC-deployable hunting plans, while showing that the wording of the generation prompt matters almost as much as the retrieval back-end itself.",
+        "url": "https://arxiv.org/abs/2608.13050",
+        "pdf_url": "https://arxiv.org/pdf/2608.13050",
+        "doi": "10.48550/arxiv.2608.13050",
+        "source": "OpenAlex",
+        "journal": "",
+        "doc_id": "doi:10.48550/arxiv.2608.13050",
+        "weight": 1,
+        "community_id": null,
+        "community_label": ""
+       }
+      ],
+      "edges": [
+       {
+        "source": "doi:10.1145/3770855.3817575",
+        "target": "doi:10.48550/arxiv.2604.09666",
+        "weight": 0.17,
+        "shared_terms": []
+       },
+       {
+        "source": "doi:10.1145/3770855.3817575",
+        "target": "arxiv:2506.06331",
+        "weight": 0.168,
+        "shared_terms": [
+         "evaluation"
+        ]
+       },
+       {
+        "source": "doi:10.48550/arxiv.2604.09666",
+        "target": "doi:10.48550/arxiv.2509.16780",
+        "weight": 0.122,
+        "shared_terms": []
+       },
+       {
+        "source": "doi:10.48550/arxiv.2604.09666",
+        "target": "arxiv:2506.06331",
+        "weight": 0.199,
+        "shared_terms": []
+       },
+       {
+        "source": "doi:10.1101/2025.11.25.25341010",
+        "target": "doi:10.48550/arxiv.2501.00309",
+        "weight": 0.157,
+        "shared_terms": [
+         "generation"
+        ]
+       },
+       {
+        "source": "doi:10.3390/electronics14112102",
+        "target": "doi:10.48550/arxiv.2501.00309",
+        "weight": 0.137,
+        "shared_terms": [
+         "generation"
+        ]
+       },
+       {
+        "source": "arxiv:2506.06331",
+        "target": "doi:10.1609/aaai.v40i37.40382",
+        "weight": 0.193,
+        "shared_terms": []
+       },
+       {
+        "source": "doi:10.1609/aaai.v40i37.40382",
+        "target": "doi:10.18653/v1/2025.emnlp-main.1293",
+        "weight": 0.141,
+        "shared_terms": []
+       }
+      ],
+      "meta": {
+       "edge_method": "title_keyword_jaccard",
+       "edge_label": "제목·키워드 유사도",
+       "edge_threshold": 0.12,
+       "directed": false,
+       "communities": [
+        {
+         "community_id": 0,
+         "label": "adaptive · attacks",
+         "nodes": [
+          "arxiv:2503.06474",
+          "arxiv:2506.06331",
+          "arxiv:2601.11144",
+          "arxiv:2601.14662",
+          "arxiv:2604.20859",
+          "arxiv:2605.20815",
+          "arxiv:2608.16004",
+          "doi:10.1145/3770855.3817575",
+          "doi:10.1145/3770855.3818007",
+          "doi:10.48550/arxiv.2509.16780",
+          "doi:10.48550/arxiv.2603.14828",
+          "doi:10.48550/arxiv.2604.09666"
+         ],
+         "size": 12
+        },
+        {
+         "community_id": 1,
+         "label": "ace-graphrag · compact",
+         "nodes": [
+          "arxiv:2507.21892",
+          "arxiv:2602.02053",
+          "arxiv:2607.11683",
+          "arxiv:2608.01269",
+          "doi:10.1609/aaai.v40i37.40382",
+          "doi:10.48550/arxiv.2511.08274",
+          "doi:10.48550/arxiv.2609.05139"
+         ],
+         "size": 7
+        },
+        {
+         "community_id": 2,
+         "label": "augmented · generation",
+         "nodes": [
+          "doi:10.1101/2025.11.25.25341010",
+          "doi:10.3390/electronics14112102",
+          "doi:10.48550/arxiv.2501.00309",
+          "doi:10.51219/jaimld/sunil-karthik-kota/664"
+         ],
+         "size": 4
+        },
+        {
+         "community_id": 3,
+         "label": "conflicts · empowering",
+         "nodes": [
+          "arxiv:2508.01680",
+          "arxiv:2509.25530",
+          "doi:10.18653/v1/2025.emnlp-main.1293"
+         ],
+         "size": 3
+        },
+        {
+         "community_id": 4,
+         "label": "application · claim",
+         "nodes": [
+          "doi:10.18653/v1/2026.acl-long.1740",
+          "doi:10.3390/buildings16040845",
+          "doi:10.54254/2755-2721/2026.ast36546"
+         ],
+         "size": 3
+        }
+       ],
+       "common_terms": [
+        "graphrag"
+       ],
+       "edge_total": 115
+      }
+     }
+    }
+   ],
+   "intent": "search"
+  },
+  {
+   "seq": 3,
+   "role": "user",
+   "content": "2번 핵심 내용 설명해줘",
+   "blocks": [],
+   "intent": null
+  },
+  {
+   "seq": 4,
+   "role": "assistant",
+   "content": "Structured Knowledge for Multi-hop QA: A Comparative Study of GraphRAG and RAG [2]\n\n- 문제는 다중홉 QA에서 기존 RAG의 불안정한 추론입니다 [2].  \n- 접근은 HotpotQA 500문항으로 RAG와 GraphRAG를 비교했습니다 [2].  \n- GraphRAG는 문맥에서 트리플을 추출했습니다 [2].  \n- 이어 질문 유형과 추론 패턴을 분석했습니다 [2].  \n- 그다음 관련 트리플만 골라 답을 생성했습니다 [2].  \n- 핵심 결과는 구조화 지식이 의미적 답변 품질을 높인 점입니다 [2].  \n- cosine similarity와 BERT F1이 평균 20–30% 올랐습니다 [2].  \n- RAG가 못 푼 질문의 약 80%를 GraphRAG가 답했습니다 [2].  \n- 한계는 HotpotQA 중심 평가라는 점입니다 [2].  \n- 의의는 다중홉 QA에서 구조화 지식의 효과를 보인 점입니다 [2].  \n\n다음은 이 논문을 RAG 관점과 GraphRAG 관점으로 더 나눠 비교해드릴게요.",
+   "blocks": [],
+   "intent": "answer"
+  },
+  {
+   "seq": 5,
+   "role": "user",
+   "content": "1번이랑 2번 차이 설명해줘",
+   "blocks": [],
+   "intent": null
+  },
+  {
+   "seq": 6,
+   "role": "assistant",
+   "content": "- 문제: [1] 텍스트 벤치마크에서 RAG와 GraphRAG의 상대적 성능 비교입니다. [2] 다중홉 QA에서 RAG의 추론 한계 비교입니다.  \n- 방법: [1] 통합 평가 프로토콜로 여러 과제를 공정 비교합니다. [2] HotpotQA 500문항에서 트리플 추출 후 답을 생성합니다.  \n- 결과: [1] 과제별로 RAG와 GraphRAG의 강점이 다릅니다. [2] GraphRAG가 의미적 품질과 정답률을 높입니다.  \n- 데이터: [1] 질문응답과 질의기반 요약 등 공개 텍스트 벤치마크입니다. [2] HotpotQA 500문항입니다.  \n\n차이는 [1]이 일반 텍스트 벤치마크의 체계적 비교이고 [2]가 다중홉 QA 중심의 단일 과제 비교라는 점입니다.  \n\n원하시면 두 논문의 핵심 결과만 한 줄씩 더 줄여드릴게요.",
+   "blocks": [],
+   "intent": "answer"
+  },
+  {
+   "seq": 7,
+   "role": "user",
+   "content": "3번 핵심 내용 설명해줘",
+   "blocks": [],
+   "intent": null
+  },
+  {
+   "seq": 8,
+   "role": "assistant",
+   "content": "Is GraphRAG Needed? From Basic RAG to Graph-/Agentic Solutions with Context Optimization\n\n기존 RAG, GraphRAG, Modular RAG, Agentic RAG를 같은 기준으로 비교합니다 [3].  \n반정형 지식기반에서 9개 표준 시나리오를 구현했습니다 [3].  \n텍스트 검색, 그래프 검색, 에이전트 계획을 모두 포함했습니다 [3].  \n\n핵심 결과는 토큰 사용을 19%~53% 줄인 점입니다 [3].  \n새로운 context engineering으로 문맥과 메모리 오버플로를 줄였습니다 [3].  \n또 검색을 넓혀도 생성 품질이 비례해 오르지 않았습니다 [3].  \n그래서 검색 지표가 고급 검색의 이점을 과대평가할 수 있습니다 [3].  \n\n한계는 정밀의학 도메인 중심 평가입니다 [3].  \n의의는 GraphRAG와 Agentic RAG를 언제 쓸지 실증적으로 제시한 점입니다 [3].  \n다음은 1번과 3번을 성능 관점에서 직접 비교해드릴게요.",
+   "blocks": [],
+   "intent": "answer"
+  }
+ ]
+}

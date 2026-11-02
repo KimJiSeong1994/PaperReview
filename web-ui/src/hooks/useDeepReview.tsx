@@ -11,10 +11,15 @@ interface UseDeepReviewOptions {
   onFailed?: (error: string) => void;
   /** Auto-reset delay in ms after completed/failed. 0 = no auto-reset. */
   autoResetDelay?: number;
+  /**
+   * Called when a status poll fails with an HTTP status. Return true to stop
+   * polling (e.g. 404: the session is gone). Without it, polling continues.
+   */
+  onStatusError?: (status: number) => boolean;
 }
 
 export function useDeepReview(options: UseDeepReviewOptions = {}) {
-  const { onCompleted, onFailed, autoResetDelay = 0 } = options;
+  const { onCompleted, onFailed, onStatusError, autoResetDelay = 0 } = options;
 
   const [reviewSessionId, setReviewSessionId] = useState<string | null>(null);
   const [reviewStatus, setReviewStatus] = useState<DeepReviewStatus>('idle');
@@ -27,6 +32,8 @@ export function useDeepReview(options: UseDeepReviewOptions = {}) {
   onCompletedRef.current = onCompleted;
   const onFailedRef = useRef(onFailed);
   onFailedRef.current = onFailed;
+  const onStatusErrorRef = useRef(onStatusError);
+  useEffect(() => { onStatusErrorRef.current = onStatusError; });
 
   const startReview = useCallback((sessionId: string) => {
     setReviewSessionId(sessionId);
@@ -93,6 +100,8 @@ export function useDeepReview(options: UseDeepReviewOptions = {}) {
           return; // stop polling
         }
       } catch (error) {
+        const httpStatus = (error as { response?: { status?: number } })?.response?.status;
+        if (httpStatus !== undefined && onStatusErrorRef.current?.(httpStatus)) return; // stop polling
         console.error('Status poll error:', error);
       }
 

@@ -18,7 +18,7 @@
 | 공통 publisher | [daily_recommendations.py](../src/daily_recommendations.py): local/public/external 후보를 공통 policy/profile/rank/publish로 처리. authority와 current policy를 publish 시 재확인. flag로 허용된 mode만 사용; feature failure와 identity/policy failure를 혼동하지 않는다. |
 | 저장/조회 | [recommendations_artifacts.py](../src/recommendations_artifacts.py): common delivery schema, incarnation 소유 디렉터리, validated run time, finite values, final rank 순서. score 재정렬·전 사용자 glob/mtime 우선순위는 계약이 아니다. |
 | durable actions | [recommendation_state.py](../src/recommendation_state.py): hide/already_seen는 hard suppression, seen은 read marker, interested/topic_less는 preference. analytics 손실이 accepted action을 취소하지 않는다. |
-| API/UI | [recommendations.py](../routers/recommendations.py), [RecommendationBell.tsx](../web-ui/src/components/RecommendationBell.tsx): GET `/api/recommendations/notifications` 기본/최대5, POST `feedback`, `read-state`, `exposure`. run/key membership, request idempotency, 실제 가시성 기반 exposure와 hide/refill 순서가 검증 대상. |
+| API/UI | [recommendations.py](../routers/recommendations.py), 홈 추천 위젯 [HomeWorkspace.tsx](../web-ui/src/components/home/HomeWorkspace.tsx) (데이터 [useHomeData.ts](../web-ui/src/components/home/useHomeData.ts), API 클라이언트 [recommendations.ts](../web-ui/src/api/recommendations.ts)): GET `/api/recommendations/notifications` 기본/최대5, POST `feedback`, `read-state`, `exposure`. run/key membership, request idempotency, 실제 가시성 기반 exposure와 hide/refill 순서가 검증 대상. |
 
 ‘오늘의 추천’은 오늘 발견할 관련 논문이지 오늘 발행된 논문 필터가 아니다. 원래 발행일을 보여주며 과거 좋은 논문도 허용한다. reserve 12에서 current policy로 숨김을 제거하고 순서를 유지해 **실제 Top5**를 채운다. evaluator도 `RecommendationPolicy.project`를 직접 호출한다.
 

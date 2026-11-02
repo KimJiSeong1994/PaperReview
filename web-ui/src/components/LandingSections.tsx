@@ -141,7 +141,7 @@ const FAQ_ITEMS = [
   },
   {
     question: 'What can I use without signing in?',
-    answer: 'You can search papers and read public reviews without an account. Sign in when you want to save reviews, notes, and bookmarks to a personal research space.',
+    answer: 'You can read public reviews without an account. Sign in to search papers and to save reviews, notes, and bookmarks to a personal research space.',
   },
   {
     question: 'Who is Jiphyeonjeon for?',
@@ -243,7 +243,7 @@ const KO_TRANSLATIONS: Record<string, string> = {
   'How are claims in an AI paper review verified?': 'AI 논문 리뷰의 주장은 어떻게 검증하나요?',
   'For each important review claim, Jiphyeonjeon locates a supporting source passage. It distinguishes direct quotes, paraphrases, inferences, and unverified claims so the AI summary stays within what the paper actually says.': '리뷰의 중요한 주장마다 이를 뒷받침하는 원문 구절을 찾습니다. 직접 인용, 의역, 추론, 미확인을 구분해 AI 요약이 논문이 말하는 범위를 벗어나지 않는지 확인합니다.',
   'What can I use without signing in?': '로그인 없이 무엇을 사용할 수 있나요?',
-  'You can search papers and read public reviews without an account. Sign in when you want to save reviews, notes, and bookmarks to a personal research space.': '논문 검색과 공개된 논문 리뷰 읽기는 로그인 없이 시작할 수 있습니다. 리뷰, 메모와 북마크를 개인 연구 공간에 저장하는 기능은 로그인 후 이용합니다.',
+  'You can read public reviews without an account. Sign in to search papers and to save reviews, notes, and bookmarks to a personal research space.': '공개된 논문 리뷰 읽기는 로그인 없이 가능합니다. 논문 검색과 리뷰, 메모·북마크 저장은 로그인 후 이용합니다.',
   'Who is Jiphyeonjeon for?': '누구에게 적합한 연구 도구인가요?',
   'It is designed for researchers and graduate students entering a new field, research engineers comparing methods, and readers who need to test a paper’s claims against its evidence.': '새 주제의 핵심 논문을 찾는 연구자와 대학원생, 여러 방법론을 비교하는 리서치 엔지니어, 논문의 주장과 실제 근거를 빠르게 대조해야 하는 독자에게 적합합니다.',
   'Read one paper in depth': '논문 하나를 깊게 읽고 싶다',

@@ -37,6 +37,11 @@ export interface PaperViewerPanelProps {
   autoSelectFirst?: boolean;
   /** Auto-highlight and formula explanations call endpoints that need a user. */
   canAnnotate?: boolean;
+  /**
+   * Overlay highlights made elsewhere (the conversation's pdf_highlights tool),
+   * applied to whichever paper is selected. Omitted: the overlay starts empty.
+   */
+  highlights?: HighlightItem[];
 }
 
 // ── Helpers ────────────────────────────────────────────────────────────
@@ -190,6 +195,7 @@ export default function PaperViewerPanel({
   hasSelectedBookmark,
   autoSelectFirst = false,
   canAnnotate = true,
+  highlights,
 }: PaperViewerPanelProps) {
   const papers: BookmarkPaper[] = bookmarkDetail?.papers ?? [];
 
@@ -408,7 +414,7 @@ export default function PaperViewerPanel({
     setPageInputValue('1');
     setPdfError(null);
     setDocumentKey(k => k + 1);
-    setPdfHighlights([]);
+    setPdfHighlights(highlights ?? []);
     setHlPopover(null);
     setMathPopover(null);
 
@@ -442,7 +448,7 @@ export default function PaperViewerPanel({
       if (resolveRequestIndexRef.current !== requestIndex) return;
     }
     setPdfLoading(false);
-  }, [papers, resolvedUrls, fetchReaderUrl]);
+  }, [papers, resolvedUrls, fetchReaderUrl, highlights]);
 
   // Auto-select first paper when autoSelectFirst is enabled (e.g., from search results)
   useEffect(() => {
