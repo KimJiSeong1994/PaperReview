@@ -412,7 +412,7 @@
     font-size: 30px;
   }
 
-  .introduce-face:not(.intro-closing-face) img {
+  .introduce-face img {
     width: 56px;
     height: 56px;
     border-radius: 16px;

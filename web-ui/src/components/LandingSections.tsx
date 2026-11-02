@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { copyToClipboard } from '../utils/clipboard';
-import { INTRODUCE_FAQ, INTRODUCE_SAMPLE_PATH } from '../seo/introduceFaq';
-import MascotFace from './home/MascotFace';
+import { INTRODUCE_FAQ } from '../seo/introduceFaq';
 import './LandingSections.css';
 
 type Locale = 'en' | 'ko';
@@ -107,19 +106,6 @@ const CLAUDE = {
   },
 } as const;
 
-const CLOSING = {
-  en: {
-    title: 'Start with the paper you are curious about',
-    ask: 'Ask for free',
-    sample: 'See a sample answer',
-  },
-  ko: {
-    title: '궁금한 논문부터 물어보세요',
-    ask: '무료로 물어보기',
-    sample: '샘플 답변 보기',
-  },
-} as const;
-
 function CopySnippet({ text, locale }: { text: string; locale: Locale }) {
   const [copied, setCopied] = useState(false);
   const multiline = text.includes('\n');
@@ -170,7 +156,6 @@ function LandingSections({ locale = 'en' }: LandingSectionsProps) {
   const workflow = WORKFLOW[locale];
   const outputs = OUTPUTS[locale];
   const claude = CLAUDE[locale];
-  const closing = CLOSING[locale];
 
   return (
     <div className="landing">
@@ -271,14 +256,6 @@ function LandingSections({ locale = 'en' }: LandingSectionsProps) {
         </div>
       </section>
 
-      <section className="intro-closing" aria-labelledby="intro-closing-title">
-        <MascotFace size={44} className="introduce-face intro-closing-face" />
-        <h2 className="intro-closing-title" id="intro-closing-title">{closing.title}</h2>
-        <div className="introduce-cta">
-          <Link className="intro-btn" to="/">{closing.ask}</Link>
-          <Link className="intro-btn intro-btn--ghost" to={INTRODUCE_SAMPLE_PATH}>{closing.sample}</Link>
-        </div>
-      </section>
     </div>
   );
 }

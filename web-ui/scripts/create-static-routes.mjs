@@ -106,10 +106,6 @@ ${faqHtml('en')}
           <p>Jiphyeonjeon Agent is an optional open-source extension installed separately from the web app.</p>
           <p><a href="https://github.com/KimJiSeong1994/jiphyeonjeon-agent">View installation instructions and source</a></p>
         </section>
-        <section>
-          <h2>Start with the paper you are curious about</h2>
-          <p><a href="/">Ask for free</a> · <a href="/">See a sample answer</a></p>
-        </section>
         <nav aria-label="Main pages">
           <a href="/">Home</a> · <a href="/blog">Research blog</a> · <a href="/blog/category/paper-review">Public paper reviews</a>
         </nav>
@@ -170,10 +166,6 @@ ${faqHtml('ko')}
           <h2>Claude에서 집현전 활용하기</h2>
           <p>집현전 Agent는 웹 서비스와 별도로 설치하는 오픈소스 확장입니다.</p>
           <p><a href="https://github.com/KimJiSeong1994/jiphyeonjeon-agent">집현전 Agent 설치와 소스 보기</a></p>
-        </section>
-        <section>
-          <h2>궁금한 논문부터 물어보세요</h2>
-          <p><a href="/">무료로 물어보기</a> · <a href="/">샘플 답변 보기</a></p>
         </section>
         <nav aria-label="주요 페이지">
           <a href="/">홈</a> · <a href="/blog">연구 블로그</a> · <a href="/blog/category/paper-review">공개 논문 리뷰</a>
