@@ -686,13 +686,17 @@
 }
 
 .home-guest {
+  /* Korean breaks only at spaces and punctuation (no lone "줘" on a line); long English
+     tokens and URLs may still break so nothing overflows. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
   display: grid;
   /* 460 + 40 + 620 = the 1120px page width, between 24px gutters (content-box). */
   grid-template-columns: minmax(0, 460px) minmax(0, 620px);
   grid-template-areas:
     "intro replay"
-    "disclaimer replay";
-  grid-template-rows: auto 1fr;
+    "disclaimer .";
+  grid-template-rows: auto auto;
   justify-content: center;
   align-items: start;
   column-gap: 40px;
@@ -713,8 +717,12 @@
 
 .home-guest-replay {
   grid-area: replay;
-  position: sticky;
-  top: calc(var(--home-header) + 24px);
+  /* As tall as the left column, ending with the last sample card. contain: size keeps the
+     panel's own content out of the row's sizing, so the left column alone sets the height. */
+  align-self: stretch;
+  contain: size;
+  display: flex;
+  flex-direction: column;
   min-width: 0;
 }
 
@@ -861,8 +869,8 @@
 .home-replay {
   display: flex;
   flex-direction: column;
-  /* Never taller than the viewport, so the sticky column can hold it. */
-  max-height: calc(100vh - var(--home-header) - 48px);
+  flex: 1 1 auto;
+  min-height: 0;
   border: var(--home-line);
   border-radius: 16px;
   background: var(--bg-elev);
@@ -922,11 +930,10 @@
   text-decoration: none;
 }
 
-/* A fixed 520px window: one exchange is trimmed to fit, so the card never changes height.
-   It scrolls only when a short viewport squeezes the card below that. */
+/* Fills the card between header and footer; the exchange is shorter than that, so it
+   does not scroll, and it never grows the card. */
 .home-replay-body {
-  flex: 0 1 520px;
-  height: 520px;
+  flex: 1 1 auto;
   min-height: 0;
   overflow-y: auto;
   padding: 20px;
@@ -966,9 +973,11 @@
 }
 
 .home-replay-paper-title {
+  /* Two lines rather than a mid-word ellipsis; the stretched card has the room. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-hi);
@@ -1028,17 +1037,13 @@
   }
 
   .home-guest-replay {
-    position: static;
+    align-self: start;
+    contain: none;
   }
 
   /* One column: the card is as tall as its exchange and scrolls with the page. */
-  .home-replay {
-    max-height: none;
-  }
-
   .home-replay-body {
     flex: none;
-    height: auto;
     overflow: visible;
   }
 }

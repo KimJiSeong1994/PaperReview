@@ -276,6 +276,8 @@ describe('HomeWorkspace', () => {
     it('shows the pill, the guest composer with a sample placeholder, and three sample cards as buttons', async () => {
       renderHome();
       expect(screen.getByText('논문 연구 AI, 로그인 후 무료')).toBeTruthy();
+      // Korean breaks only at spaces on the whole guest home (no lone "줘" on a line).
+      expect(getComputedStyle(document.querySelector('.home-guest')!).wordBreak).toBe('keep-all');
       expect(screen.getByRole('button', { name: '무료로 물어보기' })).toBeTruthy();
       const note = screen.getByText('내 질문은 로그인 후 무료로 검색·대화해요.');
       // The note sits under the composer card, not inside it.
@@ -321,8 +323,12 @@ describe('HomeWorkspace', () => {
       await tick(0);
       await tick(0);
       const replay = screen.getByRole('heading', { name: '집현전과의 대화' }).closest('section')!;
+      // The card stretches to the left column's height (ending with the last sample card);
+      // the body has no fixed height of its own and only fills the card.
       const body = replay.querySelector('.home-replay-body') as HTMLElement;
-      expect(getComputedStyle(body).height).toBe('520px');
+      expect(getComputedStyle(body).height).not.toBe('520px');
+      expect(getComputedStyle(replay.parentElement!).alignSelf).toBe('stretch');
+      expect(getComputedStyle(replay.parentElement!).position).not.toBe('sticky');
       expect(within(replay).getByText('2026-10-25 기준 · 상담 예시')).toBeTruthy();
       expect(within(replay).getByRole('status').textContent).toBe('상담 예시 · 재생 중');
       expect(within(replay).getByText('GraphRAG가 RAG보다 나은 경우는?')).toBeTruthy();

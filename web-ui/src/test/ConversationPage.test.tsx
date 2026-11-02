@@ -719,6 +719,8 @@ describe('ConversationPage', () => {
     expect(img.getAttribute('srcset')).toContain('/jiphyeonjeon-face@2x.png 2x');
     expect(img.getAttribute('alt')).toBe('');
     expect(img.getAttribute('width')).toBe('32');
+    // Answers keep Korean words whole across lines.
+    expect(getComputedStyle(turn.closest('.conv-thread')!).wordBreak).toBe('keep-all');
     expect(within(turn as HTMLElement).getByText('집현전')).toBeTruthy();
     expect(within(turn as HTMLElement).getByText('논문 연구 도우미')).toBeTruthy();
     expect(document.querySelector('img[src="/Jiphyeonjeon_llama.webp"]')).toBeNull();
