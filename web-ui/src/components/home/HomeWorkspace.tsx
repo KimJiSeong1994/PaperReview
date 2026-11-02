@@ -104,7 +104,7 @@ function HomeWorkspace({
   );
 
   if (!isAuthenticated) {
-    return <GuestHome composer={composer} samples={data.samples} posts={data.posts} />;
+    return <GuestHome composer={composer} samples={data.samples} onAsk={onSearch} />;
   }
 
   return (

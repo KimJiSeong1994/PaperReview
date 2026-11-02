@@ -691,9 +691,8 @@
   grid-template-columns: minmax(0, 460px) minmax(0, 620px);
   grid-template-areas:
     "intro replay"
-    "reviews replay"
     "disclaimer replay";
-  grid-template-rows: auto auto 1fr;
+  grid-template-rows: auto 1fr;
   justify-content: center;
   align-items: start;
   column-gap: 40px;
@@ -716,11 +715,6 @@
   grid-area: replay;
   position: sticky;
   top: calc(var(--home-header) + 24px);
-  min-width: 0;
-}
-
-.home-guest-reviews {
-  grid-area: reviews;
   min-width: 0;
 }
 
@@ -867,6 +861,8 @@
 .home-replay {
   display: flex;
   flex-direction: column;
+  /* Never taller than the viewport, so the sticky column can hold it. */
+  max-height: calc(100vh - var(--home-header) - 48px);
   border: var(--home-line);
   border-radius: 16px;
   background: var(--bg-elev);
@@ -926,13 +922,74 @@
   text-decoration: none;
 }
 
-/* Height-stable: the replay types into a fixed window instead of growing the page. */
+/* A fixed 520px window: one exchange is trimmed to fit, so the card never changes height.
+   It scrolls only when a short viewport squeezes the card below that. */
 .home-replay-body {
-  min-height: 520px;
-  max-height: 640px;
+  flex: 0 1 520px;
+  height: 520px;
+  min-height: 0;
   overflow-y: auto;
   padding: 20px;
   scrollbar-width: thin;
+}
+
+.home-replay-results {
+  display: flex;
+  flex-direction: column;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--home-line);
+}
+
+.home-replay-results li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: var(--home-line);
+}
+
+.home-replay-rank {
+  flex-shrink: 0;
+  width: 14px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.home-replay-paper {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.home-replay-paper-title {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-hi);
+}
+
+.home-replay-paper-meta {
+  font-size: 11.5px;
+  color: var(--text-muted);
+}
+
+.home-replay-cta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: var(--home-line);
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
 .home-replay-body .conv-thread {
@@ -960,11 +1017,11 @@
   gap: 10px;
 }
 
-/* Below ~1000px: one column — question and samples, the replay, reviews, then the disclaimer. */
+/* Below ~1000px: one column — question and samples, the replay, then the disclaimer. */
 @media (max-width: 1000px) {
   .home-guest {
     grid-template-columns: minmax(0, 640px);
-    grid-template-areas: "intro" "replay" "reviews" "disclaimer";
+    grid-template-areas: "intro" "replay" "disclaimer";
     grid-template-rows: none;
     /* The site's 16px mobile gutters. */
     padding: 32px 16px 40px;
@@ -974,9 +1031,15 @@
     position: static;
   }
 
+  /* One column: the card is as tall as its exchange and scrolls with the page. */
+  .home-replay {
+    max-height: none;
+  }
+
   .home-replay-body {
-    min-height: 360px;
-    max-height: 480px;
+    flex: none;
+    height: auto;
+    overflow: visible;
   }
 }
 

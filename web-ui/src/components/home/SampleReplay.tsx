@@ -1,17 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import '../conversation/ConversationPage.css';
 import { fetchSampleConversation } from '../../api/samples';
-import type { SampleConversation, SampleSummary, SampleTurn } from '../../types';
-import SearchResultsBlock from '../conversation/SearchResultsBlock';
-import { linkCitations, normalizeEmphasis, searchBlockOf } from '../conversation/conversationBlocks';
+import type { SampleConversation, SampleSummary } from '../../types';
+import { linkCitations, normalizeEmphasis } from '../conversation/conversationBlocks';
 import MascotFace from './MascotFace';
+import { sampleExchange, type SampleExchange } from './sampleExchange';
 
 const MS_PER_CHAR = 18;
-const TURN_PAUSE_MS = 1200;
-const MAX_SAMPLE_MS = 60_000;
+// "생각하는 중…" before the answer starts.
+const THINK_MS = 1200;
+// The whole exchange types out within this; long answers type faster.
+const EXCHANGE_MS = 15_000;
 
 const prefersReducedMotion = (): boolean => {
   try {
@@ -42,117 +44,89 @@ function ReplayMarkdown({ text }: { text: string }) {
   );
 }
 
-/** Where the lead paragraph ends: the first blank line, as the live page splits it. */
-const leadEndOf = (content: string): number => {
-  const match = /\n\s*\n/.exec(content);
-  return match ? match.index : content.length;
-};
-
 interface ReplayPlayerProps {
-  sample: SampleConversation;
-  /** Show every turn at once, with no typing (prefers-reduced-motion). */
+  exchange: SampleExchange;
+  /** Show the whole exchange at once, with no typing (prefers-reduced-motion). */
   reduced: boolean;
   /** Playing, on screen and the tab visible. */
   running: boolean;
   onFinished: () => void;
+  /** "로그인하고 이어서 물어보기": ask this sample's question for real. */
+  onContinue: (question: string) => void;
 }
 
 /**
- * Plays one sample: each user bubble, then the assistant's answer typed out
- * word by word, the inline results appearing once the lead is written. Mount
+ * Plays one exchange: the question, a beat of "생각하는 중…", the lead typed
+ * word by word, the top results, the conclusion, then the sign-in CTA. Mount
  * with a key per (sample, replay) so it starts from the top.
  */
-function ReplayPlayer({ sample, reduced, running, onFinished }: ReplayPlayerProps) {
-  const navigate = useNavigate();
-  const [turnIndex, setTurnIndex] = useState(0);
-  const [typed, setTyped] = useState(0);
-  const scrollRef = useRef<HTMLDivElement | null>(null);
-  const turns = sample.turns;
-
-  // ~18ms a character, slowed down for no sample but sped up so none runs past a minute.
-  const msPerChar = useMemo(() => {
-    const total = turns.filter(turn => turn.role === 'assistant').reduce((sum, turn) => sum + turn.content.length, 0);
-    return total > 0 ? Math.min(MS_PER_CHAR, MAX_SAMPLE_MS / total) : MS_PER_CHAR;
-  }, [turns]);
+function ReplayPlayer({ exchange, reduced, running, onFinished, onContinue }: ReplayPlayerProps) {
+  // Typed as one string, lead and conclusion joined by a line break so a word never spans both.
+  const text = `${exchange.lead}\n${exchange.conclusion}`;
+  const leadEnd = exchange.lead.length;
+  const msPerChar = Math.min(MS_PER_CHAR, (EXCHANGE_MS - THINK_MS) / Math.max(1, text.length));
+  const [thinking, setThinking] = useState(!reduced);
+  const [typed, setTyped] = useState(reduced ? text.length : 0);
 
   useEffect(() => {
     if (reduced || !running) return undefined;
-    const turn = turns[turnIndex];
     let timer: ReturnType<typeof setTimeout>;
-    if (!turn) {
+    if (thinking) {
+      timer = setTimeout(() => setThinking(false), THINK_MS);
+    } else if (typed >= text.length) {
       timer = setTimeout(onFinished, 0);
-    } else if (turn.role === 'user' || typed >= turn.content.length) {
-      // A finished turn rests for a beat before the next one starts.
-      timer = setTimeout(() => {
-        setTurnIndex(index => index + 1);
-        setTyped(0);
-      }, TURN_PAUSE_MS);
     } else {
       // Type up to the end of the next word.
-      const word = /^\s*\S+/.exec(turn.content.slice(typed));
-      const end = typed + (word ? word[0].length : turn.content.length - typed);
+      const word = /^\s*\S+/.exec(text.slice(typed));
+      const end = typed + (word ? word[0].length : text.length - typed);
       timer = setTimeout(() => setTyped(end), Math.max(1, (end - typed) * msPerChar));
     }
     return () => clearTimeout(timer);
-  }, [reduced, running, turns, turnIndex, typed, msPerChar, onFinished]);
+  }, [reduced, running, thinking, typed, text, msPerChar, onFinished]);
 
-  useEffect(() => {
-    const box = scrollRef.current;
-    if (box && !reduced) box.scrollTop = box.scrollHeight;
-  }, [turnIndex, typed, reduced]);
-
-  const openSample = () => navigate(`/samples/${sample.slug}`);
-  const done = reduced || turnIndex >= turns.length;
-
-  const renderAssistant = (turn: SampleTurn, shown: number) => {
-    const text = turn.content.slice(0, shown);
-    const search = searchBlockOf({ ...turn, id: '', status: 'done', created_at: '' });
-    const leadEnd = leadEndOf(turn.content);
-    const showBlock = Boolean(search) && shown >= leadEnd;
-    return (
-      <>
-        <div className="conv-assistant-head">
-          <MascotFace size={32} className="conv-avatar" />
-          <span className="conv-assistant-name">집현전</span>
-          <span className="conv-assistant-role">논문 연구 도우미</span>
-        </div>
-        {shown === 0 && (
-          <p className="conv-status is-live">
-            <span className="conv-status-dot" aria-hidden="true" />
-            생각하는 중…
-          </p>
-        )}
-        {search ? (
-          <>
-            <ReplayMarkdown text={text.slice(0, leadEnd)} />
-            {showBlock && search.papers.length > 0 && (
-              <SearchResultsBlock block={search} onSelect={openSample} onShowAll={openSample} />
-            )}
-            <ReplayMarkdown text={text.slice(leadEnd).trim()} />
-          </>
-        ) : (
-          <ReplayMarkdown text={text} />
-        )}
-      </>
-    );
-  };
-
+  const done = typed >= text.length;
   return (
-    <div className="home-replay-body" ref={scrollRef}>
+    <div className="home-replay-body">
       <ol className="conv-thread">
-        {turns.map((turn, index) => {
-          if (!done && index > turnIndex) return null;
-          const current = !done && index === turnIndex;
-          return turn.role === 'user' ? (
-            <li key={turn.seq} className="conv-turn is-user">
-              <p className="conv-bubble">{turn.content}</p>
-            </li>
-          ) : (
-            <li key={turn.seq} className="conv-turn is-assistant">
-              {renderAssistant(turn, current ? typed : turn.content.length)}
-            </li>
-          );
-        })}
+        <li className="conv-turn is-user">
+          <p className="conv-bubble">{exchange.question}</p>
+        </li>
+        <li className="conv-turn is-assistant">
+          <div className="conv-assistant-head">
+            <MascotFace size={32} className="conv-avatar" />
+            <span className="conv-assistant-name">집현전</span>
+            <span className="conv-assistant-role">논문 연구 도우미</span>
+          </div>
+          {thinking && (
+            <p className="conv-status is-live">
+              <span className="conv-status-dot" aria-hidden="true" />
+              생각하는 중…
+            </p>
+          )}
+          <ReplayMarkdown text={text.slice(0, Math.min(typed, leadEnd))} />
+          {typed >= leadEnd && exchange.papers.length > 0 && (
+            <ol className="home-replay-results" aria-label={`검색 결과 상위 ${exchange.papers.length}편`}>
+              {exchange.papers.map((paper, index) => (
+                <li key={String(paper.result_key ?? paper.doc_id)}>
+                  <span className="home-replay-rank" aria-hidden="true">{index + 1}</span>
+                  <span className="home-replay-paper">
+                    <span className="home-replay-paper-title">{paper.title}</span>
+                    <span className="home-replay-paper-meta">{[paper.year, paper.source].filter(Boolean).join(' · ')}</span>
+                  </span>
+                </li>
+              ))}
+            </ol>
+          )}
+          <ReplayMarkdown text={typed > leadEnd ? text.slice(leadEnd + 1, typed) : ''} />
+          {done && (
+            <div className="home-replay-cta">
+              <span>내 질문으로 이어서 물어보세요</span>
+              <button type="button" className="home-btn" onClick={() => onContinue(exchange.question)}>
+                로그인하고 이어서 물어보기 →
+              </button>
+            </div>
+          )}
+        </li>
       </ol>
     </div>
   );
@@ -161,15 +135,17 @@ function ReplayPlayer({ sample, reduced, running, onFinished }: ReplayPlayerProp
 interface SampleReplayProps {
   /** The sample to play. Mount with `key={sample.slug}` so another sample starts from the top. */
   sample: SampleSummary;
+  /** Asks the sample's question as a real conversation, through the home's sign-in gate. */
+  onContinue: (question: string) => void;
 }
 
 /**
- * The guest home's replay panel: one sample conversation typed out in place,
- * with 다시 보기 and a pause toggle. Pauses off screen and in a hidden tab;
+ * The guest home's replay panel: a sample's first exchange typed out in a
+ * fixed-height card, with 다시 보기 and a pause toggle. Pauses off screen and in a hidden tab;
  * with reduced motion it shows the sample whole. "전체 답변" opens the full
  * sample page with its graph and list.
  */
-function SampleReplay({ sample: summary }: SampleReplayProps) {
+function SampleReplay({ sample: summary, onContinue }: SampleReplayProps) {
   const [nonce, setNonce] = useState(0);
   const [sample, setSample] = useState<SampleConversation | null>(null);
   const [failed, setFailed] = useState(false);
@@ -203,16 +179,14 @@ function SampleReplay({ sample: summary }: SampleReplayProps) {
   }, []);
 
   const onFinished = useCallback(() => setFinished(true), []);
+  const exchange = useMemo(() => (sample ? sampleExchange(sample) : null), [sample]);
 
   const restart = () => {
     setNonce(value => value + 1);
     setFinished(false);
     setPlaying(true);
   };
-  const togglePlay = () => {
-    if (finished) restart();
-    else setPlaying(value => !value);
-  };
+  const togglePlay = () => setPlaying(value => !value);
 
   const running = playing && !finished && onScreen && tabVisible;
   const status = reduced
@@ -234,17 +208,18 @@ function SampleReplay({ sample: summary }: SampleReplayProps) {
         </div>
       </div>
 
-      {sample ? (
+      {exchange ? (
         <ReplayPlayer
           key={nonce}
-          sample={sample}
+          exchange={exchange}
           reduced={reduced}
           running={running}
           onFinished={onFinished}
+          onContinue={onContinue}
         />
       ) : (
         <div className="home-replay-body">
-          <p className="home-empty">{failed ? '상담 예시를 불러오지 못했어요.' : '상담 예시를 불러오는 중…'}</p>
+          <p className="home-empty">{failed || sample ? '상담 예시를 불러오지 못했어요.' : '상담 예시를 불러오는 중…'}</p>
         </div>
       )}
 
@@ -252,8 +227,9 @@ function SampleReplay({ sample: summary }: SampleReplayProps) {
         <span className="home-replay-status">
           <span role="status">{status}</span>
           {/* Moving content needs a way to stop it (WCAG 2.2.2). */}
-          {!reduced && (
-            <button type="button" onClick={togglePlay}>{playing && !finished ? '멈춤' : '재생'}</button>
+          {/* Once finished, ↻ 다시 보기 is the way to play again. */}
+          {!reduced && !finished && (
+            <button type="button" onClick={togglePlay}>{playing ? '멈춤' : '재생'}</button>
           )}
         </span>
         <span>{summary.asof} 기준</span>

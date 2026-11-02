@@ -1,22 +1,21 @@
 import { useState, type ReactNode } from 'react';
 import type { SampleSummary } from '../../types';
-import { Icon, Row } from './HomeRow';
 import MascotFace from './MascotFace';
 import SampleReplay from './SampleReplay';
-import type { HomeBlogPost } from './useHomeData';
 
 interface GuestHomeProps {
   /** The guest composer, built by the home so it shares the login gate and draft state. */
   composer: ReactNode;
   samples: SampleSummary[];
-  posts: HomeBlogPost[];
+  /** The home's ask (sign-in gate, then a new conversation); the replay's CTA uses it. */
+  onAsk: (question: string) => void;
 }
 
 /**
  * The signed-out home: the question and sample cards on the left, a sample
  * conversation replaying on the right. No sidebar, nothing that needs an account.
  */
-function GuestHome({ composer, samples, posts }: GuestHomeProps) {
+function GuestHome({ composer, samples, onAsk }: GuestHomeProps) {
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const active = samples.find(sample => sample.slug === activeSlug) ?? samples[0] ?? null;
 
@@ -72,24 +71,9 @@ function GuestHome({ composer, samples, posts }: GuestHomeProps) {
 
         {active && (
           <div className="home-guest-replay">
-            <SampleReplay key={active.slug} sample={active} />
+            <SampleReplay key={active.slug} sample={active} onContinue={onAsk} />
           </div>
         )}
-
-        <section className="home-guest-reviews" aria-labelledby="home-public">
-          <h2 id="home-public" className="home-label">공개 리뷰 읽어보기</h2>
-          <ul className="home-list">
-            {posts.map(post => (
-              <Row key={post.slug} lead={<Icon name="doc" />} label={post.title} meta="논문 리뷰 · 쉬운 읽기 / 상세 읽기" to={`/blog/${post.slug}`} />
-            ))}
-            <Row
-              lead={<Icon name="doc" />}
-              label="집현전 사용법 자세히 보기"
-              meta="검색 → 리뷰 → 검증 → 학습 흐름"
-              to="/ko/introduce/"
-            />
-          </ul>
-        </section>
 
         <p className="home-disclaimer home-guest-disclaimer">AI 리뷰도 틀릴 수 있어요. 중요한 주장은 원문 근거를 한 번 더 확인해 주세요.</p>
       </div>

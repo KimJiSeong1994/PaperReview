@@ -51,10 +51,11 @@ vi.mock('../api/bookmarks', () => ({ getBookmarks: vi.fn().mockResolvedValue([])
 vi.mock('../api/curriculum', () => ({ fetchCurricula: vi.fn().mockResolvedValue({ curricula: [] }) }));
 vi.mock('../api/me', () => ({ fetchMyReviewSessions: vi.fn().mockResolvedValue({ sessions: [], total: 0 }) }));
 vi.mock('../api/conversations', () => ({ fetchMyConversations: vi.fn().mockResolvedValue([]) }));
-vi.mock('../api/samples', () => ({
-  fetchSampleConversations: vi.fn().mockResolvedValue([]),
+const samplesApi = vi.hoisted(() => ({
+  fetchSampleConversations: vi.fn(),
   fetchSampleConversation: vi.fn(),
 }));
+vi.mock('../api/samples', () => samplesApi);
 vi.mock('../api/blog', () => ({ fetchBlogPosts: vi.fn().mockResolvedValue({ data: { posts: [] } }) }));
 
 vi.mock('../analytics/events', () => ({
@@ -98,6 +99,7 @@ describe('homepage landing content', () => {
     window.scrollTo = vi.fn();
     vi.mocked(searchPapers).mockResolvedValue({ results: {}, total: 0 } as never);
     vi.mocked(createConversation).mockResolvedValue({ id: 'conv-1', title: 't', turn_id: 'turn-1' });
+    samplesApi.fetchSampleConversations.mockResolvedValue([]);
   });
 
   it('asks one question over a composer and offers verb-first task rows', () => {
@@ -192,11 +194,41 @@ describe('homepage landing content', () => {
     expect(screen.getByText('conversation conv-1 run=true')).toBeTruthy();
   });
 
-  it('says search needs sign-in, and offers a way to read more', () => {
+  // The replay's CTA goes through the same gate as the composer: login first, then the
+  // sample's question becomes a real conversation. The guest home unmounts on sign-in,
+  // so the pending question has to live here, in SearchPage.
+  it('turns the replay CTA into a conversation after a guest signs in', async () => {
+    vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
+    samplesApi.fetchSampleConversations.mockResolvedValue([
+      { id: 's1', slug: 'graphrag-vs-rag', title: 'GraphRAG vs RAG', question: 'GraphRAG가 기존 RAG보다 나은 경우는 언제야?', asof: '2026-11-02', turn_count: 2 },
+    ]);
+    samplesApi.fetchSampleConversation.mockResolvedValue({
+      id: 's1', slug: 'graphrag-vs-rag', title: 'GraphRAG vs RAG', asof: '2026-11-02',
+      turns: [
+        { seq: 1, role: 'user', content: 'GraphRAG가 기존 RAG보다 나은 경우는 언제야?', blocks: [], intent: null },
+        { seq: 2, role: 'assistant', content: '정리했어요.\n\n전역 질문에 유리합니다.', blocks: [], intent: 'search' },
+      ],
+    });
+    try {
+      const { rerender } = renderHome();
+      const cta = await screen.findByRole('button', { name: '로그인하고 이어서 물어보기 →' });
+      await act(async () => { fireEvent.click(cta); });
+      expect(authState.setShowLoginModal).toHaveBeenCalledWith(true);
+      expect(createConversation).not.toHaveBeenCalled();
+
+      authState.isAuthenticated = true;
+      await act(async () => { rerender(routes()); });
+      expect(createConversation).toHaveBeenCalledWith('GraphRAG가 기존 RAG보다 나은 경우는 언제야?');
+      expect(screen.getByText('conversation conv-1 run=true')).toBeTruthy();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it('says search needs sign-in, without the public-review rows on the guest home', () => {
     renderHome();
     expect(screen.getByText('내 질문은 로그인 후 무료로 검색·대화해요.')).toBeTruthy();
-    expect(
-      screen.getByRole('link', { name: /집현전 사용법 자세히 보기/ }).getAttribute('href'),
-    ).toBe('/ko/introduce/');
+    expect(screen.queryByRole('heading', { name: '공개 리뷰 읽어보기' })).toBeNull();
+    expect(screen.queryByRole('link', { name: /집현전 사용법 자세히 보기/ })).toBeNull();
   });
 });

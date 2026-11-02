@@ -8,6 +8,7 @@ import { fetchMyConversations } from '../api/conversations';
 import { fetchMyReviewSessions } from '../api/me';
 import { relativeLabel } from '../components/home/homeTime';
 import { userInitials } from '../components/home/userInitials';
+import { clipToSentence, sampleExchange } from '../components/home/sampleExchange';
 
 // jsdom's default localStorage is broken in this setup (see AdminPage.members.test);
 // use the same in-memory shim the analytics tests rely on.
@@ -151,7 +152,10 @@ describe('HomeWorkspace', () => {
     expect(screen.getByText('궁금한 주제나 논문 제목을 편하게 물어보세요.')).toBeTruthy();
     expect(screen.getByText('집현전이 여러 소스에서 찾아 근거까지 읽어 드려요.')).toBeTruthy();
     expect(document.querySelector('.home-guest-mascot picture.mascot-face img')!.getAttribute('width')).toBe('80');
-    expect(await screen.findByText('KronLSTM 페어 리뷰')).toBeTruthy();
+    // Public reviews are not on the guest home; the left column ends with the samples.
+    await screen.findByText('집현전이 여러 소스에서 찾아 근거까지 읽어 드려요.');
+    expect(screen.queryByRole('heading', { name: '공개 리뷰 읽어보기' })).toBeNull();
+    expect(screen.queryByText('KronLSTM 페어 리뷰')).toBeNull();
   });
 
   it('keeps the workspace up when the recommendation response has no items', async () => {
@@ -238,12 +242,19 @@ describe('HomeWorkspace', () => {
         { seq: 1, role: 'user', content: 'GraphRAG가 RAG보다 나은 경우는?', blocks: [], intent: null },
         {
           seq: 2, role: 'assistant', intent: 'search',
-          content: `${lead}\n\n전역 질문에서는 GraphRAG가 유리합니다 [1].`,
+          content: `${lead}\n\n전역 질문에서는 GraphRAG가 유리합니다 [1].\n\n세 번째 문단은 패널에 나오지 않아요.`,
           blocks: [{
-            type: 'search_results', query: 'q', total: 1, query_hash: 'h', partial: false, degraded: [],
-            papers: [{ doc_id: 'd1', title: 'From Local to Global', authors: ['Darren Edge'], year: 2024, source: 'arxiv' }],
+            type: 'search_results', query: 'q', total: 4, query_hash: 'h', partial: false, degraded: [],
+            papers: ['From Local to Global', 'LightRAG', 'HippoRAG', 'Fourth paper'].map((title, index) => ({
+              doc_id: `d${index + 1}`, title, authors: ['Darren Edge'], year: 2024, source: 'arxiv',
+            })),
           }],
         },
+        // The sample goes on; the panel plays only the first exchange.
+        ...Array.from({ length: 12 }, (_, index) => ({
+          seq: index + 3, role: index % 2 === 0 ? 'user' : 'assistant', intent: null, blocks: [],
+          content: index % 2 === 0 ? `후속 질문 ${index}` : `후속 답변 ${index}`,
+        })),
       ],
     };
     const tick = (ms: number) => act(async () => { await vi.advanceTimersByTimeAsync(ms); });
@@ -304,28 +315,33 @@ describe('HomeWorkspace', () => {
       expect(within(next).queryByRole('button', { name: /다른 샘플 보기/ })).toBeNull();
     });
 
-    it('types the answer after the question, with the results after the lead, and can pause and replay', async () => {
+    it('plays one exchange in a fixed panel: question, lead, three results, conclusion, then the CTA', async () => {
       vi.useFakeTimers();
-      renderHome();
+      const onSearch = renderHome();
       await tick(0);
       await tick(0);
       const replay = screen.getByRole('heading', { name: '집현전과의 대화' }).closest('section')!;
+      const body = replay.querySelector('.home-replay-body') as HTMLElement;
+      expect(getComputedStyle(body).height).toBe('520px');
       expect(within(replay).getByText('2026-10-25 기준 · 상담 예시')).toBeTruthy();
       expect(within(replay).getByRole('status').textContent).toBe('상담 예시 · 재생 중');
       expect(within(replay).getByText('GraphRAG가 RAG보다 나은 경우는?')).toBeTruthy();
-      expect(within(replay).queryByText('집현전')).toBeNull();
+      expect(within(replay).getByText('생각하는 중…')).toBeTruthy();
+      expect(replay.textContent).not.toContain('그래프가');
 
       await tick(1200);
-      expect(within(replay).getByText('생각하는 중…')).toBeTruthy();
-      await play(160);
+      await play(120);
       // Part of the lead is typed, the results not yet.
       expect(replay.textContent).toContain('그래프가');
       expect(replay.textContent).not.toContain(lead);
-      expect(within(replay).queryByRole('region', { name: /검색 결과/ })).toBeNull();
+      expect(within(replay).queryByRole('list', { name: /검색 결과/ })).toBeNull();
 
-      await play(1500);
+      await play(800);
       expect(replay.textContent).toContain(lead);
-      expect(within(replay).getByRole('region', { name: '검색 결과 1편' })).toBeTruthy();
+      const results = within(replay).getByRole('list', { name: '검색 결과 상위 3편' });
+      expect(within(results).getAllByRole('listitem').map(item => item.querySelector('.home-replay-paper-title')!.textContent))
+        .toEqual(['From Local to Global', 'LightRAG', 'HippoRAG']);
+      expect(within(results).getAllByRole('listitem')[0].textContent).toContain('2024 · arxiv');
 
       // 멈춤 holds the text where it is.
       fireEvent.click(within(replay).getByRole('button', { name: '멈춤' }));
@@ -334,29 +350,62 @@ describe('HomeWorkspace', () => {
       await play(1000);
       expect(replay.textContent).toBe(frozen);
       fireEvent.click(within(replay).getByRole('button', { name: '재생' }));
-      await play(2000);
+      await play(1500);
       expect(replay.textContent).toContain('전역 질문에서는 GraphRAG가 유리합니다');
-      await play(2600);
       expect(within(replay).getByRole('status').textContent).toBe('상담 예시 · 재생 완료');
+      // Finished: no 멈춤/재생 toggle in the footer; 다시 보기 replays.
+      expect(within(replay).queryByRole('button', { name: /^(멈춤|재생)$/ })).toBeNull();
 
-      // 다시 보기 starts the same sample from the question again.
+      // One exchange only: no later turns, no third paragraph.
+      expect(replay.querySelectorAll('.conv-turn.is-user')).toHaveLength(1);
+      expect(replay.textContent).not.toContain('후속 질문');
+      expect(replay.textContent).not.toContain('세 번째 문단');
+      expect(replay.textContent).not.toContain('Fourth paper');
+      expect(within(replay).queryByText(/전체 \d+편 보기/)).toBeNull();
+
+      // The CTA comes last and asks this sample's question through the home's sign-in gate.
+      expect(within(replay).getByText('내 질문으로 이어서 물어보세요')).toBeTruthy();
+      fireEvent.click(within(replay).getByRole('button', { name: '로그인하고 이어서 물어보기 →' }));
+      expect(onSearch).toHaveBeenCalledWith('GraphRAG가 RAG보다 나은 경우는?');
+
+      // 다시 보기 starts the same exchange again.
       fireEvent.click(within(replay).getByRole('button', { name: '↻ 다시 보기' }));
       await tick(0);
       expect(within(replay).getByRole('status').textContent).toBe('상담 예시 · 재생 중');
       expect(replay.textContent).not.toContain(lead);
-      expect(within(replay).getByText('2026-10-25 기준', { selector: '.home-replay-foot span' })).toBeTruthy();
+      expect(within(replay).queryByRole('button', { name: '로그인하고 이어서 물어보기 →' })).toBeNull();
     });
 
-    it('shows the whole sample at once, without playback controls, under reduced motion', async () => {
+    it('shows the whole exchange at once, without playback controls, under reduced motion', async () => {
       vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
       renderHome();
       const replay = (await screen.findByRole('heading', { name: '집현전과의 대화' })).closest('section')!;
       expect(await within(replay).findByText(/전역 질문에서는 GraphRAG가 유리합니다/)).toBeTruthy();
-      expect(within(replay).getByRole('region', { name: '검색 결과 1편' })).toBeTruthy();
+      expect(within(within(replay).getByRole('list', { name: '검색 결과 상위 3편' })).getAllByRole('listitem')).toHaveLength(3);
+      expect(within(replay).getByRole('button', { name: '로그인하고 이어서 물어보기 →' })).toBeTruthy();
+      expect(within(replay).queryByText('생각하는 중…')).toBeNull();
       expect(within(replay).queryByRole('button', { name: '멈춤' })).toBeNull();
       expect(within(replay).queryByRole('button', { name: '↻ 다시 보기' })).toBeNull();
       expect(within(replay).getByRole('status').textContent).toBe('상담 예시');
     });
+  });
+
+  it('trims a sample to one exchange, cutting a long conclusion at a sentence end', () => {
+    const long = `${'가'.repeat(150)}. ${'나'.repeat(150)}. 끝.`;
+    expect(clipToSentence(long)).toBe(`${'가'.repeat(150)}.…`);
+    expect(clipToSentence('짧은 결론입니다.')).toBe('짧은 결론입니다.');
+    expect(clipToSentence('마침표 없는 '.repeat(40)).endsWith('…')).toBe(true);
+    expect(clipToSentence('마침표 없는 '.repeat(40)).length).toBeLessThanOrEqual(241);
+
+    const exchange = sampleExchange({
+      id: 's', slug: 's', title: 't', asof: '',
+      turns: [
+        { seq: 1, role: 'user', content: '질문', blocks: [], intent: null },
+        { seq: 2, role: 'assistant', content: `리드.\n\n${long}\n\n셋째.`, blocks: [], intent: null },
+        { seq: 3, role: 'user', content: '다음 질문', blocks: [], intent: null },
+      ],
+    })!;
+    expect(exchange).toEqual({ question: '질문', lead: '리드.', papers: [], conclusion: `${'가'.repeat(150)}.…` });
   });
 
   it('labels time relative to now', () => {
