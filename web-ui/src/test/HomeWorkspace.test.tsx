@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, within, waitFor } from '@testing-library/react';
 import { afterEach } from 'vitest';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
@@ -393,7 +393,7 @@ describe('HomeWorkspace', () => {
 
       // The auto-shown first sample is home_default; only a click on another card is home_card.
       const cards = within((await screen.findByRole('heading', { name: '샘플 질문으로 먼저 써보세요' })).closest('section')!).getAllByRole('button');
-      expect(events.trackSampleView.mock.calls).toEqual([['home_default', 'graphrag-vs-rag']]);
+      await waitFor(() => expect(events.trackSampleView.mock.calls).toEqual([['home_default', 'graphrag-vs-rag']]));
       fireEvent.click(cards[0]);
       expect(events.trackSampleView).toHaveBeenCalledTimes(1);
       fireEvent.click(cards[1]);
