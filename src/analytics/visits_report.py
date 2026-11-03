@@ -95,6 +95,13 @@ CURATED_FUNNELS: list[dict[str, Any]] = [
         "label": "검색 → 포스터 생성",
         "steps": ["search", "poster_generate_start", "poster_generate_complete"],
     },
+    {
+        # Logged-out sample → CTA → first conversation. Login sits between CTA
+        # and conversation_start but is login|sign_up, so it is not a step.
+        "id": "sample_to_conversation",
+        "label": "샘플 → CTA → 첫 대화",
+        "steps": ["sample_view", "sample_cta_click", "conversation_start"],
+    },
 ]
 
 # Fail fast on a typo'd event name in a curated funnel.
@@ -202,6 +209,40 @@ def build_deep_review_outcome(conn: sqlite3.Connection, start_utc: str) -> dict[
         "failed": failed,
         "abandoned": max(started - completed - failed, 0),
     }
+
+
+def build_samples_report(conn: sqlite3.Connection, start_utc: str) -> list[dict[str, Any]]:
+    """Per public sample slug: /samples/<slug> page views, card views and CTA clicks.
+
+    Only slugs seen in events are returned; the frontend joins titles from the
+    public samples API. Slugs are public identifiers, not user data.
+    """
+    rows = conn.execute(
+        """
+        WITH e AS (
+          SELECT event_name,
+                 CASE WHEN event_name = 'page_view' THEN substr(page_path, 10)
+                      ELSE json_extract(payload, '$.sample_slug') END AS slug,
+                 json_extract(payload, '$.source') AS source
+          FROM app_analytics_events
+          WHERE created_at >= :start_utc
+            AND ((event_name = 'page_view' AND page_path LIKE '/samples/_%')
+                 OR event_name IN ('sample_view', 'sample_cta_click'))
+        )
+        SELECT slug,
+               SUM(event_name = 'page_view') AS page_views,
+               -- The auto-rendered first sample (home_default) is exposure, not a choice;
+               -- excluding it keeps cta_clicks / card_views comparable across slugs.
+               SUM(event_name = 'sample_view' AND COALESCE(source, '') != 'home_default') AS card_views,
+               SUM(event_name = 'sample_cta_click') AS cta_clicks
+        FROM e
+        WHERE slug IS NOT NULL AND slug != ''
+        GROUP BY slug
+        ORDER BY page_views + card_views DESC, slug
+        """,
+        {"start_utc": start_utc},
+    ).fetchall()
+    return [dict(r) for r in rows]
 
 
 def build_visits_report(
@@ -408,6 +449,7 @@ def build_visits_report(
 
         funnels = [build_funnel_report(conn, start_utc, f) for f in CURATED_FUNNELS]
         deep_review_outcome = build_deep_review_outcome(conn, start_utc)
+        samples = build_samples_report(conn, start_utc)
 
         ga4 = _ga4_status(conn, start_utc, top_limit)
     finally:
@@ -475,6 +517,7 @@ def build_visits_report(
         "product_events": product_events,
         "funnels": funnels,
         "deep_review_outcome": deep_review_outcome,
+        "samples": samples,
         "ga4": ga4,
     }
 

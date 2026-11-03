@@ -10,7 +10,7 @@ import sqlite3
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from uuid import uuid4
 
 logger = logging.getLogger(__name__)
@@ -41,7 +41,20 @@ CREATE TABLE IF NOT EXISTS turns (
 CREATE INDEX IF NOT EXISTS idx_conversations_owner
     ON conversations (username, account_incarnation, updated_at DESC);
 CREATE INDEX IF NOT EXISTS idx_turns_conversation ON turns (conversation_id, seq);
+CREATE INDEX IF NOT EXISTS idx_turns_created ON turns (created_at);
 """
+
+# Content of an assistant turn superseded by a new user message (routers/conversations.py);
+# the admin stats tell a cancel apart from a failure by this text.
+CANCELLED_TEXT = "중단됨"
+
+# Outcome of an assistant turn. status='error' mixes three cases: a real failure
+# (latency recorded), a cancel (CANCELLED_TEXT) and a turn cut off by a restart.
+_OUTCOME_SQL = """CASE WHEN t.status = 'running' THEN 'running'
+     WHEN t.status = 'done' THEN 'done'
+     WHEN t.latency_ms IS NOT NULL THEN 'failed'
+     WHEN t.content = :cancel_text THEN 'cancelled'
+     ELSE 'interrupted' END"""
 
 
 def _now() -> str:
@@ -257,6 +270,98 @@ class ConversationDB:
             finally:
                 conn.close()
         return cur.rowcount > 0
+
+    # ── Admin aggregates: counts, timestamps and enum values only; never content, title or blocks ──
+
+    def _read(self, sql: str, params: Any = ()) -> List[sqlite3.Row]:
+        with self._lock:
+            conn = self._connect()
+            try:
+                return conn.execute(sql, params).fetchall()
+            finally:
+                conn.close()
+
+    def admin_turn_stats(self, since: str) -> Dict[str, Any]:
+        """Aggregates only: totals, outcome×intent counts, done-turn latencies by intent, KST daily rows.
+
+        Never returns content, title or blocks (content is only compared to CANCELLED_TEXT in SQL).
+        """
+        params = {"since": since, "cancel_text": CANCELLED_TEXT}
+        totals = self._read(
+            """
+            SELECT (SELECT COUNT(*) FROM conversations WHERE created_at >= :since) AS conversations,
+                   (SELECT COUNT(*) FROM turns WHERE role = 'user' AND created_at >= :since) AS user_turns,
+                   (SELECT COUNT(DISTINCT c.username || '|' || c.account_incarnation)
+                      FROM turns t JOIN conversations c ON c.id = t.conversation_id
+                     WHERE t.role = 'user' AND t.created_at >= :since) AS active_users
+            """,
+            params,
+        )[0]
+        outcomes = self._read(
+            f"""
+            SELECT t.intent AS intent, {_OUTCOME_SQL} AS outcome, COUNT(*) AS n
+              FROM turns t WHERE t.role = 'assistant' AND t.created_at >= :since
+             GROUP BY 1, 2
+            """,
+            params,
+        )
+        latencies = self._read(
+            """
+            SELECT intent, latency_ms FROM turns
+             WHERE role = 'assistant' AND status = 'done' AND latency_ms IS NOT NULL
+               AND intent IS NOT NULL AND created_at >= :since
+            """,
+            params,
+        )
+        daily = self._read(
+            f"""
+            SELECT date(t.created_at, '+9 hours') AS date,
+                   COUNT(DISTINCT CASE WHEN t.role = 'user' THEN t.conversation_id END) AS conversations,
+                   SUM(t.role = 'user') AS user_turns,
+                   COUNT(DISTINCT CASE WHEN t.role = 'user'
+                                       THEN c.username || '|' || c.account_incarnation END) AS active_users,
+                   SUM(t.role = 'assistant' AND {_OUTCOME_SQL} IN ('failed', 'interrupted')) AS failed
+              FROM turns t JOIN conversations c ON c.id = t.conversation_id
+             WHERE t.created_at >= :since
+             GROUP BY 1
+            """,
+            params,
+        )
+        return {
+            "conversations": totals["conversations"],
+            "user_turns": totals["user_turns"],
+            "active_users": totals["active_users"],
+            "outcomes": [(r["intent"], r["outcome"], r["n"]) for r in outcomes],
+            "latencies": [(r["intent"], r["latency_ms"]) for r in latencies],
+            "daily": [dict(r) for r in daily],
+        }
+
+    def review_starts_since(self, since: str) -> List[Dict[str, Optional[str]]]:
+        """[{session_id, mode}] from review_started blocks of assistant turns created since *since*."""
+        rows = self._read(
+            """
+            SELECT json_extract(b.value, '$.session_id') AS session_id, json_extract(b.value, '$.mode') AS mode
+              FROM turns t, json_each(t.blocks_json) b
+             WHERE t.role = 'assistant' AND t.created_at >= ?
+               AND json_extract(b.value, '$.type') = 'review_started'
+            """,
+            (since,),
+        )
+        return [dict(r) for r in rows]
+
+    def first_conversation_by_owner(self) -> Dict[Tuple[str, str], str]:
+        """(username, incarnation) -> MIN(created_at)."""
+        rows = self._read(
+            "SELECT username, account_incarnation, MIN(created_at) FROM conversations GROUP BY 1, 2"
+        )
+        return {(r[0], r[1]): r[2] for r in rows}
+
+    def counts_by_owner(self) -> Dict[Tuple[str, str], Tuple[int, str]]:
+        """(username, incarnation) -> (conversation_count, MAX(updated_at)); archived included."""
+        rows = self._read(
+            "SELECT username, account_incarnation, COUNT(*), MAX(updated_at) FROM conversations GROUP BY 1, 2"
+        )
+        return {(r[0], r[1]): (r[2], r[3]) for r in rows}
 
     def delete_by_username(self, username: str) -> int:
         """Delete every conversation (all incarnations) of *username*; returns the count."""

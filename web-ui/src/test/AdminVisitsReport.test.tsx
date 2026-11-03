@@ -1,11 +1,12 @@
 import { describe, expect, it, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import AdminVisitsReport from '../components/AdminVisitsReport';
-import { fetchAdminVisitsReport, resolveEstimatedAnswerFetches } from '../api/client';
+import { fetchAdminVisitsReport, fetchSampleConversations, resolveEstimatedAnswerFetches } from '../api/client';
 
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
-  return { ...actual, fetchAdminVisitsReport: vi.fn() };
+  // Public sample list, joined by slug for titles; empty unless a test sets it.
+  return { ...actual, fetchAdminVisitsReport: vi.fn(), fetchSampleConversations: vi.fn(() => Promise.resolve([])) };
 });
 
 vi.mock('../PlotlyChart', () => ({
@@ -59,6 +60,7 @@ const REPORT = {
       overall_conversion: 0.25,
     },
   ],
+  samples: [] as { slug: string; page_views: number; card_views: number; cta_clicks: number }[],
   deep_review_outcome: { started: 5, completed: 2, failed: 1, abandoned: 2 },
   ga4: {
     available: false,
@@ -279,6 +281,50 @@ describe('AdminVisitsReport', () => {
     expect(screen.getByText(/실패 1/)).toBeInTheDocument();
     expect(screen.getByText(/이탈 2/)).toBeInTheDocument();
   }, 20_000);
+
+  it('shows the sample funnel and a per-sample table joined to public titles, zero rows included', async () => {
+    vi.mocked(fetchSampleConversations).mockResolvedValue([
+      { id: 's1', slug: 'graphrag-vs-rag', title: 'GraphRAG 비교', question: 'q', asof: '2026-10-25', turn_count: 2 },
+      { id: 's2', slug: 'memory-papers', title: '장기 기억 논문', question: 'q', asof: '2026-10-25', turn_count: 2 },
+    ]);
+    vi.mocked(fetchAdminVisitsReport).mockResolvedValue({
+      data: {
+        ...REPORT,
+        funnels: [
+          ...REPORT.funnels,
+          {
+            id: 'sample_to_conversation',
+            label: '샘플 → CTA → 첫 대화',
+            steps: [
+              { event: 'sample_view', count: 20, rate: 1, drop_off: 0 },
+              { event: 'sample_cta_click', count: 5, rate: 0.25, drop_off: 15 },
+              { event: 'conversation_start', count: 2, rate: 0.1, drop_off: 3 },
+            ],
+            overall_conversion: 0.1,
+          },
+        ],
+        samples: [{ slug: 'graphrag-vs-rag', page_views: 40, card_views: 25, cta_clicks: 6 }],
+      },
+    } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
+
+    render(<AdminVisitsReport />);
+
+    expect(await screen.findByText('샘플 대화')).toBeInTheDocument();
+    expect(screen.getByText(/분석 동의 사용자만 집계\(하한값\)\. 퍼널 첫 단계에는/)).toBeInTheDocument();
+    expect(screen.getByText('샘플 → CTA → 첫 대화')).toBeInTheDocument();
+    // Funnel step 1 includes the home default; the table counts card clicks and page opens only.
+    expect(screen.getByText('샘플 노출 (홈 기본 포함)')).toBeInTheDocument();
+    expect(screen.getByText('샘플 조회 · 카드 클릭+페이지')).toBeInTheDocument();
+    expect(screen.getByText('이어서 묻기 클릭')).toBeInTheDocument();
+    expect(screen.getByText('대화 시작')).toBeInTheDocument();
+    expect(screen.getByText(/구 검색 페이지 기준/)).toBeInTheDocument();
+
+    const seen = (await screen.findByText('GraphRAG 비교')).closest('tr') as HTMLElement;
+    // CTA rate = cta / sample_view (6 / 25); page views are the same visits seen by the router, not added.
+    expect(within(seen).getAllByRole('cell').map((c) => c.textContent)).toEqual(['GraphRAG 비교', '40', '25', '6', '24%']);
+    const unseen = screen.getByText('장기 기억 논문').closest('tr') as HTMLElement;
+    expect(within(unseen).getAllByRole('cell').map((c) => c.textContent)).toEqual(['장기 기억 논문', '0', '0', '0', '—']);
+  });
 
   it('surfaces the API error state', async () => {
     vi.mocked(fetchAdminVisitsReport).mockRejectedValue(new Error('boom'));

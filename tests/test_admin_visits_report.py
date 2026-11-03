@@ -176,6 +176,7 @@ def test_build_funnel_report_orders_and_counts(tmp_path: Path) -> None:
         "review_to_bookmark",
         "onboarding",
         "poster_flow",
+        "sample_to_conversation",
     }
 
     fr = funnels["search_to_review"]
@@ -200,6 +201,72 @@ def test_build_funnel_report_orders_and_counts(tmp_path: Path) -> None:
         "failed": 0,
         "abandoned": 2,
     }
+
+
+def _seed_payload(db: Path, rows: list[tuple]) -> None:
+    """Rows: (session_id, event_name, page_path, payload_json, created_at)."""
+    conn = sqlite3.connect(str(db))
+    conn.executemany(
+        """
+        INSERT INTO app_analytics_events
+          (user_id, client_id, session_id, event_name, page_path, payload,
+           source, created_at, received_at)
+        VALUES (NULL, 'c-' || ?, ?, ?, ?, ?, 'first_party', ?, ?)
+        """,
+        [(r[0], r[0], r[1], r[2], r[3], r[4], r[4]) for r in rows],
+    )
+    conn.commit()
+    conn.close()
+
+
+def report_samples(db: Path) -> list:
+    return build_visits_report(db, days=7, now=NOW)["samples"]
+
+
+def test_sample_funnel_is_reported(tmp_path: Path) -> None:
+    db = tmp_path / "analytics.db"
+    ensure_analytics_db(db)
+    slug = '{"source":"home_card","sample_slug":"gqa"}'
+    _seed_payload(
+        db,
+        [
+            ("sA", "sample_view", "/", slug, "2026-07-14T01:00:00Z"),
+            ("sA", "sample_cta_click", "/", slug, "2026-07-14T01:01:00Z"),
+            ("sA", "login", "/", "{}", "2026-07-14T01:02:00Z"),
+            ("sA", "conversation_start", "/c/:id", '{"source":"sample_cta"}', "2026-07-14T01:03:00Z"),
+            ("sB", "sample_view", "/", slug, "2026-07-14T02:00:00Z"),
+            ("sC", "sample_view", "/", '{"source":"home_default","sample_slug":"gqa"}', "2026-07-14T02:30:00Z"),
+        ],
+    )
+    funnels = {f["id"]: f for f in build_visits_report(db, days=7, now=NOW)["funnels"]}
+    funnel = funnels["sample_to_conversation"]
+    assert [s["event"] for s in funnel["steps"]] == ["sample_view", "sample_cta_click", "conversation_start"]
+    assert [s["count"] for s in funnel["steps"]] == [3, 1, 1]  # home_default view counts as exposure
+    assert report_samples(db) == [{"slug": "gqa", "page_views": 0, "card_views": 2, "cta_clicks": 1}]
+
+
+def test_samples_breakdown_by_slug(tmp_path: Path) -> None:
+    db = tmp_path / "analytics.db"
+    ensure_analytics_db(db)
+    gqa = '{"source":"home_card","sample_slug":"gqa"}'
+    _seed_payload(
+        db,
+        [
+            ("s1", "page_view", "/samples/gqa", "{}", "2026-07-14T01:00:00Z"),
+            ("s2", "page_view", "/samples/gqa", "{}", "2026-07-14T01:00:00Z"),
+            ("s1", "sample_view", "/samples/gqa", gqa, "2026-07-14T01:00:01Z"),
+            ("s3", "sample_view", "/", gqa, "2026-07-14T01:00:00Z"),
+            ("s3", "sample_cta_click", "/", gqa, "2026-07-14T01:00:05Z"),
+            ("s4", "page_view", "/samples/hipporag", "{}", "2026-07-14T01:00:00Z"),
+            ("s5", "page_view", "/samples/gqa", "{}", "2026-01-01T00:00:00Z"),  # outside window
+            ("s6", "page_view", "/samples", "{}", "2026-07-14T01:00:00Z"),  # list page, no slug
+        ],
+    )
+    report = build_visits_report(db, days=7, now=NOW)
+    assert report["samples"] == [
+        {"slug": "gqa", "page_views": 2, "card_views": 2, "cta_clicks": 1},
+        {"slug": "hipporag", "page_views": 1, "card_views": 0, "cta_clicks": 0},
+    ]
 
 
 def test_deep_review_outcome_splits_fail_and_abandon(tmp_path: Path) -> None:

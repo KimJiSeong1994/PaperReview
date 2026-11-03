@@ -222,4 +222,24 @@ def test_streaming_adapter_skips_terminal_full_text_events():
         )
     )
 
-    assert [chunk.choices[0].delta.content for chunk in chunks] == ["Hel", "lo"]
+    assert [chunk.choices[0].delta.content for chunk in chunks if chunk.choices] == ["Hel", "lo"]
+
+
+def test_chat_like_stream_yields_usage_on_completed():
+    usage = SimpleNamespace(input_tokens=11, output_tokens=4, total_tokens=15)
+
+    class _Responses:
+        def create(self, **_kwargs):
+            return iter([
+                SimpleNamespace(type="response.output_text.delta", delta="Hi"),
+                SimpleNamespace(type="response.output_text.done", text="Hi"),
+                SimpleNamespace(type="response.completed", response=SimpleNamespace(usage=usage, output_text="Hi")),
+            ])
+
+    client = SimpleNamespace(responses=_Responses(), chat=MagicMock())
+    chunks = list(create_chat_completion(client, model="gpt-5.5", messages=[], stream=True))
+
+    assert [c.choices[0].delta.content for c in chunks if c.choices] == ["Hi"]  # no duplicated full text
+    final = chunks[-1]
+    assert final.choices == []
+    assert (final.usage.prompt_tokens, final.usage.completion_tokens, final.usage.total_tokens) == (11, 4, 15)

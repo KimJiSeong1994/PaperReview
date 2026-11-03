@@ -12,6 +12,7 @@ import { FolderIcon, ChevronIcon, FileIcon, BookmarkIcon, CurriculumIcon } from 
 
 const nf = new Intl.NumberFormat('ko-KR');
 const fmt = (value: number) => nf.format(value ?? 0);
+const day = (iso: string | null | undefined) => (iso ? new Date(iso).toLocaleDateString() : '없음');
 
 interface AdminMembersReportProps {
   users: AdminUser[];
@@ -54,6 +55,7 @@ const SORTS = {
   papers: '논문 많은 순',
   curricula: '커리큘럼 많은 순',
   joined: '가입 최근순',
+  conversation: '최근 대화',
 } as const;
 type SortKey = keyof typeof SORTS;
 
@@ -170,7 +172,8 @@ export default function AdminMembersReport({
       sort === 'bookmarks' ? m.bookmarks.length
         : sort === 'papers' ? m.paperCount
           : sort === 'curricula' ? (m.curriculum?.total_curricula ?? 0)
-            : Date.parse(m.account?.created_at ?? '') || 0;
+            : sort === 'conversation' ? Date.parse(m.account?.last_conversation_at ?? '') || 0
+              : Date.parse(m.account?.created_at ?? '') || 0;
     return [...rows].sort((a, b) => rank(b) - rank(a) || a.username.localeCompare(b.username));
   }, [members, search, sort, scope]);
 
@@ -319,6 +322,8 @@ export default function AdminMembersReport({
               const rowLabel = [
                 member.username,
                 account ? `권한 ${account.role}` : '계정 없음',
+                (account?.conversation_count ?? 0) > 0 ? `대화 ${account?.conversation_count}` : null,
+                (account?.memory_count ?? 0) > 0 ? `메모리 ${account?.memory_count}` : null,
                 member.bookmarks.length > 0 ? `북마크 ${member.bookmarks.length}` : null,
                 (curriculum?.total_curricula ?? 0) > 0 ? `커리큘럼 ${curriculum?.total_curricula}` : null,
                 (curriculum?.total_read_papers ?? 0) > 0 ? `읽음 ${curriculum?.total_read_papers}` : null,
@@ -350,6 +355,16 @@ export default function AdminMembersReport({
                         </span>
                       )}
                       <div className="admin-cur-badges">
+                        {(account?.conversation_count ?? 0) > 0 && (
+                          <span className="admin-cur-badge admin-cur-badge--conversation">
+                            대화 {account?.conversation_count}
+                          </span>
+                        )}
+                        {(account?.memory_count ?? 0) > 0 && (
+                          <span className="admin-cur-badge admin-cur-badge--memory">
+                            메모리 {account?.memory_count}
+                          </span>
+                        )}
                         {member.bookmarks.length > 0 && (
                           <span className="admin-cur-badge admin-cur-badge--custom">
                             북마크 {member.bookmarks.length}
@@ -410,6 +425,12 @@ export default function AdminMembersReport({
                         {(curriculum?.fork_count ?? 0) > 0 && <> &middot; 포크 {curriculum?.fork_count}</>}
                         {(curriculum?.custom_count ?? 0) > 0 && <> &middot; 커스텀 {curriculum?.custom_count}</>}
                       </div>
+                      {account && (
+                        <div className="admin-member-meta">
+                          대화 {fmt(account.conversation_count)}개 &middot; 최근 대화 {day(account.last_conversation_at)}
+                          {' '}&middot; 메모리 {fmt(account.memory_count)}개 &middot; 연구 프로필 갱신 {day(account.profile_updated_at)}
+                        </div>
+                      )}
 
                       <div className="admin-member-subhead">북마크</div>
                       {member.bookmarks.length === 0 ? (

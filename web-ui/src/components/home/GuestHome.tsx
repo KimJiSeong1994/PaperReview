@@ -1,4 +1,5 @@
-import { useState, type ReactNode } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
+import { trackSampleCtaClick, trackSampleView } from '../../analytics/events';
 import type { SampleSummary } from '../../types';
 import MascotFace from './MascotFace';
 import SampleReplay from './SampleReplay';
@@ -18,6 +19,11 @@ interface GuestHomeProps {
 function GuestHome({ composer, samples, onAsk }: GuestHomeProps) {
   const [activeSlug, setActiveSlug] = useState<string | null>(null);
   const active = samples.find(sample => sample.slug === activeSlug) ?? samples[0] ?? null;
+  // The auto-shown first sample is 'home_default' (every guest home load), a picked card is 'home_card'.
+  const defaultSlug = activeSlug === null ? samples[0]?.slug ?? null : null;
+  useEffect(() => {
+    if (defaultSlug) trackSampleView('home_default', defaultSlug);
+  }, [defaultSlug]);
 
   return (
     <div className="home-shell home-shell--guest">
@@ -53,7 +59,10 @@ function GuestHome({ composer, samples, onAsk }: GuestHomeProps) {
                         type="button"
                         className={`home-sample-card${isActive ? ' is-active' : ''}`}
                         aria-pressed={isActive}
-                        onClick={() => setActiveSlug(sample.slug)}
+                        onClick={() => {
+                          if (!isActive) trackSampleView('home_card', sample.slug);
+                          setActiveSlug(sample.slug);
+                        }}
                       >
                         <span className="home-sample-card-text">
                           <span className="home-sample-card-title">{sample.question}</span>
@@ -71,7 +80,11 @@ function GuestHome({ composer, samples, onAsk }: GuestHomeProps) {
 
         {active && (
           <div className="home-guest-replay">
-            <SampleReplay key={active.slug} sample={active} onContinue={onAsk} />
+            <SampleReplay
+              key={active.slug}
+              sample={active}
+              onContinue={question => { trackSampleCtaClick('home_card', active.slug); onAsk(question); }}
+            />
           </div>
         )}
 

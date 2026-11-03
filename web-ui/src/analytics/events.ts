@@ -113,6 +113,19 @@ export function trackPosterGenerateComplete(status: string = 'succeeded'): void 
   sendAllowedEvent('poster_generate_complete', { status });
 }
 
+/** Sample slugs are public page names, the only identifier these three events carry. */
+export function trackSampleView(source: 'home_default' | 'home_card' | 'sample_page', slug: string): void {
+  sendAllowedEvent('sample_view', { source, sample_slug: slug });
+}
+
+export function trackSampleCtaClick(source: 'home_card' | 'sample_page', slug: string): void {
+  sendAllowedEvent('sample_cta_click', { source, sample_slug: slug });
+}
+
+export function trackConversationStart(source: 'home' | 'sample_cta'): void {
+  sendAllowedEvent('conversation_start', { source });
+}
+
 export function trackPosterGenerateFail(status: string = 'failed'): void {
   sendAllowedEvent('poster_generate_fail', { status });
 }

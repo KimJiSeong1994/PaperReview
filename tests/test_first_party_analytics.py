@@ -133,3 +133,44 @@ def test_analytics_endpoint_uses_server_side_optional_user(tmp_path, monkeypatch
         assert json.loads(row['payload']) == {'source': 'button'}
     finally:
         conn.close()
+
+
+def test_sample_events_are_allowed(tmp_path, monkeypatch):
+    monkeypatch.setenv('ANALYTICS_DB_PATH', str(tmp_path / 'analytics.db'))
+    app = FastAPI()
+    app.state.limiter = limiter
+    app.include_router(router)
+    app.dependency_overrides[get_optional_user] = lambda: None
+    client = TestClient(app)
+    for name, payload in (
+        ('sample_view', {'source': 'home_card', 'sample_slug': 'graphrag-vs-rag'}),
+        ('sample_view', {'source': 'home_default', 'sample_slug': 'graphrag-vs-rag'}),
+        ('sample_cta_click', {'source': 'sample_page', 'sample_slug': 'graphrag-vs-rag'}),
+        ('conversation_start', {'source': 'sample_cta'}),
+    ):
+        response = client.post('/api/analytics/events', json={
+            'client_id': 'client_12345678', 'session_id': 'session_12345678',
+            'event_name': name, 'page_path': '/', 'payload': payload,
+        })
+        assert response.status_code == 202, name
+    conn = sqlite3.connect(tmp_path / 'analytics.db')
+    try:
+        rows = conn.execute('SELECT event_name, payload FROM app_analytics_events ORDER BY id').fetchall()
+    finally:
+        conn.close()
+    assert [r[0] for r in rows] == ['sample_view', 'sample_view', 'sample_cta_click', 'conversation_start']
+    assert json.loads(rows[1][1]) == {'source': 'home_default', 'sample_slug': 'graphrag-vs-rag'}
+    assert json.loads(rows[0][1]) == {'source': 'home_card', 'sample_slug': 'graphrag-vs-rag'}
+
+
+def test_sample_slug_payload_rejects_non_slug():
+    for bad in ('../etc', 'Graph RAG', 'UPPER', '-lead', 'a' * 65, 3):
+        assert sanitize_payload({'sample_slug': bad, 'source': 'home_card'}) == {'source': 'home_card'}
+    assert sanitize_payload({'sample_slug': 'gqa-2'}) == {'sample_slug': 'gqa-2'}
+
+
+def test_conversation_path_is_normalized():
+    assert sanitize_page_path('/c/abc123') == '/c/:id'
+    assert sanitize_page_path('/c/abc123?x=1') == '/c/:id'
+    assert sanitize_page_path('/c/abc123/') == '/c/:id/'
+    assert sanitize_page_path('/catalog') == '/catalog'

@@ -106,9 +106,9 @@ export default function AdminDashboardReport({ stats }: { stats: AdminDashboard 
     <article className="admin-dashboard visits-report dashboard-report">
       <header className="visits-report-header dashboard-report-header">
         <div className="visits-report-heading">
-          <span className="visits-report-kicker">ADMIN OVERVIEW</span>
-          <h1>서비스 운영 리포트</h1>
-          <p>사용자와 논문 데이터, 지식 그래프, 최근 수집 흐름을 하나의 운영 맥락으로 읽습니다.</p>
+          <span className="visits-report-kicker">LEGACY COLLECTION</span>
+          <h1>콘텐츠 자산 (레거시 수집 지표)</h1>
+          <p>CLI 수집 파이프라인과 구 검색 페이지 기준의 누적 자산입니다. 대화형 제품 지표는 위 대화 운영 리포트에서 봅니다.</p>
         </div>
         <div className="dashboard-live-status" aria-label="누적 운영 현황">
           <span aria-hidden="true" />
@@ -116,6 +116,8 @@ export default function AdminDashboardReport({ stats }: { stats: AdminDashboard 
         </div>
       </header>
 
+      <details className="dashboard-legacy">
+      <summary>누적 요약 펼치기</summary>
       <section className="visits-summary" aria-labelledby="dashboard-summary-title">
         <span className="visits-summary-kicker">핵심 요약</span>
         <h2 id="dashboard-summary-title">현재 운영 상태를 한 문장씩 읽어보세요</h2>
@@ -138,6 +140,7 @@ export default function AdminDashboardReport({ stats }: { stats: AdminDashboard 
           />
         </div>
       </section>
+      </details>
 
       <div className="dashboard-context-strip" aria-label="리포트 기준">
         <div><span>집계 기준</span><strong>누적 자산 · 휘발성 작업 분리</strong></div>

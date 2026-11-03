@@ -18,6 +18,7 @@ const ALLOWED_PAYLOAD_KEYS = new Set([
   'utm_term',
   'utm_content',
   'page_type',
+  'sample_slug',
 ]);
 const ATTRIBUTION_PAYLOAD_KEYS = new Set([
   'utm_source',

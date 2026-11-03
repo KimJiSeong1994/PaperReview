@@ -66,6 +66,9 @@ const GA4_EVENT_NAMES = [
   'poster_generate_start',
   'poster_generate_complete',
   'poster_generate_fail',
+  'sample_view',
+  'sample_cta_click',
+  'conversation_start',
 ] as const;
 
 export type AnalyticsEventName = typeof GA4_EVENT_NAMES[number];

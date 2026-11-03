@@ -5,6 +5,7 @@ import './AdminPage.css';
 const AdminVisitsReport = lazy(() => import('./AdminVisitsReport'));
 const AdminMcpReport = lazy(() => import('./AdminMcpReport'));
 const AdminDashboardReport = lazy(() => import('./AdminDashboardReport'));
+const AdminAssistantReport = lazy(() => import('./AdminAssistantReport'));
 const AdminMembersReport = lazy(() => import('./AdminMembersReport'));
 import {
   getAdminDashboard,
@@ -23,10 +24,29 @@ import type { AdminDashboard, AdminUser, AdminPaper, AdminBookmark, AdminPaperUs
 type Tab = 'dashboard' | 'visits' | 'mcp' | 'members';
 
 const TAB_LABELS: Record<Tab, string> = {
-  dashboard: 'Dashboard',
-  visits: 'Visitors',
-  mcp: 'MCP Usage',
-  members: 'Members',
+  dashboard: '대시보드',
+  visits: '방문',
+  mcp: 'MCP 사용',
+  members: '회원',
+};
+
+// Deletion stage keys (routers/deps/user_deletion.py) in the admin's words; unknown keys show as-is.
+const DELETION_STAGE_LABELS: Record<string, string> = {
+  conversations: '대화',
+  souls: '메모리·연구 프로필',
+  bookmarks: '북마크',
+  events_db: '리뷰 이벤트',
+  rubric_db: '루브릭 프로필',
+  profile_emb: '임베딩',
+  papers_anonymize: '논문 익명화',
+  blog_anonymize: '블로그 익명화',
+  curriculum_anonymize: '커리큘럼 익명화',
+  review_sessions_memory: '진행 중 리뷰',
+  mcp_analytics: 'MCP 사용 기록',
+  recommendations: '추천 기록',
+  account_authority: '계정 권한',
+  audit_log: '감사 로그',
+  analytics: '방문 분석',
 };
 
 export default function AdminPage() {
@@ -238,11 +258,15 @@ export default function AdminPage() {
   };
 
   const handleDeleteUser = (username: string) => {
+    const target = users.find((u) => u.username === username);
+    const owned = target && (target.conversation_count > 0 || target.memory_count > 0)
+      ? `대화 ${target.conversation_count}개와 메모리 ${target.memory_count}개를 포함해 `
+      : '';
     askConfirm({
       title: '계정 삭제',
       message:
-        `"${username}" 계정을 완전히 삭제합니다. 북마크, 리뷰 이벤트, ` +
-        `임베딩, 프로필, 큐레이션 소유권까지 모두 제거되며 되돌릴 수 없습니다.`,
+        `${owned}"${username}" 계정을 완전히 삭제합니다. 대화·메모리·연구 프로필·방문 분석 이벤트, 북마크, 리뷰 이벤트, ` +
+        `임베딩, 큐레이션 소유권까지 모두 제거되며 되돌릴 수 없습니다.`,
       onConfirm: async () => {
         closeConfirm();
         try {
@@ -263,7 +287,7 @@ export default function AdminPage() {
             setNotice({
               kind: 'warn',
               text:
-                `"${username}" 일부 단계 실패: ${partials.join(', ') || '알 수 없음'}. ` +
+                `"${username}" 일부 단계 실패: ${partials.map((key) => DELETION_STAGE_LABELS[key] ?? key).join(', ') || '알 수 없음'}. ` +
                 `계정 자체는 제거됐지만 로그를 확인하세요.`,
             });
           }
@@ -414,6 +438,12 @@ export default function AdminPage() {
         )}
 
         {/* Dashboard Tab */}
+        {/* Conversation report loads on its own, so a slow legacy dashboard never hides it. */}
+        {activeTab === 'dashboard' && (
+          <Suspense fallback={<div className="admin-loading">대화 리포트 로딩 중...</div>}>
+            <AdminAssistantReport />
+          </Suspense>
+        )}
         {activeTab === 'dashboard' && dashboardLoading && (
           <div className="admin-loading">Loading dashboard...</div>
         )}

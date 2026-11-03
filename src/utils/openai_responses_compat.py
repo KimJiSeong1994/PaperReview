@@ -136,7 +136,11 @@ def _chat_like_stream(events: Iterable[Any]) -> Iterator[Any]:
         event_type = getattr(event, "type", "")
         # Responses terminal events can include the full accumulated text.
         # Do not emit them as deltas or SSE clients will see duplicate content.
-        if event_type in {"response.output_text.done", "response.completed"}:
+        if event_type == "response.output_text.done":
+            continue
+        if event_type == "response.completed":
+            # Usage only (Chat's include_usage shape); never the accumulated text.
+            yield SimpleNamespace(choices=[], usage=_chat_like_usage(getattr(event, "response", None)))
             continue
         delta = getattr(event, "delta", None)
         if not delta:

@@ -3,6 +3,7 @@ import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom';
 import SearchPage from '../components/SearchPage';
 import {
+  createConversation,
   fetchBatchReferences,
   generatePoster,
   generatePosterDirect,
@@ -11,6 +12,7 @@ import {
 } from '../api/client';
 import { useDeepReview } from '../hooks/useDeepReview';
 import {
+  trackConversationStart,
   trackPosterGenerateComplete,
   trackPosterGenerateFail,
   trackPosterGenerateStart,
@@ -54,6 +56,7 @@ vi.mock('../contexts/AuthContext', () => ({
 
 vi.mock('../analytics/events', () => ({
   trackBookmarkSave: vi.fn(),
+  trackConversationStart: vi.fn(),
   trackDeepReviewComplete: vi.fn(),
   trackDeepReviewStart: vi.fn(),
   trackPosterGenerateComplete: vi.fn(),
@@ -187,6 +190,23 @@ describe('SearchPage analytics instrumentation', () => {
     const impression = vi.mocked(trackSearchEvent).mock.calls[0][4];
     expect(JSON.stringify(impression)).not.toContain('private raw paper title');
     expect(impression?.searchId).not.toContain('private');
+  });
+
+  it('records conversation_start from the home composer only once the conversation exists', async () => {
+    vi.mocked(searchPapers).mockResolvedValue({ query_analysis: { is_academic: false }, results: {} } as never);
+    renderSearchPage();
+    await submitSearch('graph rag');
+    // The suite's default create fails and falls back to the results page: no start.
+    await waitFor(() => expect(searchPapers).toHaveBeenCalled());
+    expect(trackConversationStart).not.toHaveBeenCalled();
+  });
+
+  it('records conversation_start with source home after a home conversation is created', async () => {
+    vi.mocked(createConversation).mockResolvedValueOnce({ id: 'conv-1', title: 't', turn_id: 'u' } as never);
+    renderSearchPage();
+    await submitSearch('graph rag');
+    await waitFor(() => expect(trackConversationStart).toHaveBeenCalledWith('home'));
+    expect(trackConversationStart).toHaveBeenCalledTimes(1);
   });
 
   it('shows an accessible library-search status for a search that takes longer than the flash threshold', async () => {

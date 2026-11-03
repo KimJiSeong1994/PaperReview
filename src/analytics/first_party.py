@@ -27,6 +27,9 @@ ALLOWED_FIRST_PARTY_EVENTS = frozenset(
         "poster_generate_start",
         "poster_generate_complete",
         "poster_generate_fail",
+        "sample_view",
+        "sample_cta_click",
+        "conversation_start",
     }
 )
 
@@ -46,6 +49,7 @@ _ALLOWED_PAYLOAD_KEYS = frozenset(
         "utm_term",
         "utm_content",
         "page_type",
+        "sample_slug",
     }
 )
 _ATTRIBUTION_PAYLOAD_KEYS = frozenset(
@@ -62,6 +66,8 @@ _ATTRIBUTION_PAYLOAD_KEYS = frozenset(
 _SAFE_ID_RE = re.compile(r"^[A-Za-z0-9._:-]{8,96}$")
 _ATTRIBUTION_VALUE_UNSAFE_RE = re.compile(r"[^A-Za-z0-9._~%+-]+")
 _PRIVATE_PREFIXES = ("/admin", "/mypage", "/share")
+_SAMPLE_SLUG_RE = re.compile(r"[a-z0-9][a-z0-9-]{0,63}")  # same as routers/samples.py _SLUG
+_CONVERSATION_PATH_RE = re.compile(r"^/c/[^/]+", re.I)  # React Router matches /C/<id> too
 
 
 @dataclass(frozen=True)
@@ -96,6 +102,8 @@ def sanitize_page_path(path: str) -> str:
     lowered = value.lower()
     if any(lowered == prefix or lowered.startswith(prefix + "/") for prefix in _PRIVATE_PREFIXES):
         return "/private"
+    # One row per conversation would turn the page report into a per-conversation tracking key.
+    value = _CONVERSATION_PATH_RE.sub("/c/:id", value)
     return value[:256] or "/"
 
 
@@ -120,7 +128,10 @@ def sanitize_payload(payload: Mapping[str, Any] | None) -> dict[str, str | int |
             continue
         if safe_key not in _ALLOWED_PAYLOAD_KEYS and _SENSITIVE_KEY_RE.search(safe_key):
             continue
-        if isinstance(value, str) and safe_key in _ATTRIBUTION_PAYLOAD_KEYS:
+        if safe_key == "sample_slug":
+            if isinstance(value, str) and _SAMPLE_SLUG_RE.fullmatch(value):
+                sanitized[safe_key] = value
+        elif isinstance(value, str) and safe_key in _ATTRIBUTION_PAYLOAD_KEYS:
             safe_value = _sanitize_attribution_value(value)
             if safe_value:
                 sanitized[safe_key] = safe_value

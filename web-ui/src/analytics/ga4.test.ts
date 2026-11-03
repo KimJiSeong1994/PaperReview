@@ -183,4 +183,14 @@ describe('GA4 adapter', () => {
       { query_length_bucket: 'short' },
     ]);
   });
+
+  it.each([
+    ['sample_view', { source: 'home_card', sample_slug: 'graphrag-vs-rag' }],
+    ['sample_cta_click', { source: 'sample_page', sample_slug: 'graphrag-vs-rag' }],
+    ['conversation_start', { source: 'sample_cta' }],
+  ] as const)('allows the sample-funnel event %s', (name, params) => {
+    const win = {} as Window;
+    expect(trackEvent(name, params, { env: enabledEnv, win, doc: document, storage: storageWithConsent('granted') })).toBe(true);
+    expect((win as Window & { dataLayer: unknown[] }).dataLayer.at(-1)).toEqual(['event', name, params]);
+  });
 });

@@ -176,6 +176,8 @@ async def chat_with_bookmarks(request: Request, chat_request: ChatRequest, usern
                 stream=True,
             )
             for chunk in stream:
+                if not chunk.choices:  # usage-only final chunk from the Responses adapter
+                    continue
                 delta = chunk.choices[0].delta
                 if delta.content:
                     yield f"data: {json.dumps({'content': delta.content})}\n\n"

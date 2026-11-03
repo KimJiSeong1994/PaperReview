@@ -902,10 +902,13 @@ async def stream_llm(messages: List[Dict[str, str]], emit: Emit) -> str:
         messages=messages,
         temperature=0.3,
         stream=True,
+        stream_options={"include_usage": True},
     )
     chunks = iter(stream)
     parts: List[str] = []
     while (chunk := await asyncio.to_thread(next, chunks, None)) is not None:
+        if getattr(chunk, "usage", None) is not None:
+            record_llm_usage("assistant_stream", DEFAULT_TOOL_MODEL, chunk.usage)
         text = chunk.choices[0].delta.content if chunk.choices else None
         if text:
             parts.append(text)

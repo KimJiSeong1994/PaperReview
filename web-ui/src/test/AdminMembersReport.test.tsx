@@ -5,11 +5,15 @@ import type { AdminUser, AdminBookmark, AdminCurriculaResponse, AdminPaper, Admi
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 
+// alice talks to the assistant; bob has never opened a conversation.
 const SELF: AdminUser = {
   username: 'alice', role: 'admin', created_at: '2025-01-01T00:00:00Z', bookmark_count: 0,
+  conversation_count: 3, last_conversation_at: '2026-11-02T09:00:00+00:00',
+  memory_count: 5, profile_updated_at: '2026-11-01T09:00:00+00:00',
 };
 const OTHER: AdminUser = {
   username: 'bob', role: 'user', created_at: '2025-03-15T00:00:00Z', bookmark_count: 2,
+  conversation_count: 0, last_conversation_at: null, memory_count: 0, profile_updated_at: null,
 };
 
 // Three users in the union: alice (account only), bob (account + bookmarks + curriculum),
@@ -200,6 +204,31 @@ describe('AdminMembersReport', () => {
     expect(within(bobRow).getByText('북마크 2')).toBeInTheDocument();
     expect(within(bobRow).getByText('커리큘럼 1')).toBeInTheDocument();
     expect(within(bobRow).getByText('읽음 3')).toBeInTheDocument();
+  });
+
+  it('badges conversation and memory counts, and omits them at zero', () => {
+    renderReport();
+
+    const aliceRow = getFolderRow('alice');
+    expect(within(aliceRow).getByText('대화 3')).toBeInTheDocument();
+    expect(within(aliceRow).getByText('메모리 5')).toBeInTheDocument();
+    expect(getFolderToggle('alice')).toHaveAccessibleName('alice, 권한 admin, 대화 3, 메모리 5');
+
+    const bobRow = getFolderRow('bob');
+    expect(within(bobRow).queryByText(/^대화 /)).not.toBeInTheDocument();
+    expect(within(bobRow).queryByText(/^메모리 /)).not.toBeInTheDocument();
+  });
+
+  it('summarises conversations, memories and profile freshness in the open panel, without any text', () => {
+    renderReport();
+    fireEvent.click(getFolderToggle('alice'));
+    const aliceDate = (iso: string) => new Date(iso).toLocaleDateString();
+    expect(document.body).toHaveTextContent(
+      `대화 3개 · 최근 대화 ${aliceDate('2026-11-02T09:00:00+00:00')} · 메모리 5개 · 연구 프로필 갱신 ${aliceDate('2026-11-01T09:00:00+00:00')}`,
+    );
+
+    fireEvent.click(getFolderToggle('bob'));
+    expect(document.body).toHaveTextContent('대화 0개 · 최근 대화 없음 · 메모리 0개 · 연구 프로필 갱신 없음');
   });
 
   it('disables the role toggle and delete for current user (alice), enables them for bob', () => {
@@ -647,6 +676,15 @@ describe('AdminMembersReport', () => {
 
       choose('정렬 기준', 'username');
       expect(visibleUsernames()).toEqual(['alice', 'bob', 'orphan']);
+    });
+
+    it('orders by most recent conversation, members without one last', () => {
+      // bob talked most recently; alice before that; orphan has no account at all.
+      renderReport({ users: [SELF, { ...OTHER, conversation_count: 1, last_conversation_at: '2026-11-03T01:00:00+00:00' }] });
+
+      expect(screen.getByRole('option', { name: '최근 대화' })).toBeInTheDocument();
+      choose('정렬 기준', 'conversation');
+      expect(visibleUsernames()).toEqual(['bob', 'alice', 'orphan']);
     });
 
     it('breaks count ties by username so the list does not shuffle between sorts', () => {

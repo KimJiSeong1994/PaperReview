@@ -66,6 +66,8 @@ const samplesApi = vi.hoisted(() => ({
   fetchSampleConversation: vi.fn(),
 }));
 vi.mock('../api/samples', () => samplesApi);
+const events = vi.hoisted(() => ({ trackSampleView: vi.fn(), trackSampleCtaClick: vi.fn() }));
+vi.mock('../analytics/events', () => events);
 vi.mock('../api/blog', () => ({
   fetchBlogPosts: vi.fn().mockResolvedValue({ data: { posts: [{ slug: 'kronlstm', title: 'KronLSTM 페어 리뷰' }] } }),
 }));
@@ -380,6 +382,30 @@ describe('HomeWorkspace', () => {
       expect(within(replay).getByRole('status').textContent).toBe('상담 예시 · 재생 중');
       expect(replay.textContent).not.toContain(lead);
       expect(within(replay).queryByRole('button', { name: '로그인하고 이어서 물어보기 →' })).toBeNull();
+    });
+
+    it('records a sample view per replay shown and the CTA click with its slug', async () => {
+      events.trackSampleView.mockClear();
+      events.trackSampleCtaClick.mockClear();
+      vi.stubGlobal('matchMedia', (query: string) => ({ matches: query.includes('reduce'), media: query }));
+      const onSearch = vi.fn();
+      renderHome(onSearch);
+
+      // The auto-shown first sample is home_default; only a click on another card is home_card.
+      const cards = within((await screen.findByRole('heading', { name: '샘플 질문으로 먼저 써보세요' })).closest('section')!).getAllByRole('button');
+      expect(events.trackSampleView.mock.calls).toEqual([['home_default', 'graphrag-vs-rag']]);
+      fireEvent.click(cards[0]);
+      expect(events.trackSampleView).toHaveBeenCalledTimes(1);
+      fireEvent.click(cards[1]);
+      expect(events.trackSampleView.mock.calls).toEqual([
+        ['home_default', 'graphrag-vs-rag'],
+        ['home_card', 'graphrag-core-explained'],
+      ]);
+
+      const replay = (await screen.findByRole('heading', { name: '집현전과의 대화' })).closest('section')!;
+      fireEvent.click(await within(replay).findByRole('button', { name: '로그인하고 이어서 물어보기 →' }));
+      expect(events.trackSampleCtaClick).toHaveBeenCalledWith('home_card', 'graphrag-core-explained');
+      expect(onSearch).toHaveBeenCalledWith('GraphRAG가 RAG보다 나은 경우는?');
     });
 
     it('shows the whole exchange at once, without playback controls, under reduced motion', async () => {

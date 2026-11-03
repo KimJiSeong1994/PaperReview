@@ -34,3 +34,39 @@ def test_write_failure_does_not_raise(tmp_path, monkeypatch):
     monkeypatch.setattr(llm_usage, "LEDGER_PATH", tmp_path / "missing.jsonl" / "u.jsonl")
     (tmp_path / "missing.jsonl").write_text("not a dir")
     llm_usage.record_llm_usage("a", "m", SimpleNamespace(prompt_tokens=1))
+
+
+def test_ledger_path_defaults_under_data(monkeypatch):
+    import importlib
+
+    monkeypatch.delenv("LLM_USAGE_LEDGER", raising=False)
+    try:
+        assert importlib.reload(llm_usage).LEDGER_PATH == llm_usage.Path("data/logs/llm_usage.jsonl")
+    finally:
+        importlib.reload(llm_usage)
+
+
+def test_stream_llm_records_usage_from_final_chunk(tmp_path, monkeypatch):
+    import asyncio
+
+    from app.assistant import turn_runner
+
+    monkeypatch.setattr(llm_usage, "LEDGER_PATH", tmp_path / "u.jsonl")
+    chunks = [
+        SimpleNamespace(choices=[SimpleNamespace(delta=SimpleNamespace(content="ab"))]),
+        SimpleNamespace(choices=[], usage=SimpleNamespace(prompt_tokens=9, completion_tokens=2, total_tokens=11)),
+    ]
+    seen_kwargs = {}
+
+    def fake_create(client, **kw):
+        seen_kwargs.update(kw)
+        return iter(chunks)
+
+    monkeypatch.setattr(turn_runner, "create_chat_completion", fake_create)
+    monkeypatch.setattr(turn_runner, "get_openai_client", lambda: None)
+    deltas = []
+    assert asyncio.run(turn_runner.stream_llm([], deltas.append)) == "ab"
+    assert deltas == [{"delta": "ab"}]
+    assert seen_kwargs["stream_options"] == {"include_usage": True}
+    rows = [json.loads(line) for line in (tmp_path / "u.jsonl").read_text().splitlines()]
+    assert [(r["stage"], r["prompt_tokens"], r["completion_tokens"]) for r in rows] == [("assistant_stream", 9, 2)]

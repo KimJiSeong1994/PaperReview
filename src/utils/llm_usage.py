@@ -3,13 +3,15 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import time
 from pathlib import Path
 from typing import Any
 
 logger = logging.getLogger(__name__)
 
-LEDGER_PATH = Path("logs/llm_usage.jsonl")
+# Under ./data so the docker-compose volume keeps it across container rebuilds.
+LEDGER_PATH = Path(os.getenv("LLM_USAGE_LEDGER", "data/logs/llm_usage.jsonl"))
 
 
 def _nested(obj: Any, *names: str) -> Any:

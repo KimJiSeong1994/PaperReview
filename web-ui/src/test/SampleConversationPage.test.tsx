@@ -24,6 +24,11 @@ vi.mock('../api/conversations', () => ({
   createConversation: vi.fn(),
   fetchMyConversations: vi.fn().mockResolvedValue([]),
 }));
+vi.mock('../analytics/events', () => ({
+  trackSampleView: vi.fn(),
+  trackSampleCtaClick: vi.fn(),
+  trackConversationStart: vi.fn(),
+}));
 vi.mock('../api/me', () => ({ fetchMyReviewSessions: vi.fn().mockResolvedValue({ sessions: [], total: 0 }) }));
 vi.mock('../api/curriculum', () => ({ fetchCurricula: vi.fn().mockResolvedValue({ curricula: [] }) }));
 vi.mock('../components/GraphView', () => ({
@@ -31,6 +36,7 @@ vi.mock('../components/GraphView', () => ({
 }));
 
 import { fetchSampleConversation } from '../api/samples';
+import { trackConversationStart, trackSampleCtaClick, trackSampleView } from '../analytics/events';
 
 const papers: Paper[] = [
   { doc_id: 'd1', result_key: 'k1', title: 'From Local to Global', authors: ['Darren Edge'], year: 2024, source: 'arxiv' },
@@ -114,6 +120,36 @@ describe('SampleConversationPage', () => {
     await act(async () => { view.rerender(routes()); });
     expect(createConversation).toHaveBeenCalledWith('GraphRAG가 RAG보다 나은 경우는?');
     expect(await screen.findByText('conversation conv-7')).toBeTruthy();
+  });
+
+  it('records the sample funnel: page view, CTA click, then conversation start only once it exists', async () => {
+    vi.mocked(trackSampleView).mockClear();
+    vi.mocked(trackSampleCtaClick).mockClear();
+    vi.mocked(trackConversationStart).mockClear();
+    const view = render(routes());
+    await screen.findByRole('heading', { name: /상담 예시/ });
+    expect(trackSampleView).toHaveBeenCalledWith('sample_page', 'graphrag-vs-rag');
+
+    fireEvent.click(screen.getByRole('button', { name: '로그인하고 이어서 물어보기' }));
+    expect(trackSampleCtaClick).toHaveBeenCalledWith('sample_page', 'graphrag-vs-rag');
+    expect(trackConversationStart).not.toHaveBeenCalled();
+
+    authState.isAuthenticated = true;
+    await act(async () => { view.rerender(routes()); });
+    await screen.findByText('conversation conv-7');
+    expect(trackConversationStart).toHaveBeenCalledTimes(1);
+    expect(trackConversationStart).toHaveBeenCalledWith('sample_cta');
+  });
+
+  it('does not record a conversation start when creating it fails', async () => {
+    vi.mocked(trackConversationStart).mockClear();
+    vi.mocked(createConversation).mockRejectedValue(new Error('down'));
+    authState.isAuthenticated = true;
+    render(routes());
+    await screen.findByRole('heading', { name: /상담 예시/ });
+    fireEvent.click(screen.getByRole('button', { name: '로그인하고 이어서 물어보기' }));
+    expect(await screen.findByText('대화를 시작하지 못했어요. 잠시 후 다시 시도해 주세요.')).toBeTruthy();
+    expect(trackConversationStart).not.toHaveBeenCalled();
   });
 
   it('opens on the conversation, not the graph sheet, on a narrow screen', async () => {

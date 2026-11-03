@@ -51,6 +51,19 @@ describe('first-party analytics event mirror', () => {
     expect(body.session_id).toMatch(/^session_/);
   });
 
+  it('sends the three sample-funnel events with the public sample_slug key', () => {
+    expect(sendFirstPartyAnalyticsEvent('sample_view', { source: 'home_card', sample_slug: 'graphrag-vs-rag' }, '/')).toBe(true);
+    expect(sendFirstPartyAnalyticsEvent('sample_cta_click', { source: 'sample_page', sample_slug: 'graphrag-vs-rag' }, '/samples/graphrag-vs-rag')).toBe(true);
+    expect(sendFirstPartyAnalyticsEvent('conversation_start', { source: 'home' }, '/c/abc123')).toBe(true);
+
+    const bodies = vi.mocked(fetch).mock.calls.map(([, init]) => JSON.parse(String((init as RequestInit).body)));
+    expect(bodies.map((b) => [b.event_name, b.page_path, b.payload])).toEqual([
+      ['sample_view', '/', { source: 'home_card', sample_slug: 'graphrag-vs-rag' }],
+      ['sample_cta_click', '/samples/graphrag-vs-rag', { source: 'sample_page', sample_slug: 'graphrag-vs-rag' }],
+      ['conversation_start', '/c/:id', { source: 'home' }],
+    ]);
+  });
+
   it('does not send anything without analytics consent', () => {
     localStorage.setItem('analytics_consent', 'denied');
     expect(sendFirstPartyAnalyticsEvent('page_view', {}, '/')).toBe(false);

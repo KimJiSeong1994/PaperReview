@@ -36,7 +36,9 @@ function normalizePathname(pathname: string): string {
   const [withoutHash] = withoutQuery.split('#');
   const normalized = withoutHash.startsWith('/') ? withoutHash : `/${withoutHash}`;
 
-  return normalized.replace(/\/{2,}/g, '/');
+  // A conversation id is a per-conversation tracking key: report every
+  // conversation as one route. Sample slugs (/samples/<slug>) are public and stay.
+  return normalized.replace(/\/{2,}/g, '/').replace(/^\/c\/[^/]+/i, '/c/:id');
 }
 
 function isBlogPostPath(pathname: string): boolean {

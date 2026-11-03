@@ -161,6 +161,8 @@ def _resolve_paths(override: Optional[Mapping[str, Path]]) -> Dict[str, Any]:
     paths: Dict[str, Any] = {
         "events_db": _self.EVENTS_DB_PATH,
         "mcp_analytics_db": mcp_analytics_db_path(),
+        # Same env/default as routers/analytics.py, read per call like the MCP path.
+        "analytics_db": Path(os.getenv("ANALYTICS_DB_PATH", "data/analytics.db")),
         "profile_db": _self.PROFILE_DB_PATH,
         "embeddings_users_dir": _self.EMBEDDINGS_USERS_DIR,
         "blog_posts_file": _self.BLOG_POSTS_FILE,
@@ -247,6 +249,22 @@ def _stage_events_db(username: str, db_path: Path) -> None:
         ).fetchone():
             return
         conn.execute("DELETE FROM user_events WHERE user_id = ?", (username,))
+        conn.commit()
+    finally:
+        conn.close()
+
+
+def _stage_app_analytics(username: str, db_path: Path) -> None:
+    """Delete first-party analytics events (analytics.db) attributed to the user."""
+    if not db_path.exists():
+        return
+    conn = sqlite3.connect(str(db_path), check_same_thread=False)
+    try:
+        if not conn.execute(
+            "SELECT 1 FROM sqlite_master WHERE type='table' AND name='app_analytics_events'"
+        ).fetchone():
+            return
+        conn.execute("DELETE FROM app_analytics_events WHERE user_id = ?", (username,))
         conn.commit()
     finally:
         conn.close()
@@ -629,6 +647,13 @@ def _delete_reserved_user(
     except Exception:
         logger.exception("cascade[mcp_analytics] failed for hash_prefix=%s", hp)
         partial_failures.append("mcp_analytics")
+
+    # First-party web analytics events carry the username as user_id.
+    try:
+        _stage_app_analytics(username, p["analytics_db"])
+    except Exception:
+        logger.exception("cascade[analytics] failed for hash_prefix=%s", hp)
+        partial_failures.append("analytics")
 
     # Policy revocation and both private file namespaces are required cleanup.
     try:

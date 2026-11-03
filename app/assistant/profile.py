@@ -100,6 +100,7 @@ def _model_fields(soul: Dict[str, Any]) -> Optional[Dict[str, Any]]:
     """Phrased fields from the tool model, or None on any failure. Runs in a worker thread."""
     from app.assistant.turn_runner import DEFAULT_TOOL_MODEL, create_chat_completion, get_openai_client
     from src.storage.soul_db import render_markdown
+    from src.utils.llm_usage import record_llm_usage
 
     resp = create_chat_completion(
         get_openai_client(),
@@ -110,6 +111,7 @@ def _model_fields(soul: Dict[str, Any]) -> Optional[Dict[str, Any]]:
         ],
         temperature=0,
     )
+    record_llm_usage("research_profile", DEFAULT_TOOL_MODEL, getattr(resp, "usage", None))
     raw = resp.choices[0].message.content or ""
     data = json.loads(raw[raw.find("{"): raw.rfind("}") + 1], strict=False)
     return data if isinstance(data, dict) else None

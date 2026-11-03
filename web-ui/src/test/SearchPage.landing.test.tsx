@@ -60,6 +60,9 @@ vi.mock('../api/blog', () => ({ fetchBlogPosts: vi.fn().mockResolvedValue({ data
 
 vi.mock('../analytics/events', () => ({
   trackBookmarkSave: vi.fn(),
+  trackConversationStart: vi.fn(),
+  trackSampleView: vi.fn(),
+  trackSampleCtaClick: vi.fn(),
   trackDeepReviewComplete: vi.fn(),
   trackDeepReviewFail: vi.fn(),
   trackDeepReviewStart: vi.fn(),
