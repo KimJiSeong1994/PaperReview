@@ -39,7 +39,7 @@ from .deps import (
     PAPERS_FILE,
     limiter,
 )
-from .deps.storage import _get_bookmark_db, _get_user_db
+from .deps.storage import _get_bookmark_db, _get_conversation_db, _get_soul_db, _get_user_db
 from .deps.auth import AuthenticatedPrincipal, get_authenticated_principal
 from .deps.user_deletion import delete_user_cascade
 
@@ -350,8 +350,10 @@ async def admin_dashboard(admin: str = Depends(get_admin_user)):
 
 @router.get("/users")
 async def list_users(admin: str = Depends(get_admin_user)):
-    """List all registered users with their bookmark counts."""
+    """List all registered users with bookmark, conversation and memory counts (no text)."""
     users = _load_users()
+    conversations = _get_conversation_db().counts_by_owner()
+    souls = _get_soul_db().counts_by_owner()
     bookmarks_data = load_bookmarks(include_reports=False)
 
     # Count bookmarks per user
@@ -362,12 +364,20 @@ async def list_users(admin: str = Depends(get_admin_user)):
 
     user_list = []
     for username, data in users.items():
+        # Only the current incarnation counts; a re-registered name starts at zero.
+        owner = (username, data.get("account_incarnation"))
+        conv_count, last_conv = conversations.get(owner, (0, None))
+        soul = souls.get(owner, {})
         user_list.append(
             {
                 "username": username,
                 "role": data.get("role", "user"),
                 "created_at": data.get("created_at", ""),
                 "bookmark_count": bm_counts.get(username, 0),
+                "conversation_count": conv_count,
+                "last_conversation_at": last_conv,
+                "memory_count": soul.get("memory_count", 0),
+                "profile_updated_at": soul.get("profile_updated_at"),
             }
         )
 

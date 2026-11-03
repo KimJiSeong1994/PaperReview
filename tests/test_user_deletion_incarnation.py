@@ -594,3 +594,24 @@ def test_souls_stage_deletes_only_target_user(stores, monkeypatch):
     assert result.deleted and "souls" not in result.partial_failures
     assert souls.get_soul("alice", s.incarnation) == {"user_md": "", "memories": []}
     assert len(souls.get_soul("bob", "bob-inc")["memories"]) == 1
+
+
+def test_cascade_deletes_app_analytics_events(stores):
+    from src.analytics.ga4_bigquery_sync import ensure_analytics_db
+
+    s = stores
+    db = s.tmp / "analytics.db"
+    ensure_analytics_db(db)
+    with sqlite3.connect(db) as conn:
+        conn.executemany(
+            "INSERT INTO app_analytics_events (user_id, client_id, session_id, event_name, page_path, payload,"
+            " source, created_at, received_at) VALUES (?, 'c', 's', 'conversation_start', '/', '{}', 'first_party',"
+            " '2026-11-01T00:00:00Z', '2026-11-01T00:00:00Z')",
+            [("alice",), ("alice",), ("bob",), (None,)],
+        )
+    result = s.deletion.delete_user_cascade(
+        "alice", account_incarnation=s.incarnation, paths={**s.paths, "analytics_db": db}
+    )
+    assert result.deleted and "analytics" not in result.partial_failures
+    with sqlite3.connect(db) as conn:
+        assert [r[0] for r in conn.execute("SELECT user_id FROM app_analytics_events ORDER BY id")] == ["bob", None]

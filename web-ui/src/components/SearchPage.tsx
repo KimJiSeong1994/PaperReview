@@ -28,6 +28,7 @@ import { copyToClipboard } from '../utils/clipboard';
 import { openPaperViewer, viewerHrefForPaper } from '../utils/blogPaperReference';
 import {
   trackBookmarkSave,
+  trackConversationStart,
   trackDeepReviewComplete,
   trackDeepReviewFail,
   trackDeepReviewStart,
@@ -719,6 +720,7 @@ function SearchPage() {
     rememberRecentSearch(trimmed);
     try {
       const created = await createConversation(trimmed);
+      trackConversationStart('home');
       navigate(`/c/${created.id}`, { state: { run: true } });
     } catch {
       // ponytail: any create failure falls back to the classic results page, so the home never dead-ends.

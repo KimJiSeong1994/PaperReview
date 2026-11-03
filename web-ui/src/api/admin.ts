@@ -91,6 +91,8 @@ export interface AdminVisitsReport {
     steps: { event: string; count: number; rate: number; drop_off: number }[];
     overall_conversion: number;
   }[];
+  /** Per-slug sample activity; slugs are only those seen in events. */
+  samples: { slug: string; page_views: number; card_views: number; cta_clicks: number }[];
   deep_review_outcome: {
     started: number;
     completed: number;
@@ -163,7 +165,67 @@ export function resolveEstimatedAnswerFetches(
 export const fetchAdminVisitsReport = (days: number) =>
   api.get<AdminVisitsReport>('/api/admin/analytics/visits', { params: { days } });
 
-export type AdminMcpWindowDays = 7 | 28 | 90;
+export type AdminWindowDays = 7 | 28 | 90;
+export type AdminMcpWindowDays = AdminWindowDays;
+export type AssistantIntent = 'chat' | 'clarify' | 'search' | 'answer' | 'review' | 'open_pdf' | 'highlight_pdf' | 'answer_from_bookmarks';
+type AdminWindow = { days: AdminWindowDays; start: string; end: string; timezone: string };
+
+// Aggregates only: the backend never returns conversation titles, turn text,
+// memory text, USER.md or profile values on these endpoints.
+export interface AdminConversationStats {
+  window: AdminWindow;
+  totals: { conversations: number; user_turns: number; assistant_turns: number; active_users: number; running: number };
+  outcomes: { done: number; failed: number; cancelled: number; interrupted: number };
+  error_rate: number | null;
+  latency: { intent: AssistantIntent | string; samples: number; p50_ms: number | null; p95_ms: number | null }[];
+  intents: { intent: AssistantIntent | string; turns: number; failed: number; interrupted: number }[];
+  reviews: {
+    started: number;
+    by_mode: { fast: number; full: number };
+    mode_missing: number;
+    outcomes: { completed: number; failed: number; running: number; unknown: number };
+    verification: {
+      sessions_with_claims: number; claims: number;
+      verified: number; partially_verified: number; unverified: number; contradicted: number;
+      verified_ratio: number | null;
+    };
+  };
+  activation: { signups: number; first_conversation_within_24h: number };
+  daily: { date: string; conversations: number; user_turns: number; active_users: number; failed: number }[];
+  metric_definitions: Record<string, unknown>;
+}
+
+export type MemoryKind = 'preference' | 'topic' | 'paper' | 'fact' | 'research' | 'interest';
+
+export interface AdminSoulStats {
+  window: AdminWindow;
+  accounts: { with_soul: number; with_memories: number; with_user_md: number };
+  memories: {
+    total: number; new_in_window: number; interest_avg_hits: number | null;
+    by_kind: { kind: MemoryKind; count: number; accounts: number }[];
+  };
+  profiles: { total: number; stale_over_24h: number; with_role: number; with_domain: number; with_keywords: number };
+  metric_definitions: Record<string, unknown>;
+}
+
+export interface AdminLlmUsage {
+  available: boolean;
+  reason?: string;
+  window: AdminWindow;
+  ledger: { first_at: string | null; last_at: string | null; malformed_lines: number };
+  totals: { calls: number; prompt_tokens: number; completion_tokens: number; cached_tokens: number };
+  by_stage: { stage: string; model: string; calls: number; prompt_tokens: number; completion_tokens: number }[];
+  daily: { date: string; prompt_tokens: number; completion_tokens: number }[];
+  coverage: { unrecorded_stages: string[] };
+  metric_definitions: Record<string, unknown>;
+}
+
+export const fetchAdminConversationStats = (days: AdminWindowDays, signal?: AbortSignal) =>
+  api.get<AdminConversationStats>('/api/admin/conversations/stats', { params: { days }, signal });
+export const fetchAdminSoulStats = (days: AdminWindowDays, signal?: AbortSignal) =>
+  api.get<AdminSoulStats>('/api/admin/souls/stats', { params: { days }, signal });
+export const fetchAdminLlmUsage = (days: AdminWindowDays, signal?: AbortSignal) =>
+  api.get<AdminLlmUsage>('/api/admin/llm-usage', { params: { days }, signal });
 
 export interface AdminMcpReport {
   available: boolean;
@@ -238,6 +300,10 @@ export interface AdminUser {
   role: string;
   created_at: string;
   bookmark_count: number;
+  conversation_count: number;
+  last_conversation_at: string | null;
+  memory_count: number;
+  profile_updated_at: string | null;
 }
 
 export interface AdminPaper {

@@ -2,9 +2,11 @@ import { Component, lazy, Suspense, useCallback, useEffect, useId, useState } fr
 import type { ReactNode } from 'react';
 import {
   fetchAdminVisitsReport,
+  fetchSampleConversations,
   resolveEstimatedAnswerFetches,
   type AdminVisitsReport as VisitsReportData,
 } from '../api/client';
+import type { SampleSummary } from '../types';
 
 const Plot = lazy(() => import('../PlotlyChart'));
 
@@ -32,7 +34,11 @@ const EVENT_LABELS: Record<string, string> = {
   poster_generate_start: '포스터 시작',
   poster_generate_complete: '포스터 완료',
   poster_generate_fail: '포스터 실패',
+  sample_view: '샘플 노출 (홈 기본 포함)',
+  sample_cta_click: '이어서 묻기 클릭',
+  conversation_start: '대화 시작',
 };
+const SAMPLE_FUNNEL_ID = 'sample_to_conversation';
 
 const GA4_STATE_COPY: Record<VisitsReportData['ga4']['state'], string> = {
   connected: '동기화는 정상이며 선택 기간의 채널 데이터를 표시합니다.',
@@ -283,6 +289,16 @@ function AdminVisitsReport() {
   const [report, setReport] = useState<VisitsReportData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Public sample list, only for titles; a failure leaves the slugs as labels.
+  const [sampleList, setSampleList] = useState<SampleSummary[]>([]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchSampleConversations(controller.signal)
+      .then((list) => { if (!controller.signal.aborted) setSampleList(list); })
+      .catch(() => {});
+    return () => controller.abort();
+  }, []);
 
   const load = useCallback(async (window: number) => {
     setLoading(true);
@@ -346,7 +362,18 @@ function AdminVisitsReport() {
   const crawlerWindowLimited = observedLogDays > 0 && observedLogDays < days;
   const productEvents = Object.entries(report.product_events).sort((a, b) => b[1] - a[1]);
   // Guard against an older backend during rollout that predates these keys.
-  const funnels = report.funnels ?? [];
+  const allFunnels = report.funnels ?? [];
+  const sampleFunnel = allFunnels.find((f) => f.id === SAMPLE_FUNNEL_ID) ?? null;
+  const funnels = allFunnels.filter((f) => f.id !== SAMPLE_FUNNEL_ID);
+  // Every public sample gets a row (0 when no event names it); slugs seen only in events follow.
+  const sampleStats = new Map((report.samples ?? []).map((row) => [row.slug, row]));
+  const sampleRows = [
+    ...sampleList.map((item) => ({ slug: item.slug, title: item.title })),
+    ...[...sampleStats.keys()].filter((slug) => !sampleList.some((item) => item.slug === slug)).map((slug) => ({ slug, title: slug })),
+  ].map(({ slug, title }) => {
+    const row = sampleStats.get(slug);
+    return { slug, title, page_views: row?.page_views ?? 0, card_views: row?.card_views ?? 0, cta_clicks: row?.cta_clicks ?? 0 };
+  });
   const reviewOutcome = report.deep_review_outcome ?? {
     started: 0,
     completed: 0,
@@ -980,7 +1007,49 @@ function AdminVisitsReport() {
       />
 
       <Section
+        title="샘플 대화"
+        tip="비로그인 샘플이 대화로 이어지는지 봅니다. 홈 카드 조회와 샘플 페이지 조회 → 이어서 묻기 클릭 → 대화 시작 순서의 세션 퍼널이며, 로그인 단계는 퍼널에 넣지 않습니다."
+        note="분석 동의 사용자만 집계(하한값). 퍼널 첫 단계에는 홈이 기본으로 보여 주는 첫 샘플 노출이 포함되고, 표의 조회·CTA 율은 카드 클릭과 샘플 페이지만 셉니다."
+      >
+        {sampleFunnel && <FunnelChart funnel={sampleFunnel} />}
+        {sampleRows.length === 0 ? (
+          <EmptyState>공개 샘플이나 샘플 이벤트가 아직 없습니다.</EmptyState>
+        ) : (
+          <Card>
+            <table className="visits-table">
+              <thead>
+                <tr>
+                  <th>샘플</th>
+                  <th className="visits-num-th">페이지 조회</th>
+                  {/* card_views = sample_view from a card click or the sample page; the home default is excluded server-side. */}
+                  <th className="visits-num-th">샘플 조회 · 카드 클릭+페이지</th>
+                  <th className="visits-num-th">CTA 클릭</th>
+                  <th className="visits-num-th">CTA 율</th>
+                </tr>
+              </thead>
+              <tbody>
+                {sampleRows.map((row) => {
+                  // page_view of /samples/<slug> and the sample_page sample_view are the same visit; never add them.
+                  const views = row.card_views;
+                  return (
+                    <tr key={row.slug}>
+                      <td>{row.title}</td>
+                      <td className="visits-num">{fmt(row.page_views)}</td>
+                      <td className="visits-num">{fmt(row.card_views)}</td>
+                      <td className="visits-num">{fmt(row.cta_clicks)}</td>
+                      <td className="visits-num">{views > 0 ? pct(row.cta_clicks / views) : '—'}</td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </Card>
+        )}
+      </Section>
+
+      <Section
         title="전환 퍼널"
+        note="구 검색 페이지 기준 — 대화형 홈 이용은 대시보드 탭의 대화 운영 리포트에서 봅니다"
         tip="세션 단위 순차 전환입니다. 각 단계는 같은 세션 안에서 앞 단계를 거친 뒤 해당 이벤트를 남긴 세션 수이며, 전환율은 첫 단계 대비 비율입니다. 표본이 작으면 비율이 크게 흔들리니 건수를 함께 보세요."
       >
         {funnels.every((f) => (f.steps[0]?.count ?? 0) === 0) ? (

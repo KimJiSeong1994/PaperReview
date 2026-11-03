@@ -9,7 +9,7 @@ import sqlite3
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Optional
+from typing import Any, Dict, Iterable, List, Optional, Tuple
 from uuid import uuid4
 
 MAX_MEMORIES = 60  # preference/topic/paper/fact, least recently used evicted
@@ -340,6 +340,76 @@ class SoulDB:
                 conn.close()
         return [{"username": r["username"], "account_incarnation": r["account_incarnation"],
                  "profile": json.loads(r["profile_json"])} for r in rows]
+
+    # ── Admin aggregates: counts and timestamps only; never text, user_md or profile values ──
+
+    def _read(self, sql: str, params: Any = ()) -> List[sqlite3.Row]:
+        with self._lock:
+            conn = self._connect()
+            try:
+                return conn.execute(sql, params).fetchall()
+            finally:
+                conn.close()
+
+    def admin_stats(self, since: str, stale_before: str) -> Dict[str, Any]:
+        """Aggregate counts over souls/memories/research_profiles; never selects text, user_md or profile values."""
+        owner = "username || '|' || account_incarnation"
+        accounts = self._read(
+            f"""
+            SELECT (SELECT COUNT(*) FROM (SELECT {owner} FROM memories UNION
+                    SELECT {owner} FROM souls WHERE length(trim(user_md)) > 0)) AS with_soul,
+                   (SELECT COUNT(DISTINCT {owner}) FROM memories) AS with_memories,
+                   (SELECT COUNT(*) FROM souls WHERE length(trim(user_md)) > 0) AS with_user_md
+            """
+        )[0]
+        memories = self._read(
+            """
+            SELECT COUNT(*) AS total, COALESCE(SUM(created_at >= ?), 0) AS new_in_window,
+                   AVG(CASE WHEN kind = 'interest' THEN hits END) AS interest_avg_hits
+              FROM memories
+            """,
+            (since,),
+        )[0]
+        by_kind = {
+            r["kind"]: (r["count"], r["accounts"])
+            for r in self._read(
+                f"SELECT kind, COUNT(*) AS count, COUNT(DISTINCT {owner}) AS accounts FROM memories GROUP BY kind"
+            )
+        }
+        profiles = self._read(
+            """
+            SELECT COUNT(*) AS total,
+                   COALESCE(SUM(updated_at < ?), 0) AS stale_over_24h,
+                   COALESCE(SUM(json_extract(profile_json, '$.role') IS NOT NULL), 0) AS with_role,
+                   COALESCE(SUM(json_extract(profile_json, '$.domain') IS NOT NULL), 0) AS with_domain,
+                   COALESCE(SUM(COALESCE(json_array_length(profile_json, '$.keywords'), 0) > 0), 0) AS with_keywords
+              FROM research_profiles
+            """,
+            (stale_before,),
+        )[0]
+        avg_hits = memories["interest_avg_hits"]
+        return {
+            "accounts": dict(accounts),
+            "memories": {
+                "total": memories["total"],
+                "new_in_window": memories["new_in_window"],
+                "interest_avg_hits": round(avg_hits, 2) if avg_hits is not None else None,
+                "by_kind": [
+                    {"kind": k, "count": by_kind.get(k, (0, 0))[0], "accounts": by_kind.get(k, (0, 0))[1]}
+                    for k in MEMORY_KINDS
+                ],
+            },
+            "profiles": dict(profiles),
+        }
+
+    def counts_by_owner(self) -> Dict[Tuple[str, str], Dict[str, Any]]:
+        """(username, incarnation) -> {"memory_count": int, "profile_updated_at": str | None}."""
+        result: Dict[Tuple[str, str], Dict[str, Any]] = {}
+        for r in self._read("SELECT username, account_incarnation, COUNT(*) FROM memories GROUP BY 1, 2"):
+            result[(r[0], r[1])] = {"memory_count": r[2], "profile_updated_at": None}
+        for r in self._read("SELECT username, account_incarnation, updated_at FROM research_profiles"):
+            result.setdefault((r[0], r[1]), {"memory_count": 0, "profile_updated_at": None})["profile_updated_at"] = r[2]
+        return result
 
     def _delete(self, sql: str, params: tuple) -> int:
         with self._lock:

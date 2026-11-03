@@ -100,6 +100,7 @@ def isolate_private_app_storage(tmp_path, monkeypatch, request):
 def isolate_mcp_analytics_storage(tmp_path, monkeypatch):
     """No test may persist measurements or deletion tombstones in app data."""
     monkeypatch.setenv("MCP_ANALYTICS_DB_PATH", str(tmp_path / "mcp_analytics.db"))
+    monkeypatch.setenv("ANALYTICS_DB_PATH", str(tmp_path / "analytics.db"))
 
 
 @pytest.fixture(autouse=True)

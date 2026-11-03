@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
 import { createConversation } from '../../api/conversations';
+import { trackConversationStart, trackSampleCtaClick, trackSampleView } from '../../analytics/events';
 import { fetchSampleConversation, fetchSampleConversations } from '../../api/samples';
 import type { ViewTurn } from '../../hooks/useConversation';
 import type { Conversation, SampleConversation, SampleSummary } from '../../types';
@@ -29,6 +30,8 @@ function SampleConversationPage({ slug }: SampleConversationPageProps) {
   const [startError, setStartError] = useState<string | null>(null);
   // Set by "로그인하고 이어서 물어보기" while the login dialog is open; consumed once signed in.
   const pendingRef = useRef(false);
+
+  useEffect(() => { trackSampleView('sample_page', slug); }, [slug]);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -80,11 +83,15 @@ function SampleConversationPage({ slug }: SampleConversationPageProps) {
     if (!continueWith) return;
     setStartError(null);
     createConversation(continueWith)
-      .then(created => navigate(`/c/${created.id}`, { state: { run: true } }))
+      .then(created => {
+        trackConversationStart('sample_cta');
+        navigate(`/c/${created.id}`, { state: { run: true } });
+      })
       .catch(() => setStartError('대화를 시작하지 못했어요. 잠시 후 다시 시도해 주세요.'));
   };
 
   const continueAsking = () => {
+    trackSampleCtaClick('sample_page', slug);
     if (isAuthenticated) {
       startConversation();
       return;

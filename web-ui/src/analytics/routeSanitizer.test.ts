@@ -58,6 +58,23 @@ describe('sanitizeRouteForPageView', () => {
     });
   });
 
+  it.each(['/c/abc123', '/c/0f9e8d7c6b5a?x=1', '/C/abc123', '/c/abc123/'])(
+    'reports conversation route %s as /c/:id so no conversation id reaches analytics',
+    (pathname) => {
+      expect(sanitizeRouteForPageView({ pathname }, 'https://jiphyeonjeon.kr')).toEqual({
+        page_path: pathname.endsWith('/') ? '/c/:id/' : '/c/:id',
+        page_location: `https://jiphyeonjeon.kr${pathname.endsWith('/') ? '/c/:id/' : '/c/:id'}`,
+      });
+    },
+  );
+
+  it('keeps public sample slugs and leaves paths that merely start with c alone', () => {
+    expect(sanitizeRouteForPageView({ pathname: '/samples/graphrag-vs-rag' }, 'https://jiphyeonjeon.kr')?.page_path)
+      .toBe('/samples/graphrag-vs-rag');
+    expect(sanitizeRouteForPageView({ pathname: '/curriculum/abc' }, 'https://jiphyeonjeon.kr')?.page_path)
+      .toBe('/curriculum/abc');
+  });
+
   it.each(['/mypage', '/mypage/papers', '/admin', '/admin/users', '/share/token-123', '/share/curriculum/token-123'])(
     'suppresses private route %s',
     (pathname) => {

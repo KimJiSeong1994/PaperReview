@@ -51,7 +51,9 @@ describe('AdminDashboardReport', () => {
   it('renders the conclusion-first report and every operational chapter', async () => {
     render(<AdminDashboardReport stats={STATS} />);
 
-    expect(screen.getByRole('heading', { name: '서비스 운영 리포트' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '콘텐츠 자산 (레거시 수집 지표)' })).toBeInTheDocument();
+    // Demoted: the cumulative insight cards sit in a closed native disclosure.
+    expect(screen.getByText('누적 요약 펼치기').closest('details')).not.toHaveAttribute('open');
     expect(screen.getByRole('heading', { name: '현재 운영 상태를 한 문장씩 읽어보세요' })).toBeInTheDocument();
     expect(screen.getByText('128명 등록 · 8,420편 보유')).toBeInTheDocument();
     expect(screen.getByText('386개 저장 · 146개 리뷰 작업')).toBeInTheDocument();

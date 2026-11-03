@@ -453,6 +453,9 @@ app.include_router(chat_router)
 app.include_router(lightrag_router)
 app.include_router(admin_router)
 app.include_router(admin_analytics_router)
+from routers.admin_assistant import router as admin_assistant_router
+
+app.include_router(admin_assistant_router)
 from routers.mcp_telemetry import router as mcp_telemetry_router
 
 app.include_router(mcp_telemetry_router)

@@ -20,6 +20,7 @@ from app.assistant import turn_runner
 from .deps.auth import AuthenticatedPrincipal, get_authenticated_principal
 from .deps.middleware import limiter
 from .deps.storage import _get_conversation_db
+from src.storage.conversation_db import CANCELLED_TEXT
 
 logger = logging.getLogger(__name__)
 
@@ -93,7 +94,7 @@ async def run_turn(
             running = _running_turns.pop(conversation_id, None)
             if running is not None:
                 running.cancel()
-            db.finish_turn(last["id"], "중단됨", [], None, "error", None, None)
+            db.finish_turn(last["id"], CANCELLED_TEXT, [], None, "error", None, None)
             last["status"] = "error"
         turns.append(db.append_turn(conversation_id, "user", body.message.strip()))
     last_user = next((i for i in range(len(turns) - 1, -1, -1) if turns[i]["role"] == "user"), None)

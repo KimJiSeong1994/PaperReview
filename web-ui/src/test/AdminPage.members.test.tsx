@@ -11,6 +11,9 @@ import {
   getAdminPapers,
   deleteAdminPapers,
   deleteUser,
+  fetchAdminConversationStats,
+  fetchAdminSoulStats,
+  fetchAdminLlmUsage,
 } from '../api/client';
 import type { AdminDashboard, AdminPaper } from '../api/client';
 
@@ -77,6 +80,9 @@ vi.mock('../api/client', async () => {
     deleteUser: vi.fn(),
     updateUserRole: vi.fn(),
     deleteAdminBookmark: vi.fn(),
+    fetchAdminConversationStats: vi.fn(),
+    fetchAdminSoulStats: vi.fn(),
+    fetchAdminLlmUsage: vi.fn(),
   };
 });
 
@@ -139,6 +145,11 @@ beforeEach(() => {
   vi.mocked(deleteUser).mockResolvedValue({ success: true, partial_failures: [] });
   vi.mocked(getAdminPapers).mockResolvedValue(papersPage([]));
   vi.mocked(deleteAdminPapers).mockResolvedValue({ success: true, deleted_count: 1 });
+  // The conversation report's own data is covered in AdminAssistantReport.test; here it just stays loading.
+  const pending = () => new Promise<never>(() => {});
+  vi.mocked(fetchAdminConversationStats).mockImplementation(pending);
+  vi.mocked(fetchAdminSoulStats).mockImplementation(pending);
+  vi.mocked(fetchAdminLlmUsage).mockImplementation(pending);
 });
 
 afterEach(() => {
@@ -162,10 +173,10 @@ describe('AdminPage — Members tab wiring', () => {
   it('shows the dashboard, visitor, MCP usage, and consolidated member tabs', () => {
     renderPage();
 
-    expect(screen.getByRole('button', { name: 'Dashboard' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Visitors' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'MCP Usage' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Members' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '대시보드' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '방문' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'MCP 사용' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '회원' })).toBeInTheDocument();
 
     expect(screen.queryByRole('button', { name: 'Users' })).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Bookmarks' })).not.toBeInTheDocument();
@@ -176,7 +187,7 @@ describe('AdminPage — Members tab wiring', () => {
   it('calls getAdminUsers, getAdminBookmarks, getAdminCurricula, and getAdminPaperStats in parallel when Members tab is clicked', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Members' }));
+    fireEvent.click(screen.getByRole('button', { name: '회원' }));
     await screen.findByTestId('members-report');
 
     expect(getAdminUsers).toHaveBeenCalledTimes(1);
@@ -188,7 +199,7 @@ describe('AdminPage — Members tab wiring', () => {
   it('opens the MCP usage report without loading member data', async () => {
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'MCP Usage' }));
+    fireEvent.click(screen.getByRole('button', { name: 'MCP 사용' }));
     expect(await screen.findByTestId('mcp-report')).toBeInTheDocument();
     expect(getAdminUsers).not.toHaveBeenCalled();
     expect(getAdminBookmarks).not.toHaveBeenCalled();
@@ -203,7 +214,7 @@ describe('AdminPage — Members tab wiring', () => {
     // with a Delete button — which is confusing and wrong.
     renderPage();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Members' }));
+    fireEvent.click(screen.getByRole('button', { name: '회원' }));
     await screen.findByTestId('members-report');
 
     // Capture baseline call counts after initial Members load (1 each)
@@ -230,10 +241,59 @@ describe('AdminPage — Members tab wiring', () => {
   });
 });
 
+describe('AdminPage — dashboard tab', () => {
+  it('puts the conversation report above the legacy dashboard and loads its three sources', async () => {
+    renderPage();
+
+    const legacy = await screen.findByTestId('dashboard-report');
+    const conversation = await screen.findByRole('heading', { name: '대화 운영 리포트' });
+    expect(conversation.compareDocumentPosition(legacy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    await waitFor(() => {
+      expect(fetchAdminConversationStats).toHaveBeenCalledWith(7, expect.any(AbortSignal));
+      expect(fetchAdminSoulStats).toHaveBeenCalledWith(7, expect.any(AbortSignal));
+      expect(fetchAdminLlmUsage).toHaveBeenCalledWith(7, expect.any(AbortSignal));
+    });
+  });
+});
+
+describe('AdminPage — account deletion copy', () => {
+  const BOB = {
+    username: 'bob', role: 'user', created_at: '2025-03-15T00:00:00Z', bookmark_count: 0,
+    conversation_count: 3, last_conversation_at: '2026-11-02T00:00:00+00:00',
+    memory_count: 5, profile_updated_at: null,
+  };
+
+  it('names the conversations and memories the delete removes', async () => {
+    vi.mocked(getAdminUsers).mockResolvedValue({ users: [BOB] });
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: '회원' }));
+    await screen.findByTestId('members-report');
+    await waitFor(() => expect(getAdminUsers).toHaveBeenCalled());
+
+    fireEvent.click(screen.getByRole('button', { name: 'trigger-delete-bob' }));
+
+    const dialog = screen.getByRole('dialog');
+    expect(dialog).toHaveTextContent('대화 3개와 메모리 5개를 포함해 "bob" 계정을 완전히 삭제합니다.');
+    expect(dialog).toHaveTextContent('대화·메모리·연구 프로필·방문 분석 이벤트, 북마크');
+  });
+
+  it('reports partial-failure stages in Korean, unknown keys verbatim', async () => {
+    vi.mocked(deleteUser).mockResolvedValue({ success: false, partial_failures: ['conversations', 'souls', 'mystery_stage'] });
+    renderPage();
+    fireEvent.click(screen.getByRole('button', { name: '회원' }));
+    await screen.findByTestId('members-report');
+
+    fireEvent.click(screen.getByRole('button', { name: 'trigger-delete-bob' }));
+    fireEvent.click(screen.getByRole('button', { name: '삭제' }));
+
+    expect(await screen.findByText(/일부 단계 실패: 대화, 메모리·연구 프로필, mystery_stage/)).toBeInTheDocument();
+  });
+});
+
 describe('AdminPage — confirm dialog', () => {
   async function openDialog() {
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Members' }));
+    fireEvent.click(screen.getByRole('button', { name: '회원' }));
     await screen.findByTestId('members-report');
     const trigger = screen.getByRole('button', { name: 'trigger-delete-bob' });
     trigger.focus();
@@ -279,7 +339,7 @@ describe('AdminPage — paper deletion safety', () => {
   async function openFolder(member: 'alice' | 'bob', rows: AdminPaper[]) {
     vi.mocked(getAdminPapers).mockResolvedValue(papersPage(rows));
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Members' }));
+    fireEvent.click(screen.getByRole('button', { name: '회원' }));
     await screen.findByTestId('members-report');
     fireEvent.click(screen.getByRole('button', { name: `expand-${member}` }));
     await screen.findByRole('button', { name: `select-${rows[0].title}` });
