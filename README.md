@@ -3,7 +3,7 @@
 
   <p><strong>AI-Powered Academic Research Platform</strong></p>
 
-  <p>Search. Review. Learn. — One platform for your entire research workflow.</p>
+  <p>Ask. Read the evidence. Learn. — One platform for your entire research workflow.</p>
 
   [![Live](https://img.shields.io/badge/Live-jiphyeonjeon.kr-blue?style=for-the-badge&logo=googlechrome)](https://jiphyeonjeon.kr)
   [![License](https://img.shields.io/badge/License-Apache_2.0-green?style=for-the-badge)](./LICENSE)
@@ -14,7 +14,7 @@
 ---
 
 <div align="center">
-  <img src="docs/images/jiphyeonjeon-home.gif" alt="Jiphyeonjeon home search screen" width="900" />
+  <img src="docs/images/jiphyeonjeon-home.gif" alt="Jiphyeonjeon home walkthrough — sample questions, a cited answer, and the conversation page with its graph panel" width="900" />
 </div>
 
 ---
@@ -23,10 +23,13 @@
 
 Researchers spend hours jumping between Google Scholar, arXiv, PDF readers, and note apps. Jiphyeonjeon consolidates the entire workflow — **search, review, annotate, learn** — into a single platform powered by multi-agent AI.
 
+- **Conversational research home** — ask in plain language; every answer cites its papers with numbered references, opens a graph / list artifact panel, and can continue into PDF highlights or a deep review
 - **6 academic databases** searched in parallel (arXiv, Google Scholar, OpenAlex, DBLP, Connected Papers, Semantic Scholar)
 - **Multi-agent review pipeline** with fact verification against source texts
 - **Conference-quality poster generation** from review reports (NeurIPS / ICML / CVPR)
 - **Personalized learning curricula** generated from your bookmarked papers
+- **Per-user research memory** — a derived research profile personalises answers, searches and daily recommendations (never shown in the UI)
+- **Try before sign-in** — public sample conversations at `/samples/{slug}`
 - **Zero external DB required** — JSON-file-based storage, deploy anywhere
 
 > Named after the Jiphyeonjeon (집현전), the Hall of Worthies from the Joseon Dynasty — a royal research institute where scholars gathered to study and create knowledge.
@@ -39,6 +42,8 @@ Researchers spend hours jumping between Google Scholar, arXiv, PDF readers, and 
 
 | Feature | What it does | How it works |
 |---------|-------------|--------------|
+| **Conversational Home** | Ask about a topic or paper and get a cited answer plus a graph / list panel | Turn router (chat / search / answer / clarify / review / open_pdf / highlight_pdf / bookmarks) over an assistant tool registry, streamed over SSE at `/c/{id}` |
+| **Public Samples** | Read sample conversations without an account | Anonymised exports in `data/samples/`, served at `/samples/{slug}` |
 | **Multi-Mode Search** | Find papers across 6 databases in one query | 3 modes: **Basic** (keyword), **Smart** (LLM query expansion), **Deep** (ArxivQA ReAct agent with rubric evaluation) |
 | **Further Reading** | Explore citation networks up to 3 levels deep | Semantic Scholar API — references, cited-by, influence scoring |
 | **Knowledge Graph** | Build and query entity-relationship graphs from papers | Custom LightRAG with 5 retrieval modes (naive, local, global, hybrid, mix) |
@@ -47,7 +52,7 @@ Researchers spend hours jumping between Google Scholar, arXiv, PDF readers, and 
 
 | Feature | What it does | How it works |
 |---------|-------------|--------------|
-| **Deep Review** | Generate systematic review reports | Multi-agent pipeline (LangGraph) — quality validation + fact verification. Fast / Deep modes |
+| **Deep Review** | Generate systematic review reports | Multi-agent pipeline (LangGraph). **Fast** mode summarises; **Full** mode verifies each claim against the source text |
 | **Paper Review** | Analyze individual papers in detail | Structured review with PDF highlight extraction + inline math explanation |
 | **Notes & Highlights** | Annotate across 6 categories | AI-generated + manual highlights, memos, BibTeX/Markdown export |
 | **Chat with Papers** | Q&A over your research collection | Streaming answers using reports + highlights + knowledge graph context |
@@ -66,7 +71,11 @@ Researchers spend hours jumping between Google Scholar, arXiv, PDF readers, and 
 ## Architecture
 
 ```
-User Query
+User question (conversation)
+  │
+  ├─ Assistant ───── turn router → tools: search · answer · deep_review · open_pdf · highlight_pdf · bookmarks
+  │                    ↓
+  │              Soul memory → research profile (personalises answers & daily picks)
   │
   ├─ SearchAgent ─── arXiv / Scholar / OpenAlex / DBLP / Connected Papers / S2
   │                    ↓
@@ -153,6 +162,9 @@ Interactive docs: [`jiphyeonjeon.kr/docs`](https://jiphyeonjeon.kr/docs) (Swagge
 | Group | Key Endpoints | Description |
 |-------|--------------|-------------|
 | **Auth** | `POST /register`, `/login` | JWT authentication |
+| **Conversations** | `POST /conversations`, `POST /conversations/{id}/turns` (SSE), `GET /me/conversations` | Server-saved conversations with streamed turns |
+| **Samples** | `GET /samples/conversations`, `/samples/conversations/{slug}` | Public sample conversations (no auth) |
+| **Profile** | `GET /me/research-profile`, `GET /me/soul` | Derived research profile and memory |
 | **Search** | `POST /search`, `/smart-search`, `/deep-search` | Three search modes |
 | **Papers** | `POST /save`, `/extract-texts`, `/enrich-papers` | Paper storage & enrichment |
 | **Reviews** | `POST /deep-review`, `GET /deep-review/status/{id}` | Async deep review with polling |
@@ -173,8 +185,11 @@ Interactive docs: [`jiphyeonjeon.kr/docs`](https://jiphyeonjeon.kr/docs) (Swagge
 
 ```
 api_server.py          FastAPI entrypoint — middleware, router registration
-routers/               14 API routers
+routers/               API routers
   ├── auth.py            Register / login / JWT verify
+  ├── conversations.py   Server-saved conversations, SSE turns (assistant)
+  ├── samples.py         Public sample conversations (data/samples)
+  ├── soul.py            Per-user memory and research profile
   ├── search.py          Basic, Smart, Deep search (ArxivQA)
   ├── papers.py          Paper CRUD, references, code repos, graph data
   ├── reviews.py         Deep review pipeline + poster visualization
@@ -189,6 +204,7 @@ routers/               14 API routers
   ├── share.py           Read-only share links with expiration
   └── admin.py           Dashboard, user/paper/bookmark management
 app/                   Agent modules
+  ├── assistant/         Turn router, tool registry, research profile
   ├── SearchAgent/       Multi-source parallel search
   ├── QueryAgent/        Query analysis, diversification, rubric evaluation
   ├── DeepAgent/         Multi-agent review pipeline (LangGraph)
@@ -198,14 +214,17 @@ src/                   Core libraries
   ├── graph/             Citation graph construction (NetworkX)
   ├── graph_rag/         Hybrid ranking (BM25 + FAISS + LLM rerank)
   ├── light_rag/         Custom LightRAG implementation
+  ├── storage/           SQLite stores (conversations, souls, bookmarks, papers, users)
   └── utils/             Shared utilities
 web-ui/                React frontend
   ├── src/components/    Page components (MyPage, Curriculum, Admin, ...)
-  │   ├── mypage/          Bookmark sidebar, chat, paper viewer, report viewer
+  │   ├── home/            Conversational home (guest samples + replay, sidebar, composer)
+  │   ├── conversation/    Conversation page, artifact panel, citations, sample page
+  │   ├── mypage/          Bookmark sidebar, paper viewer, report viewer
   │   └── curriculum/      Course sidebar, module view, detail panel
   ├── src/hooks/         Custom hooks (useDeepReview, useCurriculum, ...)
   └── src/api/           API client
-data/                  JSON storage + FAISS indices + caches
+data/                  JSON storage + FAISS indices + caches + samples/ (public sample conversations)
 ```
 
 ---
