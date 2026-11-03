@@ -310,8 +310,10 @@ describe('AdminVisitsReport', () => {
     render(<AdminVisitsReport />);
 
     expect(await screen.findByText('샘플 대화')).toBeInTheDocument();
-    expect(screen.getByText(/분석 동의 사용자만 집계\(하한값\)\. 퍼널 첫 단계에는/)).toBeInTheDocument();
-    expect(screen.getByText('샘플 → CTA → 첫 대화')).toBeInTheDocument();
+    expect(screen.getByText('동의 사용자만(하한값) · 퍼널은 홈 기본 노출 포함, 표는 카드 클릭+페이지만')).toBeInTheDocument();
+    // The funnel is one inline line: count per step, rate from step 2 on.
+    const funnel = screen.getByLabelText('샘플 → CTA → 첫 대화');
+    expect(funnel).toHaveTextContent('샘플 노출 (홈 기본 포함) 20→이어서 묻기 클릭 525%→대화 시작 210%');
     // Funnel step 1 includes the home default; the table counts card clicks and page opens only.
     expect(screen.getByText('샘플 노출 (홈 기본 포함)')).toBeInTheDocument();
     expect(screen.getByText('샘플 조회 · 카드 클릭+페이지')).toBeInTheDocument();

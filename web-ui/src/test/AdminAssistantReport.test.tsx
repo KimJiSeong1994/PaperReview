@@ -94,90 +94,173 @@ beforeEach(() => {
   vi.mocked(fetchAdminLlmUsage).mockImplementation(() => ok(LLM));
 });
 
-afterEach(() => vi.clearAllMocks());
+// jsdom's localStorage is broken in this setup (see AdminPage.members.test); rows persist through this shim.
+let store: Record<string, string> = {};
+beforeEach(() => {
+  store = {};
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => { store[key] = String(value); },
+    removeItem: (key: string) => { delete store[key]; },
+    clear: () => { store = {}; },
+  });
+});
 
-const tile = (label: string) => screen.getByText(label, { selector: '.admin-stat-label' }).closest('.admin-stat-card') as HTMLElement;
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.unstubAllGlobals();
+});
+
+const tile = (label: string) => screen.getByText(label, { selector: '.assistant-kpi-label' }).closest('.assistant-kpi') as HTMLElement;
+const row = (title: string) => screen.getByText(title, { selector: '.admin-details-title' }).closest('details') as HTMLDetailsElement;
+const summary = (title: string) => row(title).querySelector('.admin-details-summary')?.textContent;
+const openRow = (title: string) => fireEvent.click(row(title).querySelector('summary')!);
+const loaded = () => screen.findByText('어제 8 · 실패 1');
 
 describe('AdminAssistantReport', () => {
-  it('renders conversation KPIs, yesterday line, intent bars and per-intent latency', async () => {
+  it('puts eight KPI tiles in one strip, with yesterday and activation as hints', async () => {
     render(<AdminAssistantReport />);
+    await loaded();
 
-    expect(await screen.findByText('어제(2026-11-02) 대화 8 · 메시지 33 · 실패 1')).toBeInTheDocument();
-    expect(within(tile('대화 수')).getByText('28')).toBeInTheDocument();
-    expect(within(tile('활성 사용자')).getByText('6')).toBeInTheDocument();
-    expect(within(tile('사용자 메시지')).getByText('82')).toBeInTheDocument();
-    expect(within(tile('실패율')).getByText('5.0%')).toBeInTheDocument();
-    expect(tile('실패율')).toHaveTextContent('취소 2건은 별도');
-    // full / started = 2 / 7
-    expect(within(tile('정밀 리뷰 비율')).getByText('28.6%')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 1, name: '대시보드' })).toBeInTheDocument();
+    expect(screen.getByText('2026-10-28 — 2026-11-03 · KST')).toBeInTheDocument();
+    const strip = screen.getByRole('group', { name: '핵심 지표' });
+    expect(strip.querySelectorAll('.assistant-kpi')).toHaveLength(8);
 
-    // Intent bar: Korean label, with failed + interrupted as a badge.
+    const value = (label: string) => tile(label).querySelector('.assistant-kpi-value')?.textContent;
+    const hint = (label: string) => tile(label).querySelector('.assistant-kpi-hint')?.textContent;
+    expect(value('대화')).toBe('28');
+    expect(tile('대화')).toHaveAttribute('title', expect.stringContaining('어제(2026-11-02) 대화 8 · 메시지 33 · 실패 1'));
+    expect([value('활성 사용자'), hint('활성 사용자')]).toEqual(['6', '가입 3 · 24h 대화 2']);
+    expect(value('사용자 메시지')).toBe('82');
+    expect([value('실패율'), hint('실패율')]).toEqual(['5.0%', '실패 3 · 중단 1 · 취소 2']);
+    expect(value('정밀 리뷰 비율')).toBe('28.6%'); // 2 / 7
+    expect([value('검증된 주장 비율'), hint('검증된 주장 비율')]).toEqual(['83.3%', '주장 30 중 25']);
+    expect([value('메모리 보유 계정'), hint('메모리 보유 계정')]).toEqual(['4', '메모리 38 · 신규 12']);
+    expect([value('LLM 토큰'), hint('LLM 토큰')]).toEqual(['203,000', '호출 148']);
+  });
+
+  it('shows the daily chart beside intent bars and per-intent latency', async () => {
+    render(<AdminAssistantReport />);
+    await loaded();
+
+    expect(await screen.findAllByTestId('plot')).toHaveLength(1);
     expect(screen.getByText('실패 3').parentElement).toHaveTextContent('검색실패 3');
-    expect(screen.getByText('대화', { selector: '.dashboard-rank-copy span' })).toBeInTheDocument();
-
     const latency = screen.getByRole('region', { name: '의도별 지연 표' });
     const searchRow = within(latency).getByRole('rowheader', { name: '검색' }).closest('tr') as HTMLElement;
-    expect(searchRow).toHaveTextContent('2214.0초31.0초');
-    expect(screen.getByText('창 안 가입 3명 중 24시간 안에 첫 대화 2명', { exact: false })).toBeInTheDocument();
-    expect(await screen.findAllByTestId('plot')).toHaveLength(2);
+    expect(within(searchRow).getAllByRole('cell').map((c) => c.textContent)).toEqual(['22', '14.0초', '31.0초']);
+  });
+
+  it('caps the intent and latency lists at six rows', async () => {
+    const intents = ['chat', 'clarify', 'search', 'answer', 'review', 'open_pdf', 'highlight_pdf', 'answer_from_bookmarks'];
+    vi.mocked(fetchAdminConversationStats).mockImplementation(() => ok({
+      ...CONVERSATIONS,
+      intents: intents.map((intent) => ({ intent, turns: 3, failed: 0, interrupted: 0 })),
+      latency: intents.map((intent) => ({ intent, samples: 6, p50_ms: 1000, p95_ms: 2000 })),
+    }));
+    render(<AdminAssistantReport />);
+    await loaded();
+    expect(document.querySelectorAll('.assistant-mini-bars li')).toHaveLength(6);
+    expect(within(screen.getByRole('region', { name: '의도별 지연 표' })).getAllByRole('row')).toHaveLength(7);
+  });
+
+  it('collapses every detail row by default, with the numbers in its summary', async () => {
+    render(<AdminAssistantReport />);
+    await loaded();
+    await screen.findByText(/^계정 4/);
+
+    for (const title of ['리뷰 모드·검증', '메모리·연구 프로필', 'LLM 사용량']) expect(row(title).open).toBe(false);
+    expect(summary('리뷰 모드·검증')).toBe('시작 7 · 빠른 5 · 정밀 2 · 검증 83%');
+    expect(summary('메모리·연구 프로필')).toBe('계정 4 · 메모리 38 · 프로필 3 (24h 지남 1)');
+    expect(summary('LLM 사용량')).toBe('호출 148 · 토큰 203,000');
+    // Closed rows mount nothing: no verification card until opened.
+    expect(screen.queryByText(/주장 30개 중 확인/)).toBeNull();
+  });
+
+  it('opens a row to show its detail and remembers it', async () => {
+    const { unmount } = render(<AdminAssistantReport />);
+    await loaded();
+
+    openRow('리뷰 모드·검증');
+    expect(await screen.findByText(/주장 30개 중 확인 25\(83\.3%\)/)).toBeInTheDocument();
+    expect(screen.getByText('모드 기록이 없는 옛 리뷰 4건은 빠른 리뷰로 셉니다.')).toBeInTheDocument();
+    expect(store['admin.dashboard.open.reviews']).toBe('1');
+    unmount();
+
+    render(<AdminAssistantReport />);
+    await loaded();
+    expect(row('리뷰 모드·검증').open).toBe(true);
+    expect(row('LLM 사용량').open).toBe(false);
+  });
+
+  it('renders the legacy slot at the end of the row list', async () => {
+    render(<AdminAssistantReport legacy={<div data-testid="legacy-rows" />} />);
+    await loaded();
+    const list = document.querySelector('.admin-details-list')!;
+    expect(list.lastElementChild).toBe(screen.getByTestId('legacy-rows'));
   });
 
   it('shows — for null error rate and null p95, not 0', async () => {
     vi.mocked(fetchAdminConversationStats).mockImplementation(() => ok({ ...CONVERSATIONS, error_rate: null }));
     render(<AdminAssistantReport />);
+    await loaded();
 
-    await screen.findByText(/어제\(2026-11-02\)/);
-    expect(within(tile('실패율')).getByText('—')).toBeInTheDocument();
+    expect(tile('실패율').querySelector('.assistant-kpi-value')?.textContent).toBe('—');
     const reviewRow = within(screen.getByRole('region', { name: '의도별 지연 표' }))
       .getByRole('rowheader', { name: '리뷰 시작' }).closest('tr') as HTMLElement;
     expect(within(reviewRow).getAllByRole('cell').map((cell) => cell.textContent)).toEqual(['3', '0.9초', '—']);
   });
 
-  it('keeps other blocks when one endpoint fails and retries only that block', async () => {
+  it('keeps other blocks when one endpoint fails and retries only that one inline', async () => {
     vi.mocked(fetchAdminSoulStats).mockImplementationOnce(() => Promise.reject(new Error('boom')));
     render(<AdminAssistantReport />);
 
     const alert = await screen.findByRole('alert');
-    expect(alert).toHaveTextContent('메모리 통계을(를) 불러오지 못했습니다');
-    expect(await screen.findByText(/어제\(2026-11-02\)/)).toBeInTheDocument();
-    expect(screen.getByText('148')).toBeInTheDocument();
+    expect(alert).toHaveTextContent('메모리 통계을(를) 불러오지 못했습니다 · boom');
+    await loaded();
+    expect(tile('메모리 보유 계정').querySelector('.assistant-kpi-value')?.textContent).toBe('—');
+    expect(summary('메모리·연구 프로필')).toBe('불러오지 못했습니다');
+    expect(tile('LLM 토큰').querySelector('.assistant-kpi-value')?.textContent).toBe('203,000');
 
     fireEvent.click(within(alert).getByRole('button', { name: '다시 시도' }));
-    expect(await screen.findByText('메모리 보유 계정')).toBeInTheDocument();
+    await waitFor(() => expect(tile('메모리 보유 계정').querySelector('.assistant-kpi-value')?.textContent).toBe('4'));
     expect(fetchAdminSoulStats).toHaveBeenCalledTimes(2);
     expect(fetchAdminConversationStats).toHaveBeenCalledTimes(1);
     expect(fetchAdminLlmUsage).toHaveBeenCalledTimes(1);
   });
 
-  it('shows full-review verification card and the empty verification message', async () => {
-    const { unmount } = render(<AdminAssistantReport />);
-    expect(await screen.findByText(/주장 30개 중 확인 25\(83\.3%\)/)).toBeInTheDocument();
-    expect(screen.getByText('모드 기록이 없는 옛 리뷰 4건은 빠른 리뷰로 셉니다.')).toBeInTheDocument();
-    unmount();
-
+  it('shows the empty verification message inside the review row', async () => {
     vi.mocked(fetchAdminConversationStats).mockImplementation(() => ok({
       ...CONVERSATIONS,
       reviews: { ...CONVERSATIONS.reviews, verification: { ...CONVERSATIONS.reviews.verification, sessions_with_claims: 0, claims: 0, verified_ratio: null } },
     }));
     render(<AdminAssistantReport />);
+    await loaded();
+    expect(tile('검증된 주장 비율').querySelector('.assistant-kpi-hint')?.textContent).toBe('검증 기록 없음');
+    expect(summary('리뷰 모드·검증')).toBe('시작 7 · 빠른 5 · 정밀 2 · 검증 —');
+    openRow('리뷰 모드·검증');
     expect(await screen.findByText('정밀 리뷰 검증 기록이 아직 없습니다')).toBeInTheDocument();
   });
 
-  it('shows unavailable ledger state and unrecorded-stage warning', async () => {
+  it('shows unavailable ledger state in the summary and the unrecorded-stage warning inside', async () => {
     vi.mocked(fetchAdminLlmUsage).mockImplementation(() => ok({
       ...LLM, available: false, reason: 'ledger not found', by_stage: [], daily: [],
       coverage: { unrecorded_stages: ['claim_verification'] },
     }));
     render(<AdminAssistantReport />);
+    await loaded();
 
-    expect(await screen.findByText('사용량 원장 파일이 없습니다')).toBeInTheDocument();
-    expect(screen.getByText('일부 단계 미집계: 주장 검증')).toBeInTheDocument();
+    expect(summary('LLM 사용량')).toBe('사용량 원장 파일이 없습니다');
+    expect(tile('LLM 토큰').querySelector('.assistant-kpi-hint')?.textContent).toBe('원장 없음');
+    openRow('LLM 사용량');
+    expect(await screen.findByText('일부 단계 미집계: 주장 검증')).toBeInTheDocument();
   });
 
   it('falls back to the raw reason for an unmapped ledger state', async () => {
     vi.mocked(fetchAdminLlmUsage).mockImplementation(() => ok({ ...LLM, available: false, reason: 'permission denied', by_stage: [], daily: [] }));
     render(<AdminAssistantReport />);
-    expect(await screen.findByText('사용량 원장을 읽을 수 없습니다 (permission denied)')).toBeInTheDocument();
+    await loaded();
+    expect(summary('LLM 사용량')).toBe('사용량 원장을 읽을 수 없습니다 (permission denied)');
   });
 
   it('renders zeros as an empty structure without NaN', async () => {
@@ -196,15 +279,16 @@ describe('AdminAssistantReport', () => {
     }));
     render(<AdminAssistantReport />);
 
-    await screen.findByText(/어제\(2026-11-02\) 대화 0/);
+    await screen.findByText('어제 0 · 실패 0');
+    openRow('리뷰 모드·검증');
+    expect(await screen.findByText('대화에서 시작된 리뷰가 아직 없습니다.')).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/NaN|Infinity|undefined/);
-    expect(within(tile('정밀 리뷰 비율')).getByText('—')).toBeInTheDocument();
-    expect(screen.getByText('대화에서 시작된 리뷰가 아직 없습니다.')).toBeInTheDocument();
+    expect(tile('정밀 리뷰 비율').querySelector('.assistant-kpi-value')?.textContent).toBe('—');
   });
 
   it('refetches all three endpoints when the window toggle changes', async () => {
     render(<AdminAssistantReport />);
-    await screen.findByText(/어제\(2026-11-02\)/);
+    await loaded();
     expect(screen.getByRole('button', { name: '7일' })).toHaveAttribute('aria-pressed', 'true');
 
     fireEvent.click(screen.getByRole('button', { name: '28일' }));
@@ -217,14 +301,15 @@ describe('AdminAssistantReport', () => {
     expect(screen.getByRole('button', { name: '28일' })).toHaveAttribute('aria-pressed', 'true');
   });
 
-  it('never renders conversation or memory text', async () => {
+  it('never renders conversation or memory text, rows open included', async () => {
     // Fields the contract forbids; if a backend ever leaked them, the UI must still not show them.
     vi.mocked(fetchAdminConversationStats).mockImplementation(() => ok({ ...CONVERSATIONS, title: 'SECRET-title', content: 'SECRET-turn' }));
     vi.mocked(fetchAdminSoulStats).mockImplementation(() => ok({ ...SOULS, text: 'SECRET-memory', user_md: 'SECRET-usermd' }));
     render(<AdminAssistantReport />);
-
-    await screen.findByText(/어제\(2026-11-02\)/);
-    await screen.findByText('메모리 보유 계정');
+    await loaded();
+    await screen.findByText(/^계정 4/);
+    for (const title of ['리뷰 모드·검증', '메모리·연구 프로필', 'LLM 사용량']) openRow(title);
+    await screen.findByText('종류별 메모리');
     expect(document.body.textContent).not.toContain('SECRET');
   });
 });

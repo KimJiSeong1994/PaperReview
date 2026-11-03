@@ -11,6 +11,7 @@ import {
   type AdminWindowDays,
 } from '../api/client';
 import LazyLoadErrorBoundary from './LazyLoadErrorBoundary';
+import AdminDetailsRow from './AdminDetailsRow';
 import type { Data } from '../PlotlyChart';
 
 const Plot = lazy(() => import('../PlotlyChart'));
@@ -20,6 +21,7 @@ const nf = new Intl.NumberFormat('ko-KR');
 const fmt = (value: number) => nf.format(value ?? 0);
 // null is "no denominator", never 0%.
 const pct = (value: number | null) => (value === null ? '—' : `${(value * 100).toFixed(1)}%`);
+const pct0 = (value: number | null) => (value === null ? '—' : `${Math.round(value * 100)}%`);
 const ratio = (part: number, whole: number) => (whole > 0 ? part / whole : null);
 const seconds = (ms: number | null) => (ms === null ? '—' : `${(ms / 1000).toFixed(1)}초`);
 const kstDay = (iso: string | null) => {
@@ -51,12 +53,12 @@ const LEDGER_REASON_LABELS: Record<string, string> = { 'ledger not found': '사�
 // Plotly ignores CSS var() colors, so charts take hex literals (same palette as the legacy dashboard).
 const COLORS = { bar: '#4f46e5', barSoft: '#a7a1f7', fail: '#e05266', axis: '#858291', grid: '#ecebf0', font: '#706d7d' };
 const CHART_LAYOUT = {
-  paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 240,
-  margin: { t: 12, b: 36, l: 48, r: 12 },
+  paper_bgcolor: 'transparent', plot_bgcolor: 'transparent', height: 220,
+  margin: { t: 8, b: 28, l: 36, r: 8 },
   font: { color: COLORS.font, size: 11, family: 'Pretendard, sans-serif' },
   xaxis: { gridcolor: 'transparent', color: COLORS.axis, fixedrange: true },
   yaxis: { gridcolor: COLORS.grid, color: COLORS.axis, zeroline: false, fixedrange: true, rangemode: 'tozero' as const },
-  legend: { orientation: 'h' as const, y: -0.2 },
+  legend: { orientation: 'h' as const, x: 1, xanchor: 'right' as const, y: 1.12 },
 };
 
 interface Block<T> { data: T | null; loading: boolean; error: string | null; retry: () => void }
@@ -90,18 +92,52 @@ function useBlock<T>(fetcher: (days: AdminWindowDays, signal: AbortSignal) => Pr
   return { data, loading, error, retry };
 }
 
-/** Loading / error / content for one block; a refetch keeps the old data on screen. */
-function BlockState<T>({ block, label, children }: { block: Block<T>; label: string; children: (data: T) => ReactNode }) {
-  if (block.error && !block.loading) {
-    return (
-      <div className="assistant-block-error" role="alert">
-        <span>{label}을(를) 불러오지 못했습니다 · {block.error}</span>
-        <button type="button" className="admin-action-btn" onClick={block.retry}>다시 시도</button>
-      </div>
-    );
-  }
-  if (!block.data) return <div className="admin-loading">{label} 불러오는 중...</div>;
-  return <div aria-busy={block.loading}>{children(block.data)}</div>;
+/** One-line failure notice for one endpoint, with a retry for just that endpoint. */
+function BlockError<T>({ block, label }: { block: Block<T>; label: string }) {
+  if (!block.error || block.loading) return null;
+  return (
+    <div className="assistant-block-error" role="alert">
+      <span>{label}을(를) 불러오지 못했습니다 · {block.error}</span>
+      <button type="button" className="admin-action-btn" onClick={block.retry}>다시 시도</button>
+    </div>
+  );
+}
+
+/** A value only once its source has loaded: … while loading, — after a failure. */
+const pending = <T,>(block: Block<T>) => (block.data ? null : block.error && !block.loading ? '—' : '…');
+
+/** Compact KPI tile; the long explanation lives in the title tooltip. */
+function KpiTile({ label, value, hint, title }: { label: string; value: ReactNode; hint?: ReactNode; title?: string }) {
+  return (
+    <article className="assistant-kpi" title={title}>
+      <p className="assistant-kpi-label">{label}</p>
+      <p className="assistant-kpi-value">{value}</p>
+      {hint && <p className="assistant-kpi-hint">{hint}</p>}
+    </article>
+  );
+}
+
+/** Dense label · bar · count rows for the overview panel. */
+function MiniBars({ title, rows, emptyLabel }: {
+  title: string; emptyLabel: string; rows: { key: string; label: string; count: number; badge?: ReactNode }[];
+}) {
+  const max = Math.max(0, ...rows.map((row) => row.count));
+  return (
+    <section className="assistant-mini">
+      <h3>{title}</h3>
+      {rows.length > 0 && max > 0 ? (
+        <ol className="assistant-mini-bars">
+          {rows.map((row) => (
+            <li key={row.key}>
+              <span className="assistant-mini-label">{row.label}{row.badge}</span>
+              <span className="assistant-mini-track" aria-hidden="true"><span style={{ width: `${(row.count / max) * 100}%` }} /></span>
+              <strong>{fmt(row.count)}</strong>
+            </li>
+          ))}
+        </ol>
+      ) : <div className="admin-empty">{emptyLabel}</div>}
+    </section>
+  );
 }
 
 function StatTile({ label, value, hint }: { label: string; value: ReactNode; hint?: ReactNode }) {
@@ -111,15 +147,6 @@ function StatTile({ label, value, hint }: { label: string; value: ReactNode; hin
       <p className="admin-stat-value">{value}</p>
       {hint && <p className="visits-stat-hint">{hint}</p>}
     </article>
-  );
-}
-
-function SectionHeading({ kicker, title, note }: { kicker: string; title: string; note?: string }) {
-  return (
-    <div className="dashboard-section-heading">
-      <div><span>{kicker}</span><h3>{title}</h3></div>
-      {note && <p>{note}</p>}
-    </div>
   );
 }
 
@@ -164,47 +191,89 @@ function Chart({ data, label }: { data: Data[]; label: string }) {
   );
 }
 
-function ConversationBlock({ stats }: { stats: AdminConversationStats }) {
-  const { totals, outcomes, reviews, activation } = stats;
-  const end = Date.parse(stats.window.end);
+function KpiStrip({ conversations, souls, llm }: {
+  conversations: Block<AdminConversationStats>; souls: Block<AdminSoulStats>; llm: Block<AdminLlmUsage>;
+}) {
+  const c = conversations.data;
+  const s = souls.data;
+  const u = llm.data;
+  const end = c ? Date.parse(c.window.end) : NaN;
   const yesterday = Number.isFinite(end) ? kstDay(new Date(end - 86_400_000).toISOString()) : null;
-  const yesterdayRow = stats.daily.find((row) => row.date === yesterday);
-  const verification = reviews.verification;
+  const y = c?.daily.find((row) => row.date === yesterday);
+  const v = c?.reviews.verification;
+  const tokens = u && u.available ? u.totals.prompt_tokens + u.totals.completion_tokens : null;
 
   return (
-    <>
-      <p className="assistant-yesterday" role="status">
-        {yesterdayRow
-          ? <>어제({yesterdayRow.date}) 대화 {fmt(yesterdayRow.conversations)} · 메시지 {fmt(yesterdayRow.user_turns)} · 실패 {fmt(yesterdayRow.failed)}</>
-          : '어제 기록이 없습니다.'}
-      </p>
+    <div className="assistant-kpis" role="group" aria-label="핵심 지표">
+      <KpiTile
+        label="대화"
+        value={pending(conversations) ?? fmt(c!.totals.conversations)}
+        hint={c && (y ? `어제 ${fmt(y.conversations)} · 실패 ${fmt(y.failed)}` : '어제 기록 없음')}
+        title={`창 안에 생성된 대화 수.${y ? ` 어제(${y.date}) 대화 ${fmt(y.conversations)} · 메시지 ${fmt(y.user_turns)} · 실패 ${fmt(y.failed)}` : ''}`}
+      />
+      <KpiTile
+        label="활성 사용자"
+        value={pending(conversations) ?? fmt(c!.totals.active_users)}
+        hint={c && `가입 ${fmt(c.activation.signups)} · 24h 대화 ${fmt(c.activation.first_conversation_within_24h)}`}
+        title="메시지를 보낸 계정 수. 보조 줄은 창 안 가입자 중 가입 24시간 안에 첫 대화를 연 수."
+      />
+      <KpiTile
+        label="사용자 메시지"
+        value={pending(conversations) ?? fmt(c!.totals.user_turns)}
+        hint={c && `답변 ${fmt(c.totals.assistant_turns)} · 진행 ${fmt(c.totals.running)}`}
+      />
+      <KpiTile
+        label="실패율"
+        value={pending(conversations) ?? pct(c!.error_rate)}
+        hint={c && `실패 ${fmt(c.outcomes.failed)} · 중단 ${fmt(c.outcomes.interrupted)} · 취소 ${fmt(c.outcomes.cancelled)}`}
+        title="(실패+중단) ÷ (완료+실패+중단). 새 메시지로 끊은 취소는 실패에서 뺍니다."
+      />
+      <KpiTile
+        label="정밀 리뷰 비율"
+        value={pending(conversations) ?? pct(ratio(c!.reviews.by_mode.full, c!.reviews.started))}
+        hint={c && `시작 ${fmt(c.reviews.started)} 중 ${fmt(c.reviews.by_mode.full)}`}
+        title="대화에서 시작된 리뷰 중 정밀 모드 비율."
+      />
+      <KpiTile
+        label="검증된 주장 비율"
+        value={pending(conversations) ?? pct(v!.verified_ratio)}
+        hint={v && (v.sessions_with_claims > 0 ? `주장 ${fmt(v.claims)} 중 ${fmt(v.verified)}` : '검증 기록 없음')}
+        title="정밀 리뷰의 주장 중 확인(verified)된 비율. 부분 확인은 포함하지 않습니다."
+      />
+      <KpiTile
+        label="메모리 보유 계정"
+        value={pending(souls) ?? fmt(s!.accounts.with_memories)}
+        hint={s && `메모리 ${fmt(s.memories.total)} · 신규 ${fmt(s.memories.new_in_window)}`}
+      />
+      <KpiTile
+        label="LLM 토큰"
+        value={pending(llm) ?? (tokens === null ? '—' : fmt(tokens))}
+        hint={u && (u.available ? `호출 ${fmt(u.totals.calls)}` : '원장 없음')}
+        title="창 안 입력+출력 토큰 합계. 통화 환산과 사용자별 귀속은 하지 않습니다."
+      />
+    </div>
+  );
+}
 
-      <div className="admin-stats-grid dashboard-stat-grid" role="group" aria-label="대화 핵심 지표">
-        <StatTile label="대화 수" value={fmt(totals.conversations)} hint="창 안에 생성된 대화" />
-        <StatTile label="활성 사용자" value={fmt(totals.active_users)} hint="메시지를 보낸 계정" />
-        <StatTile label="사용자 메시지" value={fmt(totals.user_turns)} hint={`답변 ${fmt(totals.assistant_turns)} · 진행 중 ${fmt(totals.running)}`} />
-        <StatTile
-          label="실패율"
-          value={pct(stats.error_rate)}
-          hint={`실패 ${fmt(outcomes.failed)} · 중단 ${fmt(outcomes.interrupted)} · 취소 ${fmt(outcomes.cancelled)}건은 별도`}
-        />
-        <StatTile
-          label="정밀 리뷰 비율"
-          value={pct(ratio(reviews.by_mode.full, reviews.started))}
-          hint={`리뷰 시작 ${fmt(reviews.started)}건 중 정밀 ${fmt(reviews.by_mode.full)}`}
-        />
-      </div>
-
-      <p className="assistant-activation">
-        창 안 가입 {fmt(activation.signups)}명 중 24시간 안에 첫 대화 {fmt(activation.first_conversation_within_24h)}명
-        {' '}({pct(ratio(activation.first_conversation_within_24h, activation.signups))})
-      </p>
-
-      <div className="dashboard-rank-grid">
-        <BarList
-          title="의도 분포 · 답변 턴"
+function Overview({ stats }: { stats: AdminConversationStats }) {
+  return (
+    <div className="assistant-overview">
+      <section className="assistant-panel" aria-label="일별 대화와 실패">
+        {stats.daily.length > 0 ? (
+          <Chart
+            label="일별 대화 수 막대와 실패 수 선"
+            data={[
+              { type: 'bar', name: '대화', x: stats.daily.map((d) => d.date), y: stats.daily.map((d) => d.conversations), marker: { color: COLORS.bar } },
+              { type: 'scatter', mode: 'lines+markers', name: '실패', x: stats.daily.map((d) => d.date), y: stats.daily.map((d) => d.failed), line: { color: COLORS.fail, width: 2 }, marker: { color: COLORS.fail, symbol: 'x' } },
+            ]}
+          />
+        ) : <div className="admin-empty">아직 기록이 없습니다.</div>}
+      </section>
+      <section className="assistant-panel assistant-panel--split">
+        <MiniBars
+          title="의도 분포"
           emptyLabel="아직 기록이 없습니다."
-          rows={stats.intents.map((row) => ({
+          rows={stats.intents.slice(0, 6).map((row) => ({
             key: row.intent,
             label: INTENT_LABELS[row.intent] ?? row.intent,
             count: row.turns,
@@ -213,14 +282,14 @@ function ConversationBlock({ stats }: { stats: AdminConversationStats }) {
               : null,
           }))}
         />
-        <section className="dashboard-rank-card">
+        <section className="assistant-mini" title="완료된 답변만 집계. 리뷰는 리뷰 전체가 아니라 시작까지의 시간이고, 표본 5개 미만이면 p95는 —.">
           <h3>의도별 지연</h3>
           {stats.latency.length > 0 ? (
             <div className="assistant-table-scroll" tabIndex={0} role="region" aria-label="의도별 지연 표">
               <table className="assistant-table">
                 <thead><tr><th scope="col">의도</th><th scope="col">표본</th><th scope="col">p50</th><th scope="col">p95</th></tr></thead>
                 <tbody>
-                  {stats.latency.map((row) => (
+                  {stats.latency.slice(0, 6).map((row) => (
                     <tr key={row.intent}>
                       <th scope="row">{INTENT_LABELS[row.intent] ?? row.intent}</th>
                       <td>{fmt(row.samples)}</td>
@@ -232,55 +301,44 @@ function ConversationBlock({ stats }: { stats: AdminConversationStats }) {
               </table>
             </div>
           ) : <div className="admin-empty">아직 기록이 없습니다.</div>}
-          <p className="assistant-footnote">완료된 답변만 집계합니다. 리뷰는 리뷰 전체가 아니라 시작까지의 시간이고, 표본 5개 미만이면 p95는 —.</p>
         </section>
-      </div>
-
-      <div className="dashboard-rank-grid">
-        <BarList
-          title={`리뷰 모드 · 시작 ${fmt(reviews.started)}건`}
-          emptyLabel="대화에서 시작된 리뷰가 아직 없습니다."
-          rows={[
-            { key: 'fast', label: '빠른 리뷰', count: reviews.by_mode.fast },
-            { key: 'full', label: '정밀 리뷰', count: reviews.by_mode.full },
-          ]}
-        />
-        <section className="dashboard-rank-card">
-          <h3>리뷰 결과와 주장 검증</h3>
-          <p className="assistant-line">
-            완료 {fmt(reviews.outcomes.completed)} · 실패 {fmt(reviews.outcomes.failed)} · 진행 {fmt(reviews.outcomes.running)} · 알 수 없음 {fmt(reviews.outcomes.unknown)}
-          </p>
-          {reviews.mode_missing > 0 && (
-            <p className="assistant-footnote">모드 기록이 없는 옛 리뷰 {fmt(reviews.mode_missing)}건은 빠른 리뷰로 셉니다.</p>
-          )}
-          {verification.sessions_with_claims === 0 ? (
-            <div className="admin-empty">정밀 리뷰 검증 기록이 아직 없습니다</div>
-          ) : (
-            <p className="assistant-verify">
-              주장 {fmt(verification.claims)}개 중 확인 {fmt(verification.verified)}({pct(verification.verified_ratio)})
-              {' · '}부분 {fmt(verification.partially_verified)} · 미확인 {fmt(verification.unverified)} · 불일치 {fmt(verification.contradicted)}
-            </p>
-          )}
-          <p className="assistant-footnote">재시작 뒤에는 실패와 유실을 구분할 수 없어 '알 수 없음'으로 셉니다.</p>
-        </section>
-      </div>
-
-      <section className="dashboard-chart-card">
-        <div className="dashboard-card-heading">
-          <div><span>DAILY</span><h3>일별 대화와 실패</h3></div>
-          <p>KST 일자 기준</p>
-        </div>
-        {stats.daily.length > 0 ? (
-          <Chart
-            label="일별 대화 수 막대와 실패 수 선"
-            data={[
-              { type: 'bar', name: '대화', x: stats.daily.map((d) => d.date), y: stats.daily.map((d) => d.conversations), marker: { color: COLORS.bar } },
-              { type: 'scatter', mode: 'lines+markers', name: '실패', x: stats.daily.map((d) => d.date), y: stats.daily.map((d) => d.failed), line: { color: COLORS.fail, width: 2 }, marker: { color: COLORS.fail, symbol: 'x' } },
-            ]}
-          />
-        ) : <div className="admin-empty">아직 기록이 없습니다.</div>}
       </section>
-    </>
+    </div>
+  );
+}
+
+function ReviewBlock({ stats }: { stats: AdminConversationStats }) {
+  const { reviews } = stats;
+  const verification = reviews.verification;
+  return (
+    <div className="dashboard-rank-grid">
+      <BarList
+        title={`리뷰 모드 · 시작 ${fmt(reviews.started)}건`}
+        emptyLabel="대화에서 시작된 리뷰가 아직 없습니다."
+        rows={[
+          { key: 'fast', label: '빠른 리뷰', count: reviews.by_mode.fast },
+          { key: 'full', label: '정밀 리뷰', count: reviews.by_mode.full },
+        ]}
+      />
+      <section className="dashboard-rank-card">
+        <h3>리뷰 결과와 주장 검증</h3>
+        <p className="assistant-line">
+          완료 {fmt(reviews.outcomes.completed)} · 실패 {fmt(reviews.outcomes.failed)} · 진행 {fmt(reviews.outcomes.running)} · 알 수 없음 {fmt(reviews.outcomes.unknown)}
+        </p>
+        {reviews.mode_missing > 0 && (
+          <p className="assistant-footnote">모드 기록이 없는 옛 리뷰 {fmt(reviews.mode_missing)}건은 빠른 리뷰로 셉니다.</p>
+        )}
+        {verification.sessions_with_claims === 0 ? (
+          <div className="admin-empty">정밀 리뷰 검증 기록이 아직 없습니다</div>
+        ) : (
+          <p className="assistant-verify">
+            주장 {fmt(verification.claims)}개 중 확인 {fmt(verification.verified)}({pct(verification.verified_ratio)})
+            {' · '}부분 {fmt(verification.partially_verified)} · 미확인 {fmt(verification.unverified)} · 불일치 {fmt(verification.contradicted)}
+          </p>
+        )}
+        <p className="assistant-footnote">재시작 뒤에는 실패와 유실을 구분할 수 없어 '알 수 없음'으로 셉니다.</p>
+      </section>
+    </div>
   );
 }
 
@@ -320,6 +378,10 @@ function SoulBlock({ stats }: { stats: AdminSoulStats }) {
   );
 }
 
+const unavailableCopy = (usage: AdminLlmUsage) => (
+  usage.reason ? LEDGER_REASON_LABELS[usage.reason] ?? `사용량 원장을 읽을 수 없습니다 (${usage.reason})` : '사용량 원장이 없습니다'
+);
+
 function LlmBlock({ usage }: { usage: AdminLlmUsage }) {
   const unrecorded = usage.coverage?.unrecorded_stages ?? [];
   return (
@@ -328,9 +390,7 @@ function LlmBlock({ usage }: { usage: AdminLlmUsage }) {
         <p className="assistant-warn" role="note">일부 단계 미집계: {unrecorded.map((s) => STAGE_LABELS[s] ?? s).join(', ')}</p>
       )}
       {!usage.available ? (
-        <div className="admin-empty">
-          {usage.reason ? LEDGER_REASON_LABELS[usage.reason] ?? `사용량 원장을 읽을 수 없습니다 (${usage.reason})` : '사용량 원장이 없습니다'}
-        </div>
+        <div className="admin-empty">{unavailableCopy(usage)}</div>
       ) : (
         <>
           <div className="admin-stats-grid dashboard-stat-grid" role="group" aria-label="LLM 토큰 지표">
@@ -385,11 +445,18 @@ function LlmBlock({ usage }: { usage: AdminLlmUsage }) {
   );
 }
 
+/** Summary text for a details row: the numbers once loaded, a state word otherwise. */
+const rowSummary = <T,>(block: Block<T>, line: (data: T) => string) => (
+  block.data ? line(block.data) : block.error && !block.loading ? '불러오지 못했습니다' : '불러오는 중…'
+);
+
 /**
- * The conversational product at a glance: conversations, failures, review
- * modes, memory build-up and token use. Each source loads and fails on its own.
+ * The dashboard as one operations screen: a KPI strip, the daily chart beside
+ * intent mix and latency, then collapsed rows whose summary already carries the
+ * numbers. Each source loads and fails on its own; `legacy` is the old
+ * collection report, rendered as rows at the end.
  */
-export default function AdminAssistantReport() {
+export default function AdminAssistantReport({ legacy }: { legacy?: ReactNode }) {
   const [days, setDays] = useState<AdminWindowDays>(7);
   const conversations = useBlock(fetchAdminConversationStats, days);
   const souls = useBlock(fetchAdminSoulStats, days);
@@ -397,13 +464,14 @@ export default function AdminAssistantReport() {
   const win = conversations.data?.window;
 
   return (
-    <article className="admin-dashboard visits-report dashboard-report assistant-report" aria-labelledby="assistant-report-title">
-      <header className="visits-report-header dashboard-report-header">
-        <div className="visits-report-heading">
-          <span className="visits-report-kicker">CONVERSATIONS</span>
-          <h1 id="assistant-report-title">대화 운영 리포트</h1>
-          <p>{win ? `${kstDay(win.start)} — ${kstDay(win.end)} · ${win.timezone}` : '대화형 홈의 대화·리뷰·메모리·토큰 집계'}</p>
-        </div>
+    <article
+      className="admin-dashboard visits-report dashboard-report assistant-report"
+      aria-labelledby="assistant-report-title"
+      aria-busy={conversations.loading || souls.loading || llm.loading}
+    >
+      <header className="assistant-head">
+        <h1 id="assistant-report-title">대시보드</h1>
+        <span className="assistant-range">{win ? `${kstDay(win.start)} — ${kstDay(win.end)} · KST` : ''}</span>
         <div className="assistant-window" role="group" aria-label="조회 기간">
           {WINDOWS.map((w) => (
             <button type="button" key={w} aria-pressed={days === w} onClick={() => setDays(w)}>{w}일</button>
@@ -411,20 +479,43 @@ export default function AdminAssistantReport() {
         </div>
       </header>
 
-      <section className="visits-section dashboard-section">
-        <SectionHeading kicker="01 · CONVERSATIONS" title="대화와 실패" note="취소(새 메시지로 끊음)는 실패에서 뺍니다" />
-        <BlockState block={conversations} label="대화 통계">{(data) => <ConversationBlock stats={data} />}</BlockState>
-      </section>
+      <BlockError block={conversations} label="대화 통계" />
+      <BlockError block={souls} label="메모리 통계" />
+      <BlockError block={llm} label="LLM 사용량" />
 
-      <section className="visits-section dashboard-section">
-        <SectionHeading kicker="02 · MEMORY" title="메모리와 연구 프로필" note="건수만, 내용 없음" />
-        <BlockState block={souls} label="메모리 통계">{(data) => <SoulBlock stats={data} />}</BlockState>
-      </section>
+      <KpiStrip conversations={conversations} souls={souls} llm={llm} />
+      {conversations.data
+        ? <Overview stats={conversations.data} />
+        : !conversations.error && <div className="admin-loading">대화 통계 불러오는 중...</div>}
 
-      <section className="visits-section dashboard-section">
-        <SectionHeading kicker="03 · TOKENS" title="LLM 토큰" note="사용자·대화별 귀속 없음" />
-        <BlockState block={llm} label="LLM 사용량">{(data) => <LlmBlock usage={data} />}</BlockState>
-      </section>
+      <div className="admin-details-list">
+        <AdminDetailsRow
+          id="reviews"
+          title="리뷰 모드·검증"
+          summary={rowSummary(conversations, ({ reviews: r }) =>
+            `시작 ${fmt(r.started)} · 빠른 ${fmt(r.by_mode.fast)} · 정밀 ${fmt(r.by_mode.full)} · 검증 ${pct0(r.verification.verified_ratio)}`)}
+        >
+          {conversations.data && <ReviewBlock stats={conversations.data} />}
+        </AdminDetailsRow>
+        <AdminDetailsRow
+          id="souls"
+          title="메모리·연구 프로필"
+          summary={rowSummary(souls, ({ accounts, memories, profiles }) =>
+            `계정 ${fmt(accounts.with_memories)} · 메모리 ${fmt(memories.total)} · 프로필 ${fmt(profiles.total)} (24h 지남 ${fmt(profiles.stale_over_24h)})`)}
+        >
+          {souls.data && <SoulBlock stats={souls.data} />}
+        </AdminDetailsRow>
+        <AdminDetailsRow
+          id="llm"
+          title="LLM 사용량"
+          summary={rowSummary(llm, (u) => (u.available
+            ? `호출 ${fmt(u.totals.calls)} · 토큰 ${fmt(u.totals.prompt_tokens + u.totals.completion_tokens)}`
+            : unavailableCopy(u)))}
+        >
+          {llm.data && <LlmBlock usage={llm.data} />}
+        </AdminDetailsRow>
+        {legacy}
+      </div>
     </article>
   );
 }

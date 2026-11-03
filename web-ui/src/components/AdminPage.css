@@ -2248,41 +2248,52 @@
   background: rgba(15, 118, 110, 0.10);
 }
 
-/* ===== Dashboard: conversation report (sits above the legacy report) ===== */
-.assistant-report {
-  margin-bottom: 24px;
+/* ===== Dashboard: one-screen operations view ===== */
+.assistant-report.visits-report {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 18px 20px 20px;
 }
 
-.assistant-report .dashboard-report-header {
-  align-items: flex-end;
+.assistant-head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
-.assistant-report .dashboard-stat-grid {
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+.assistant-head h1 {
+  margin: 0;
+  color: var(--text-hi);
+  font-size: 18px;
+  font-weight: 750;
+  letter-spacing: -0.01em;
 }
 
-.assistant-report .dashboard-rank-grid,
-.assistant-report .dashboard-chart-card {
-  margin-top: 16px;
+.assistant-range {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
 }
 
 .assistant-window {
   display: inline-flex;
-  padding: 3px;
+  margin-left: auto;
+  padding: 2px;
   border: 1px solid var(--wov-10);
-  border-radius: 10px;
+  border-radius: 8px;
   background: var(--bg-input);
 }
 
 .assistant-window button {
-  min-height: 36px;
-  padding: 8px 13px;
+  min-height: 30px;
+  padding: 4px 12px;
   border: 0;
-  border-radius: 7px;
+  border-radius: 6px;
   background: transparent;
   color: var(--text-muted);
   font: inherit;
-  font-size: 12.5px;
+  font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -2293,23 +2304,218 @@
 }
 
 .assistant-window button:focus-visible,
-.assistant-table-scroll:focus-visible {
+.assistant-table-scroll:focus-visible,
+.admin-details-row > summary:focus-visible {
   outline: 2px solid var(--indigo);
   outline-offset: 2px;
 }
 
-.assistant-report [aria-busy="true"] {
+.assistant-report[aria-busy="true"] .assistant-kpis,
+.assistant-report[aria-busy="true"] .assistant-overview {
   opacity: 0.6;
 }
 
-.assistant-yesterday {
-  margin: 0 0 14px;
+/* KPI strip: one row of eight, 4 + 4 under 1200px. */
+.assistant-kpis {
+  display: grid;
+  grid-template-columns: repeat(8, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.assistant-kpi {
+  min-width: 0;
+  height: 88px;
+  margin: 0;
+  padding: 12px;
+  box-sizing: border-box;
+  border: 1px solid var(--wov-08);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.assistant-kpi p {
+  margin: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-kpi-label {
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.assistant-kpi-value {
+  margin-top: 4px !important;
   color: var(--text-hi);
-  font-size: 15px;
+  font-size: 22px;
+  font-weight: 750;
+  line-height: 28px;
+  font-variant-numeric: tabular-nums;
+}
+
+.assistant-kpi-hint {
+  margin-top: 2px !important;
+  color: var(--text-muted);
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Chart beside intent mix + latency, ~240px tall. */
+.assistant-overview {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 12px;
+}
+
+.assistant-panel {
+  min-width: 0;
+  height: 240px;
+  padding: 10px 12px;
+  box-sizing: border-box;
+  overflow: hidden;
+  border: 1px solid var(--wov-08);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.assistant-panel--split {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 16px;
+}
+
+.assistant-mini {
+  min-width: 0;
+}
+
+.assistant-mini h3 {
+  margin: 0 0 8px;
+  color: var(--text-hi);
+  font-size: 13px;
   font-weight: 700;
 }
 
-.assistant-activation,
+.assistant-mini-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  font-size: 12px;
+}
+
+.assistant-mini-bars li {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px;
+}
+
+.assistant-mini-label {
+  overflow: hidden;
+  color: var(--text-soft);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.assistant-mini-track {
+  display: block;
+  height: 5px;
+  overflow: hidden;
+  border-radius: 99px;
+  background: #eeedf3;
+}
+
+.assistant-mini-track > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: #4f46e5;
+}
+
+.assistant-mini-bars strong {
+  color: var(--text-hi);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Collapsed rows: the summary line carries the numbers. */
+.admin-details-list {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--wov-08);
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.admin-details-row + .admin-details-row {
+  border-top: 1px solid var(--wov-08);
+}
+
+.admin-details-row > summary {
+  display: flex;
+  align-items: baseline;
+  gap: 12px;
+  padding: 11px 14px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.admin-details-row > summary::-webkit-details-marker {
+  display: none;
+}
+
+.admin-details-row > summary::before {
+  content: '';
+  flex-shrink: 0;
+  align-self: center;
+  width: 0;
+  height: 0;
+  border-top: 4px solid transparent;
+  border-bottom: 4px solid transparent;
+  border-left: 6px solid var(--text-muted);
+  transition: transform 0.15s ease;
+}
+
+.admin-details-row[open] > summary::before {
+  transform: rotate(90deg);
+}
+
+.admin-details-title {
+  flex-shrink: 0;
+  color: var(--text-hi);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.admin-details-summary {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--text-muted);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.admin-details-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 4px 14px 16px;
+}
+
+.admin-details-body .dashboard-section {
+  padding: 0;
+}
+
+.admin-details-body .dashboard-context-strip {
+  margin: 0;
+}
+
 .assistant-line,
 .assistant-verify {
   margin: 0 0 10px;
@@ -2330,8 +2536,8 @@
 }
 
 .assistant-warn {
-  margin: 0 0 14px;
-  padding: 10px 14px;
+  margin: 0;
+  padding: 8px 12px;
   border-radius: 8px;
   background: #fef3c7;
   color: var(--amber);
@@ -2341,15 +2547,14 @@
 
 .assistant-block-error {
   display: flex;
-  flex-wrap: wrap;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 14px 16px;
+  padding: 6px 12px;
   border: 1px solid var(--wov-10);
-  border-radius: 12px;
+  border-radius: 8px;
   color: var(--danger-strong);
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .assistant-bar-item {
@@ -2357,8 +2562,8 @@
 }
 
 .assistant-fail-badge {
-  margin-left: 8px;
-  padding: 1px 7px;
+  margin-left: 6px;
+  padding: 0 6px;
   border-radius: 10px;
   background: rgba(185, 28, 28, 0.08);
   color: var(--danger-strong);
@@ -2374,13 +2579,13 @@
 .assistant-table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 12.5px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
 }
 
 .assistant-table th,
 .assistant-table td {
-  padding: 8px 10px;
+  padding: 4px 6px;
   border-bottom: 1px solid var(--wov-08);
   text-align: right;
   white-space: nowrap;
@@ -2421,20 +2626,79 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Legacy collection metrics, demoted below the conversation report. */
-.dashboard-legacy summary {
-  cursor: pointer;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 600;
+@media (max-width: 1200px) {
+  .assistant-kpis {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 900px) {
+  .assistant-overview,
+  .assistant-panel--split {
+    grid-template-columns: 1fr;
+  }
+
+  .assistant-panel {
+    height: auto;
+  }
 }
 
 @media (max-width: 640px) {
-  .assistant-report .dashboard-report-header {
-    align-items: flex-start;
+  .assistant-head {
+    flex-wrap: wrap;
+  }
+
+  .assistant-kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .assistant-window button {
     min-height: 44px;
   }
+
+  .admin-details-row > summary {
+    flex-wrap: wrap;
+    gap: 4px 12px;
+  }
+
+  .admin-details-summary {
+    white-space: normal;
+  }
+}
+
+/* Visits tab: the sample funnel as one inline line over a 12px table. */
+.visits-funnel-inline {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  margin: 0 0 10px;
+  color: var(--text-soft);
+  font-size: 12.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.visits-funnel-inline strong {
+  color: var(--text-hi);
+  font-size: 15px;
+}
+
+.visits-funnel-inline small {
+  margin-left: 4px;
+  color: var(--text-muted);
+  font-size: 11px;
+}
+
+.visits-funnel-arrow {
+  margin-right: 10px;
+  color: var(--text-faint);
+}
+
+.visits-table--compact {
+  font-size: 12px;
+}
+
+.visits-table--compact th,
+.visits-table--compact td {
+  padding-block: 5px;
 }
