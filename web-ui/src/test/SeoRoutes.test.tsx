@@ -299,6 +299,11 @@ Content after the formula.`,
     expect(document.head.querySelectorAll('link[rel="alternate"]')).toHaveLength(3);
     const graph = JSON.parse(document.querySelector('script#seo-json-ld')?.textContent || '{}');
     expect(graph['@graph'].some((node: Record<string, unknown>) => node['@type'] === 'AboutPage')).toBe(true);
+    expect(graph['@graph'].some((node: Record<string, unknown>) => node['@type'] === 'FAQPage')).toBe(true);
+    expect(document.querySelectorAll('main')).toHaveLength(1);
+    expect(document.getElementById('claude')).not.toBeNull();
+    expect(screen.getByText('How are claims in an AI paper review verified?')).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: 'See a sample answer' })[0]).toHaveAttribute('href', '/samples/graphrag-vs-rag');
   });
 
   it('serves a separately indexable Korean introduction route', async () => {
@@ -328,6 +333,15 @@ Content after the formula.`,
     const graph = JSON.parse(document.querySelector('script#seo-json-ld')?.textContent || '{}');
     const about = graph['@graph'].find((node: Record<string, unknown>) => node['@type'] === 'AboutPage');
     expect(about.inLanguage).toBe('ko');
+    expect(graph['@graph'].some((node: Record<string, unknown>) => node['@type'] === 'FAQPage')).toBe(true);
+    // One <main>, the #claude anchor llms.txt links to, the truthful FAQ, and the two CTAs.
+    expect(document.querySelectorAll('main')).toHaveLength(1);
+    expect(document.getElementById('claude')).not.toBeNull();
+    expect(screen.getByText(/^정밀 리뷰에서 검증합니다\./)).toBeInTheDocument();
+    expect(screen.getAllByRole('link', { name: '무료로 물어보기' })[0]).toHaveAttribute('href', '/');
+    expect(screen.getAllByRole('link', { name: '샘플 답변 보기' })[0]).toHaveAttribute('href', '/samples/graphrag-vs-rag');
+    expect(screen.queryByText(/검색은 바로 시작할 수 있습니다/)).not.toBeInTheDocument();
+    expect(screen.getByRole('region', { name: '집현전 샘플 답변' })).toHaveTextContent('GraphRAG가 기존 RAG보다 나은 경우는 언제야?');
   });
 
   it('supports BlogPage slug mode without first loading the list', async () => {

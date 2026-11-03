@@ -9,6 +9,7 @@ import {
   type BlogPaperReference,
 } from '../utils/blogPaperReference';
 import { BLOG_SERIES, seriesOf } from './series';
+import { INTRODUCE_FAQ } from './introduceFaq';
 
 export const SITE_URL = 'https://jiphyeonjeon.kr';
 export const OG_DEFAULT_IMAGE = `${SITE_URL}/og-default.jpg`;
@@ -97,15 +98,64 @@ export function websiteNode(): Record<string, unknown> {
 }
 
 /** WebApplication node describing what the product actually does (GEO). */
+/** Kept identical to the WebApplication node in web-ui/index.html (structuredData.test checks). */
+export const APP_DESCRIPTION =
+  'Conversational AI research assistant for academic papers: answers with numbered citations '
+  + 'to papers found across scholarly sources, a fast deep review, and source-grounded claim '
+  + 'verification in a full review.';
+
+export const APP_FEATURES = [
+  'Ask about papers in plain language, in a saved conversation',
+  'Academic paper search across six configured scholarly sources',
+  'Answers with numbered citations to the papers they draw on',
+  'Relation graph and result list for every search',
+  'PDF reader with automatic key-sentence highlights',
+  'Fast deep review, and full review with source-grounded claim verification',
+  'Sample answers readable without sign-in',
+  'Study curriculum builder and citation graph explorer',
+];
+
+/** The introduce pages' title and description, shared by App's SEOHead and the AboutPage node. */
+export const INTRODUCE_META = {
+  en: {
+    title: 'AI Paper Search & Review | About Jiphyeonjeon',
+    description:
+      'Jiphyeonjeon is an AI research assistant for papers: ask a question, get an answer '
+      + 'numbered with the papers it came from across six scholarly sources, and check '
+      + 'important claims against the source in a full review.',
+  },
+  ko: {
+    title: 'AI 논문 검색·리뷰 도구 | 집현전 소개',
+    description:
+      '집현전은 논문에 대해 묻고 답을 받는 AI 연구 도우미입니다. 여섯 개 학술 출처에서 찾은 논문을 '
+      + '번호로 달아 답하고, 정밀 리뷰에서 중요한 주장을 원문과 대조합니다.',
+  },
+} as const;
+
+/** FAQPage for the visible introduce FAQ; the text is the rendered text, word for word. */
+export function faqPageNode(locale: 'en' | 'ko'): Record<string, unknown> {
+  const url = locale === 'ko' ? INTRODUCE_KO_URL : INTRODUCE_URL;
+  return {
+    '@type': 'FAQPage',
+    '@id': `${url}#faq`,
+    url,
+    inLanguage: locale,
+    isPartOf: { '@id': `${url}#about` },
+    mainEntity: INTRODUCE_FAQ[locale].map(item => ({
+      '@type': 'Question',
+      name: item.question,
+      acceptedAnswer: { '@type': 'Answer', text: item.answer },
+    })),
+  };
+}
+
 export function softwareApplicationNode(): Record<string, unknown> {
   return {
     '@type': 'WebApplication',
     '@id': `${SITE_URL}/#app`,
     name: 'Jiphyeonjeon',
     url: SITE_URL,
-    description:
-      'AI research tool for academic paper search, multi-paper comparison, '
-      + 'deep review, source-grounded claim verification, and follow-up reading.',
+    description: APP_DESCRIPTION,
     applicationCategory: 'EducationalApplication',
     operatingSystem: 'Web',
     browserRequirements: 'Requires JavaScript. Works in a modern web browser.',
@@ -114,13 +164,7 @@ export function softwareApplicationNode(): Record<string, unknown> {
       '@type': 'EducationalAudience',
       audienceType: ['Researchers', 'Graduate students', 'Research engineers'],
     },
-    featureList: [
-      'Academic paper search across six configured scholarly sources',
-      'Multi-paper AI comparison and deep review',
-      'Source-grounded claim verification',
-      'Study curriculum builder',
-      'Citation graph explorer',
-    ],
+    featureList: APP_FEATURES,
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'USD' },
     publisher: { '@id': ORG_ID },
     sameAs: ['https://github.com/KimJiSeong1994/PaperReview'],
@@ -138,12 +182,7 @@ export function homeGraph(): Record<string, unknown> {
 export function introduceGraph(locale: 'en' | 'ko' = 'en'): Record<string, unknown> {
   const isKorean = locale === 'ko';
   const url = isKorean ? INTRODUCE_KO_URL : INTRODUCE_URL;
-  const title = isKorean
-    ? 'AI 논문 검색·리뷰 도구 | 집현전 소개'
-    : 'AI Paper Search & Review | About Jiphyeonjeon';
-  const description = isKorean
-    ? '집현전은 여러 학술 소스에서 논문을 검색하고, 여러 논문을 AI로 비교·리뷰한 뒤 핵심 주장을 원문 근거와 대조하는 연구 도구입니다.'
-    : 'Jiphyeonjeon searches scholarly sources, compares papers in an AI deep review, and checks important claims against source passages before guiding the next read.';
+  const { title, description } = INTRODUCE_META[locale];
   return {
     '@context': 'https://schema.org',
     '@graph': [
@@ -180,6 +219,7 @@ export function introduceGraph(locale: 'en' | 'ko' = 'en'): Record<string, unkno
           },
         ],
       },
+      faqPageNode(locale),
     ],
   };
 }
