@@ -14,7 +14,7 @@
 ---
 
 <div align="center">
-  <img src="docs/images/jiphyeonjeon-home.jpg" alt="Jiphyeonjeon home — ask about papers and read a sample answer" width="900" />
+  <img src="docs/images/jiphyeonjeon-home.gif" alt="Jiphyeonjeon home walkthrough — sample questions, a cited answer, and the conversation page with its graph panel" width="900" />
 </div>
 
 ---
