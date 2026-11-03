@@ -1008,15 +1008,25 @@ function AdminVisitsReport() {
 
       <Section
         title="샘플 대화"
-        tip="비로그인 샘플이 대화로 이어지는지 봅니다. 홈 카드 조회와 샘플 페이지 조회 → 이어서 묻기 클릭 → 대화 시작 순서의 세션 퍼널이며, 로그인 단계는 퍼널에 넣지 않습니다."
-        note="분석 동의 사용자만 집계(하한값). 퍼널 첫 단계에는 홈이 기본으로 보여 주는 첫 샘플 노출이 포함되고, 표의 조회·CTA 율은 카드 클릭과 샘플 페이지만 셉니다."
+        tip="비로그인 샘플이 대화로 이어지는지 봅니다. 샘플 노출 → 이어서 묻기 클릭 → 대화 시작 순서의 세션 퍼널이며, 로그인 단계는 넣지 않습니다. 분석 동의 사용자만 집계해 하한값입니다. 퍼널 첫 단계에는 홈이 기본으로 보여 주는 첫 샘플 노출이 포함되고, 표의 조회·CTA 율은 카드 클릭과 샘플 페이지만 셉니다."
+        note="동의 사용자만(하한값) · 퍼널은 홈 기본 노출 포함, 표는 카드 클릭+페이지만"
       >
-        {sampleFunnel && <FunnelChart funnel={sampleFunnel} />}
-        {sampleRows.length === 0 ? (
-          <EmptyState>공개 샘플이나 샘플 이벤트가 아직 없습니다.</EmptyState>
-        ) : (
-          <Card>
-            <table className="visits-table">
+        <Card>
+          {sampleFunnel && (
+            <p className="visits-funnel-inline" aria-label={sampleFunnel.label}>
+              {sampleFunnel.steps.map((step, i) => (
+                <span key={step.event}>
+                  {i > 0 && <span className="visits-funnel-arrow" aria-hidden="true">→</span>}
+                  {EVENT_LABELS[step.event] ?? step.event} <strong>{fmt(step.count)}</strong>
+                  {i > 0 && <small>{sampleFunnel.steps[0].count ? pct(step.rate) : '—'}</small>}
+                </span>
+              ))}
+            </p>
+          )}
+          {sampleRows.length === 0 ? (
+            <EmptyState>공개 샘플이나 샘플 이벤트가 아직 없습니다.</EmptyState>
+          ) : (
+            <table className="visits-table visits-table--compact">
               <thead>
                 <tr>
                   <th>샘플</th>
@@ -1043,8 +1053,8 @@ function AdminVisitsReport() {
                 })}
               </tbody>
             </table>
-          </Card>
-        )}
+          )}
+        </Card>
       </Section>
 
       <Section

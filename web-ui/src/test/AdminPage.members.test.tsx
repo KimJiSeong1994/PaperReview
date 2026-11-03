@@ -242,12 +242,12 @@ describe('AdminPage — Members tab wiring', () => {
 });
 
 describe('AdminPage — dashboard tab', () => {
-  it('puts the conversation report above the legacy dashboard and loads its three sources', async () => {
+  it('renders one dashboard with the legacy rows inside it, after its own, and loads its three sources', async () => {
     renderPage();
 
     const legacy = await screen.findByTestId('dashboard-report');
-    const conversation = await screen.findByRole('heading', { name: '대화 운영 리포트' });
-    expect(conversation.compareDocumentPosition(legacy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    const dashboard = screen.getByRole('heading', { level: 1, name: '대시보드' }).closest('article')!;
+    expect(dashboard.querySelector('.admin-details-list')!.lastElementChild).toBe(legacy);
     await waitFor(() => {
       expect(fetchAdminConversationStats).toHaveBeenCalledWith(7, expect.any(AbortSignal));
       expect(fetchAdminSoulStats).toHaveBeenCalledWith(7, expect.any(AbortSignal));

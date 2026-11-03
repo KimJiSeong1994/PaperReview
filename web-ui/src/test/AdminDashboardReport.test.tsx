@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { fireEvent, render, screen } from '@testing-library/react';
 import AdminDashboardReport from '../components/AdminDashboardReport';
 import type { AdminDashboard } from '../api/client';
 
@@ -47,29 +47,48 @@ const STATS: AdminDashboard = {
   },
 };
 
+// jsdom's localStorage is broken in this setup; the rows read/write open state through this shim.
+beforeEach(() => {
+  const store: Record<string, string> = {};
+  vi.stubGlobal('localStorage', {
+    getItem: (key: string) => store[key] ?? null,
+    setItem: (key: string, value: string) => { store[key] = String(value); },
+  });
+});
+afterEach(() => vi.unstubAllGlobals());
+
+const row = (title: string) => screen.getByText(title, { selector: '.admin-details-title' }).closest('details') as HTMLDetailsElement;
+const openRow = (title: string) => fireEvent.click(row(title).querySelector('summary')!);
+const openAll = () => ['콘텐츠·지식 그래프 (레거시)', '수집 기여·분류', '최근 들어온 논문'].forEach(openRow);
+
 describe('AdminDashboardReport', () => {
-  it('renders the conclusion-first report and every operational chapter', async () => {
+  it('renders three collapsed rows whose summaries carry the numbers, without the sentence cards', () => {
     render(<AdminDashboardReport stats={STATS} />);
 
-    expect(screen.getByRole('heading', { name: '콘텐츠 자산 (레거시 수집 지표)' })).toBeInTheDocument();
-    // Demoted: the cumulative insight cards sit in a closed native disclosure.
-    expect(screen.getByText('누적 요약 펼치기').closest('details')).not.toHaveAttribute('open');
-    expect(screen.getByRole('heading', { name: '현재 운영 상태를 한 문장씩 읽어보세요' })).toBeInTheDocument();
-    expect(screen.getByText('128명 등록 · 8,420편 보유')).toBeInTheDocument();
-    expect(screen.getByText('386개 저장 · 146개 리뷰 작업')).toBeInTheDocument();
-    expect(screen.getByText('12,450개 노드 · 32,780개 연결')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '콘텐츠와 지식 그래프' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '수집 기여와 분류' })).toBeInTheDocument();
-    expect(screen.getByText('최근 리뷰 작업')).toBeInTheDocument();
+    expect(row('콘텐츠·지식 그래프 (레거시)').open).toBe(false);
+    expect(row('수집 기여·분류').open).toBe(false);
+    expect(row('최근 들어온 논문').open).toBe(false);
+    expect(screen.getByText('회원 128 · 논문 8,420 · 북마크 386')).toBeInTheDocument();
+    expect(screen.getByText(/^쿼리 1 · 분야 1/)).toBeInTheDocument();
+    expect(screen.getByText(`1편 · 최근 수집 ${new Date('2026-07-18T03:15:00Z').toLocaleDateString('ko-KR')}`)).toBeInTheDocument();
+    expect(screen.queryByText('현재 운영 상태를 한 문장씩 읽어보세요')).toBeNull();
+    expect(screen.queryByTestId('plot')).toBeNull();
+  });
+
+  it('shows the unchanged legacy content once the rows are opened', async () => {
+    render(<AdminDashboardReport stats={STATS} />);
+    openAll();
+
+    // details fires toggle as a queued task, so the bodies appear after a tick.
+    expect(await screen.findByText('최근 리뷰 작업')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '논문 수집 기여 쿼리 · 논문 수' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '최근 들어온 논문' })).toBeInTheDocument();
     expect(screen.getByText('dynamic word embeddings')).toBeInTheDocument();
     expect(screen.getByText('Natural Language Processing')).toBeInTheDocument();
     expect(screen.getByText('Systematic Evaluation of Lexical Semantic Change')).toBeInTheDocument();
     expect(await screen.findAllByTestId('plot')).toHaveLength(2);
   });
 
-  it('shows clear empty states without losing the report structure', () => {
+  it('shows clear empty states without losing the report structure', async () => {
     render(<AdminDashboardReport stats={{
       ...STATS,
       papers_by_source: [],
@@ -78,8 +97,9 @@ describe('AdminDashboardReport', () => {
       top_categories: [],
       recent_papers: [],
     }} />);
+    openAll();
 
-    expect(screen.getByText('수집원 데이터가 없습니다.')).toBeInTheDocument();
+    expect(await screen.findByText('수집원 데이터가 없습니다.')).toBeInTheDocument();
     expect(screen.getByText('연도별 데이터가 없습니다.')).toBeInTheDocument();
     expect(screen.getByText('수집 쿼리 데이터가 없습니다.')).toBeInTheDocument();
     expect(screen.getByText('분류 데이터가 없습니다.')).toBeInTheDocument();

@@ -438,23 +438,26 @@ export default function AdminPage() {
         )}
 
         {/* Dashboard Tab */}
-        {/* Conversation report loads on its own, so a slow legacy dashboard never hides it. */}
+        {/* One screen: the conversation report owns the layout; the legacy collection
+            report rides at its end as collapsed rows and loads on its own. */}
         {activeTab === 'dashboard' && (
-          <Suspense fallback={<div className="admin-loading">대화 리포트 로딩 중...</div>}>
-            <AdminAssistantReport />
-          </Suspense>
-        )}
-        {activeTab === 'dashboard' && dashboardLoading && (
-          <div className="admin-loading">Loading dashboard...</div>
-        )}
-        {activeTab === 'dashboard' && dashboardError && (
-          <div className="admin-loading" style={{ color: 'var(--danger-strong)' }}>
-            Error: {dashboardError}
-          </div>
-        )}
-        {activeTab === 'dashboard' && stats && (
-          <Suspense fallback={<div className="admin-loading">Loading dashboard report...</div>}>
-            <AdminDashboardReport stats={stats} />
+          <Suspense fallback={<div className="admin-loading">대시보드 로딩 중...</div>}>
+            <AdminAssistantReport
+              legacy={
+                stats ? (
+                  <Suspense fallback={<div className="admin-loading">레거시 지표 로딩 중...</div>}>
+                    <AdminDashboardReport stats={stats} />
+                  </Suspense>
+                ) : dashboardError ? (
+                  <div className="assistant-block-error" role="alert">
+                    <span>레거시 지표를 불러오지 못했습니다 · {dashboardError}</span>
+                    <button type="button" className="admin-action-btn" onClick={loadDashboard}>다시 시도</button>
+                  </div>
+                ) : dashboardLoading ? (
+                  <div className="admin-loading">레거시 지표 불러오는 중...</div>
+                ) : null
+              }
+            />
           </Suspense>
         )}
 
