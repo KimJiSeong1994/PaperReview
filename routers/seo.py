@@ -2082,11 +2082,13 @@ async def llms_txt() -> Response:
     blog_section = "\n\n".join(cat_sections)
     key_pages = "\n".join(
         [
-            f"- [Home / Search]({SITE_URL}/): paper search interface",
-            f"- [About Jiphyeonjeon — English]({SITE_URL}/introduce/): AI paper search, "
-            "multi-paper review, source-grounded claim verification, and access details",
-            f"- [집현전 소개 — 한국어]({SITE_URL}/ko/introduce/): AI 논문 검색, "
-            "다중 논문 리뷰, 원문 근거 검증과 이용 방법",
+            f"- [Home]({SITE_URL}/): ask about papers in a conversation; answers cite "
+            "their sources, and sample answers are open without sign-in",
+            f"- [About Jiphyeonjeon — English]({SITE_URL}/introduce/): conversational paper "
+            "search, numbered citations, fast and full review with claim verification, "
+            "and the Claude extension",
+            f"- [집현전 소개 — 한국어]({SITE_URL}/ko/introduce/): 대화형 논문 검색, "
+            "번호 인용, 빠른·정밀 리뷰(주장 검증), Claude 확장",
             f"- [Blog]({SITE_URL}/blog): research notes and write-ups",
             *key_page_cats,
         ]
