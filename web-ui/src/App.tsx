@@ -7,7 +7,7 @@ import SEOHead from './components/SEOHead';
 import SiteFooter from './components/SiteFooter';
 import ThemeToggle from './components/ThemeToggle';
 import { useAuth } from './contexts/AuthContext';
-import { INTRODUCE_KO_URL, INTRODUCE_URL, OG_DEFAULT_IMAGE, introduceGraph } from './seo/structuredData';
+import { INTRODUCE_KO_URL, INTRODUCE_META, INTRODUCE_URL, OG_DEFAULT_IMAGE, introduceGraph } from './seo/structuredData';
 import { preloadBlogPage } from './utils/blogPageLoader';
 
 const MyPage = lazy(() => import('./components/MyPage'));
@@ -26,10 +26,9 @@ const SampleConversationPage = lazy(() => import('./components/conversation/Samp
 
 const HOME_TITLE = 'AI 논문 검색·리뷰 도구 | 집현전';
 const HOME_DESCRIPTION = '집현전은 여러 학술 소스의 AI 논문 검색, 다중 논문 비교·딥리뷰, 원문 근거 검증, 인용 그래프와 다음 읽기를 한곳에서 잇는 연구 도구입니다.';
-const INTRODUCE_TITLE = 'AI Paper Search & Review | About Jiphyeonjeon';
-const INTRODUCE_DESCRIPTION = 'Jiphyeonjeon searches across scholarly sources, compares papers in an AI deep review, and checks important claims against source passages before guiding the next read.';
-const INTRODUCE_KO_TITLE = 'AI 논문 검색·리뷰 도구 | 집현전 소개';
-const INTRODUCE_KO_DESCRIPTION = '집현전은 여러 학술 소스에서 논문을 검색하고, 여러 논문을 AI로 비교·리뷰한 뒤 핵심 주장을 원문 근거와 대조하는 연구 도구입니다.';
+// One copy of the introduce pages' title and description, shared with the AboutPage JSON-LD.
+const { title: INTRODUCE_TITLE, description: INTRODUCE_DESCRIPTION } = INTRODUCE_META.en;
+const { title: INTRODUCE_KO_TITLE, description: INTRODUCE_KO_DESCRIPTION } = INTRODUCE_META.ko;
 const SITE_URL = 'https://jiphyeonjeon.kr';
 const INTRODUCE_JSON_LD = introduceGraph();
 const INTRODUCE_KO_JSON_LD = introduceGraph('ko');

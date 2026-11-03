@@ -26,7 +26,7 @@ describe('SiteFooter', () => {
   it('links to search, the blog shelves and the maintainer profiles', () => {
     renderFooter();
     const href = (name: string) => screen.getByRole('link', { name }).getAttribute('href');
-    expect(href('논문 검색')).toBe('/');
+    expect(href('논문 물어보기')).toBe('/');
     expect(href('전체 아티클')).toBe('/blog');
     expect(href('아티클 시리즈')).toBe('/blog#series-index');
     expect(href('태그 전체 보기')).toBe('/blog/tags');
@@ -38,7 +38,7 @@ describe('SiteFooter', () => {
     renderFooter();
     // A router <Link> renders a plain in-app href with no target, so clicking
     // it navigates without a full reload; the profile links must not.
-    for (const name of ['논문 검색', '전체 아티클', '아티클 시리즈', '태그 전체 보기', '서비스 소개']) {
+    for (const name of ['논문 물어보기', '전체 아티클', '아티클 시리즈', '태그 전체 보기', '서비스 소개']) {
       const link = screen.getByRole('link', { name });
       expect(link.getAttribute('href')?.startsWith('/')).toBe(true);
       expect(link.getAttribute('target')).toBeNull();

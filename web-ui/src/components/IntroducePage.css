@@ -1,337 +1,437 @@
+/* The introduce pages: the same 1120px page width and gutters as the guest home (.home-guest),
+   and the same pill, mascot tile and card language, so the two landings read as one product. */
 .introduce-shell {
   overflow: hidden;
 }
 
 .introduce-page {
-  width: 100%;
+  box-sizing: content-box;
   max-width: 1120px;
   margin: 0 auto;
-  padding: 54px 20px 88px;
+  padding: 48px 24px 0;
+  /* Copies of the home's .home-shell values; HomeWorkspace.css is not imported here. */
+  --intro-line: 1px solid var(--wov-08);
+  --intro-ease: 160ms ease;
+  --intro-header: 70px;
+  /* Korean breaks at spaces and punctuation only; long English tokens may still wrap. */
+  word-break: keep-all;
+  overflow-wrap: anywhere;
 }
 
+/* ── Hero: question and CTAs on the left, a real sample answer on the right ── */
 .introduce-hero {
   display: grid;
-  gap: 34px;
+  grid-template-columns: minmax(0, 460px) minmax(0, 620px);
+  justify-content: center;
+  /* The copy column is shorter than the sample card; centre it instead of leaving a hole below. */
   align-items: center;
+  column-gap: 40px;
+  row-gap: 32px;
 }
 
 .introduce-hero-copy {
-  max-width: 680px;
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+  min-width: 0;
 }
 
-.introduce-eyebrow {
-  margin: 0 0 16px;
+.intro-cta-group {
+  display: grid;
+  gap: 12px;
+}
+
+.introduce-pill {
+  display: inline-flex;
+  align-self: flex-start;
+  margin: 0;
+  padding: 3px 10px;
+  border: 1px solid var(--wov-12);
+  border-radius: 999px;
+  background: var(--ibd-12);
   color: var(--indigo);
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.04em;
-  line-height: 1.55;
+  font-size: 12px;
+  font-weight: 600;
 }
 
 .introduce-title {
   margin: 0;
   color: var(--text-hi);
-  font-size: clamp(34px, 7.6vw, 58px);
-  font-weight: 720;
-  letter-spacing: -0.045em;
-  line-height: 1.12;
-  word-break: keep-all;
+  font-size: clamp(30px, 2.6vw, 40px);
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  line-height: 1.18;
 }
 
 .introduce-title span {
   display: block;
-  color: var(--text-soft);
+  color: var(--indigo);
+}
+
+.introduce-mascot {
+  display: flex;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+/* MascotFace's own styles live with the home; the tile and avatar here are styled locally. */
+.introduce-face,
+.introduce-sample-face {
+  display: inline-flex;
+  flex-shrink: 0;
+}
+
+.introduce-face img,
+.introduce-sample-face img {
+  display: block;
+  object-fit: cover;
+  background: color-mix(in srgb, var(--indigo) 10%, transparent);
+  box-shadow: 0 0 0 1px var(--wov-12);
+}
+
+.introduce-face img {
+  border-radius: 20px;
+}
+
+.introduce-sample-face img {
+  border-radius: 50%;
 }
 
 .introduce-lead {
-  max-width: 43rem;
-  margin: 22px 0 0;
+  margin: 0;
   color: var(--text-soft);
-  font-size: 16px;
-  line-height: 1.9;
-  word-break: keep-all;
+  font-size: 15px;
+  line-height: 1.75;
 }
 
 .introduce-cta {
   display: flex;
   flex-wrap: wrap;
-  gap: 10px;
-  margin-top: 28px;
+  gap: 12px;
 }
 
-.introduce-btn {
+/* The home's .home-btn (black/white primary, outline secondary), 44px tall for touch. */
+.intro-btn {
   display: inline-flex;
-  min-height: 44px;
   align-items: center;
   justify-content: center;
-  padding: 10px 18px;
+  gap: 8px;
+  min-height: 44px;
+  padding: 0 20px;
   border: 1px solid transparent;
-  border-radius: 9px;
-  background: var(--indigo-mid);
+  border-radius: 8px;
+  background: var(--text-hi);
   color: var(--bg);
-  cursor: pointer;
-  font-family: inherit;
-  font-size: 14px;
-  font-weight: 650;
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
   text-decoration: none;
-  transition: opacity 0.2s, border-color 0.2s, color 0.2s, transform 0.2s;
+  transition: opacity var(--intro-ease), border-color var(--intro-ease), background var(--intro-ease);
 }
 
-.introduce-btn:hover {
-  opacity: 0.9;
-  transform: translateY(-1px);
+.intro-btn:hover {
+  opacity: 0.88;
 }
 
-.introduce-btn:focus-visible,
-.introduce-index a:focus-visible {
-  outline: 2px solid var(--indigo);
-  outline-offset: 3px;
-}
-
-.introduce-btn--ghost {
+.intro-btn--ghost {
   border-color: var(--wov-15);
   background: transparent;
-  color: var(--text-soft);
+  color: var(--text-hi);
 }
 
-.introduce-btn--ghost:hover {
-  border-color: var(--ibd-40);
-  color: var(--indigo);
+.intro-btn--ghost:hover {
   opacity: 1;
+  border-color: var(--wov-20);
+  background: var(--wov-04);
+}
+
+/* One focus ring for every control on the page. */
+.introduce-page :focus-visible {
+  outline: 2px solid var(--indigo-mid);
+  outline-offset: 2px;
+  border-radius: 4px;
 }
 
 .introduce-hero-note {
-  margin: 14px 0 0;
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+}
+
+/* The home's .home-eyebrow: a small muted line after an indigo dot. */
+.intro-eyebrow {
+  margin: 0;
+  color: var(--text-muted);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 20px;
+}
+
+.intro-eyebrow::before {
+  content: '';
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  vertical-align: 2px;
+  border-radius: 50%;
+  background: var(--indigo);
+}
+
+.intro-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 22px;
+  margin: 0;
+  padding: 0 8px;
+  border: var(--intro-line);
+  border-radius: 999px;
+  background: var(--wov-04);
+  color: var(--text-soft);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+  white-space: nowrap;
+}
+
+.intro-chip--accent {
+  border-color: var(--ibd-18);
+  background: var(--ibd-12);
+  color: var(--indigo);
+}
+
+/* ── Sample answer card (static excerpt, styled like the home replay card) ── */
+.introduce-sample {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: var(--intro-line);
+  border-radius: 16px;
+  background: var(--bg-elev);
+  box-shadow: var(--card-shadow);
+  overflow: hidden;
+}
+
+.introduce-sample-head {
+  padding: 16px 20px;
+  border-bottom: var(--intro-line);
+}
+
+.introduce-sample-title {
+  margin: 0;
+  color: var(--text-hi);
+  font-size: 15px;
+  font-weight: 700;
+}
+
+.introduce-sample-meta {
+  margin: 2px 0 0;
   color: var(--text-muted);
   font-size: 12.5px;
-  line-height: 1.65;
-  word-break: keep-all;
 }
 
-.introduce-hero-art {
-  position: relative;
-  min-height: 0;
-  overflow: hidden;
-  aspect-ratio: 3 / 2;
-  border: 1px solid var(--wov-08);
-  border-radius: 18px;
-  background-color: var(--bg-elev);
-  background-image:
-    linear-gradient(180deg, transparent 54%, rgba(8, 8, 8, 0.76) 100%),
-    image-set(
-      url('/introduce-hanok-night.avif') type('image/avif'),
-      url('/introduce-hanok-night.webp') type('image/webp'),
-      url('/introduce-hanok-night.png') type('image/png')
-    ),
-    radial-gradient(circle at 18% 20%, rgba(255, 255, 255, 0.14) 0 1px, transparent 1.5px),
-    radial-gradient(circle at 76% 28%, rgba(255, 255, 255, 0.16) 0 1px, transparent 1.5px);
-  background-position: center, center, 0 0, 0 0;
-  background-repeat: no-repeat, no-repeat, repeat, repeat;
-  background-size: 100% 100%, cover, 150px 120px, 210px 165px;
-  box-shadow: inset 0 1px 0 var(--wov-04);
-}
-
-.introduce-art-sequence {
-  position: absolute;
-  top: 16px;
-  left: 16px;
+.introduce-sample-body {
   display: flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 10px;
-  border: 1px solid var(--wov-08);
-  border-radius: 999px;
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  backdrop-filter: blur(8px);
-  color: var(--text-muted);
-  font-size: 10.5px;
-  font-weight: 650;
+  flex-direction: column;
+  gap: 18px;
+  padding: 20px;
 }
 
-.introduce-art-sequence i {
-  color: var(--indigo);
-  font-style: normal;
-}
-
-.introduce-proof {
-  display: grid;
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-  margin: 34px 0 0;
-  border-top: 1px solid var(--wov-08);
-  border-bottom: 1px solid var(--wov-08);
-}
-
-.introduce-proof-item {
-  min-width: 0;
-  padding: 20px 14px;
-  border-left: 1px solid var(--wov-08);
-}
-
-.introduce-proof-item:first-child {
-  border-left: 0;
-}
-
-.introduce-proof dt {
+.introduce-sample-question {
+  align-self: flex-end;
+  max-width: min(85%, 460px);
   margin: 0;
-  color: var(--text-strong);
-  font-size: 20px;
-  font-weight: 700;
-  letter-spacing: -0.025em;
+  padding: 10px 16px;
+  border-radius: 12px 12px 4px 12px;
+  background: var(--ibd-12);
+  color: var(--text-hi);
+  font-size: 14.5px;
+  line-height: 1.6;
 }
 
-.introduce-proof dd {
-  margin: 5px 0 0;
-  color: var(--text-muted);
-  font-size: 12px;
-  line-height: 1.55;
-  word-break: keep-all;
-}
-
-.introduce-proof-note {
-  max-width: 78ch;
-  margin: 14px 0 0;
-  color: var(--text-faint);
-  font-size: 11.5px;
-  line-height: 1.7;
-  word-break: keep-all;
-}
-
-.introduce-index {
+.introduce-sample-answer {
   display: flex;
   flex-direction: column;
   gap: 12px;
-  margin-top: 28px;
-  padding: 16px 0;
-}
-
-.introduce-index-label {
-  color: var(--text-faint);
-  font-size: 10.5px;
-  font-weight: 700;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
-
-.introduce-index-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px 18px;
-}
-
-.introduce-index a {
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 550;
-  text-underline-offset: 4px;
-  text-decoration-color: transparent;
-  transition: color 0.2s, text-decoration-color 0.2s;
-}
-
-.introduce-index a:hover {
-  color: var(--indigo);
-  text-decoration-color: currentColor;
-}
-
-:root[data-theme='light'] .introduce-btn {
-  background: var(--indigo-strong);
-  color: #ffffff;
-}
-
-:root[data-theme='light'] .introduce-btn--ghost {
-  border-color: var(--text-faint);
-  background: transparent;
   color: var(--text);
+  font-size: 14.5px;
+  line-height: 1.75;
 }
 
-:root[data-theme='light'] .introduce-hero-art {
-  background-color: var(--bg-elev);
-  background-image: image-set(
-    url('/introduce-hanok-bg.avif') type('image/avif'),
-    url('/introduce-hanok-bg.webp') type('image/webp'),
-    url('/introduce-hanok-bg.png') type('image/png')
-  );
-  background-repeat: no-repeat;
-  background-position: center;
-  background-size: cover;
+.introduce-sample-answer p {
+  margin: 0;
 }
 
-@media (min-width: 640px) {
+.introduce-sample-who {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.introduce-sample-name {
+  color: var(--text-hi);
+  font-size: 13.5px;
+  font-weight: 600;
+}
+
+.introduce-sample-role {
+  color: var(--text-muted);
+  font-size: 12px;
+}
+
+.introduce-sample-role::before {
+  content: '·';
+  margin-right: 6px;
+}
+
+.introduce-sample-results {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  border-top: var(--intro-line);
+}
+
+.introduce-sample-results li {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  padding: 7px 0;
+  border-bottom: var(--intro-line);
+}
+
+.introduce-sample-rank {
+  flex-shrink: 0;
+  width: 14px;
+  color: var(--text-muted);
+  font-size: 12px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.introduce-sample-paper {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.introduce-sample-paper-title {
+  color: var(--text-hi);
+  font-size: 13px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+
+.introduce-sample-paper-meta {
+  color: var(--text-muted);
+  font-size: 11.5px;
+}
+
+.introduce-sample-cite {
+  margin-left: 1px;
+  color: var(--indigo);
+  font-size: 0.72em;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.introduce-sample-foot {
+  margin-top: auto;
+  padding: 12px 20px;
+  border-top: var(--intro-line);
+  text-align: right;
+}
+
+.introduce-sample-link {
+  color: var(--text-muted);
+  font-size: 12.5px;
+  text-decoration: none;
+}
+
+.introduce-sample-link:hover {
+  color: var(--text-hi);
+}
+
+/* Light only: indigo text on the indigo tint is under 4.5:1 at 12px, so the tinted labels use the
+   stronger indigo. Dark already passes. */
+:root[data-theme='light'] .introduce-pill,
+:root[data-theme='light'] .intro-chip--accent,
+:root[data-theme='light'] .intro-step-num {
+  color: var(--indigo-strong);
+}
+
+/* One column below 1000px, with the site's 16px mobile gutters (as the guest home). */
+@media (min-width: 1000px) {
   .introduce-page {
-    padding: 78px 28px 112px;
+    padding-top: 32px;
   }
 
-  .introduce-proof-item {
-    padding: 24px 22px;
+  .introduce-hero-copy {
+    gap: 20px;
   }
 
-  .introduce-proof dt {
-    font-size: 24px;
+  .introduce-sample-head {
+    padding-top: 12px;
+    padding-bottom: 12px;
   }
 
-  .introduce-proof dd {
-    font-size: 13px;
+  .introduce-sample-body {
+    gap: 14px;
+    padding-top: 16px;
+    padding-bottom: 16px;
   }
 
-  .introduce-index {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
+  .introduce-sample-answer {
+    gap: 10px;
+  }
+
+  .introduce-sample-results li {
+    padding: 5px 0;
+  }
+
+  .introduce-sample-foot {
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
 }
 
-@media (min-width: 900px) {
+@media (max-width: 999px) {
+  .introduce-page {
+    padding: 32px 16px 0;
+  }
+
   .introduce-hero {
-    grid-template-columns: minmax(0, 1.08fr) minmax(350px, 0.92fr);
-    gap: 54px;
-    min-height: 470px;
-  }
-
-  .introduce-hero-art {
-    min-height: 0;
-    background-size: 100% 100%, cover, 150px 120px, 210px 165px;
-  }
-
-  :root[data-theme='light'] .introduce-hero-art {
-    background-size: cover;
+    grid-template-columns: minmax(0, 640px);
+    justify-content: start;
+    align-items: start;
   }
 }
 
 @media (max-width: 639px) {
-  .introduce-page {
-    padding-top: 42px;
+  .introduce-title {
+    font-size: 30px;
   }
 
-  .introduce-hero-art {
-    min-height: 0;
+  .introduce-face img {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
   }
 
-  .introduce-proof {
-    grid-template-columns: 1fr;
+  .introduce-sample-head,
+  .introduce-sample-body,
+  .introduce-sample-foot {
+    padding-right: 16px;
+    padding-left: 16px;
   }
 
-  .introduce-proof-item,
-  .introduce-proof-item:first-child {
-    display: grid;
-    grid-template-columns: 94px minmax(0, 1fr);
-    align-items: baseline;
-    gap: 12px;
-    padding: 15px 2px;
-    border-top: 1px solid var(--wov-08);
-    border-left: 0;
-  }
-
-  .introduce-proof-item:first-child {
-    border-top: 0;
-  }
-
-  .introduce-proof dd {
-    margin: 0;
+  .introduce-sample-question {
+    max-width: 92%;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .introduce-btn,
-  .introduce-index a {
+  .intro-btn {
     transition: none;
   }
 }

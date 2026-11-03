@@ -22,7 +22,7 @@ export const SITE_FOOTER_COLUMNS: {
   {
     heading: '집현전',
     links: [
-      { href: '/', label: '논문 검색' },
+      { href: '/', label: '논문 물어보기' },
       { href: '/ko/introduce/', label: '서비스 소개' },
     ],
   },
