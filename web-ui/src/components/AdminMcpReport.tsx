@@ -110,10 +110,11 @@ function reasonCopy(reason: string | null) {
 const isMissingInstrumentation = (reason: string | null) =>
   reason !== null && ['not_instrumented', 'storage_missing', 'not_configured'].includes(reason);
 
-export default function AdminMcpReport() {
-  const [days, setDays] = useState<AdminMcpWindowDays>(28);
+/** `days` set: the admin's shared window drives the report and its own toggle is hidden. */
+export default function AdminMcpReport({ days: sharedDays }: { days?: AdminMcpWindowDays } = {}) {
+  const [ownDays, setDays] = useState<AdminMcpWindowDays>(28);
+  const days = sharedDays ?? ownDays;
   const [includeInternal, setIncludeInternal] = useState(false);
-  const [dailyOpen, setDailyOpen] = useState(false);
   const [report, setReport] = useState<McpReportData | null>(null);
   // 대기 나이의 기준 시각. 렌더 중 Date.now()를 부르면 리렌더마다 값이 흔들린다 —
   // 리포트를 받은 순간으로 고정한다.
@@ -155,7 +156,7 @@ export default function AdminMcpReport() {
     const missing = isMissingInstrumentation(report.reason);
     return (
       <section className="mcp-report visits-report" aria-labelledby="mcp-report-title" aria-busy={loading}>
-        <Header days={days} setDays={setDays} includeInternal={includeInternal} setIncludeInternal={setIncludeInternal} report={report} />
+        <Header days={days} setDays={sharedDays === undefined ? setDays : undefined} includeInternal={includeInternal} setIncludeInternal={setIncludeInternal} report={report} />
         <div className="mcp-state" role="status">
           <strong>{missing ? 'MCP 사용 측정 설정 없음' : 'MCP 사용 측정 조회 불가'}</strong>
           <p>{reasonCopy(report.reason)}</p>
@@ -186,7 +187,7 @@ export default function AdminMcpReport() {
 
   return (
     <section className="mcp-report visits-report" aria-labelledby="mcp-report-title" aria-busy={loading}>
-      <Header days={days} setDays={setDays} includeInternal={includeInternal} setIncludeInternal={setIncludeInternal} report={report} />
+      <Header days={days} setDays={sharedDays === undefined ? setDays : undefined} includeInternal={includeInternal} setIncludeInternal={setIncludeInternal} report={report} />
       {error && <div className="mcp-inline-error" role="alert">새 데이터를 불러오지 못했습니다: {error}</div>}
 
       {/* 지표가 전부 0일 때 관리자가 먼저 묻는 것은 "고장인가, 안 쓰는가"다. 이 줄은 전부
@@ -330,8 +331,8 @@ export default function AdminMcpReport() {
         )}
 
         {/* 온보딩·장애 조사 때 보는 참조 데이터다 — 일별 사용과 같은 대우. */}
-        <details className="mcp-section mcp-daily">
-          <summary><h2>클라이언트 주장값</h2><span>클라이언트·어댑터 버전별 요청과 실패</span></summary>
+        <section className="mcp-section mcp-daily">
+          <div className="mcp-daily-head"><h2>클라이언트 주장값</h2><span>클라이언트·어댑터 버전별 요청과 실패</span></div>
             <Table
             label="클라이언트·어댑터 버전 표"
             headings={['클라이언트', '클라이언트 버전', '어댑터 버전', '요청', '오류', '오류율', '도구 호출', '도구 실패', '도구 실패율']}
@@ -350,14 +351,11 @@ export default function AdminMcpReport() {
               </tr>
             ))}
           </Table>
-        </details>
+        </section>
 
-        {/* Mounting <Plot> inside a closed <details> lays it out at 0 width and `responsive`
-            only reacts to window resize, so the chart exists only while the section is open.
-            Plotly (~1.5MB) is fetched on the first open, not on every visit. */}
-        <details className="mcp-section mcp-daily" onToggle={(event) => setDailyOpen(event.currentTarget.open)}>
-          <summary><h2>일별 사용</h2><span>{report.window.days}일 추이 · 일별 표</span></summary>
-          {dailyOpen && report.daily.length > 0 && (
+        <section className="mcp-section mcp-daily">
+          <div className="mcp-daily-head"><h2>일별 사용</h2><span>{report.window.days}일 추이</span></div>
+          {report.daily.length > 0 && (
             <figure className="mcp-daily-chart" aria-label="일별 MCP 사용 추이">
               <LazyLoadErrorBoundary fallback={<p role="alert">차트를 표시할 수 없습니다. 아래 데이터 표를 확인해 주세요.</p>}>
                 <Suspense fallback={<div className="admin-loading">차트 로딩 중...</div>}>
@@ -404,8 +402,8 @@ export default function AdminMcpReport() {
               <figcaption>빈 구간은 계측 전이거나 미계측입니다. 완료·실패는 시작일 코호트에 표시합니다. 마지막 날짜는 집계 중입니다.</figcaption>
             </figure>
           )}
-          <details className="mcp-daily-data">
-            <summary>데이터 표로 보기</summary>
+          {/* The chart's text alternative: read by screen readers, not drawn. */}
+          <div className="mcp-sr-only">
             <Table label="일별 사용 표" className="mcp-daily-table" headings={['날짜', '요청', '활성 계정', '도구 호출', '작업 시작', '완료', '실패']}>
             {report.daily.length === 0 ? <EmptyRows columns={7}>선택 기간의 일별 기록이 없습니다.</EmptyRows> : report.daily.map((row) => (
               <tr key={row.date}><th scope="row">{row.date}</th>{(['requests', 'active_accounts', 'tool_calls', 'jobs_started', 'jobs_completed', 'jobs_failed'] as const).map((key) => {
@@ -414,13 +412,13 @@ export default function AdminMcpReport() {
               })}</tr>
             ))}
             </Table>
-          </details>
-        </details>
+          </div>
+        </section>
         </>
       )}
 
-      <details className="mcp-method">
-        <summary>측정 한계와 출처</summary>
+      <section className="mcp-method" aria-label="측정 한계와 출처">
+        <h2>측정 한계와 출처</h2>
         <p>브라우저 분석·GA4와 분리된 서버 관측 집계입니다. 도구 실행은 업그레이드된 어댑터가 보고한 것만 관측합니다. 기존 어댑터, 로컬 옵트아웃, 전송 유실의 도구 실행 총량은 알 수 없습니다.</p>
         <p>마지막 이벤트·측정 시작·어댑터 도구 보고는 선택 기간·관리자 필터와 무관한 원장 전체 기준입니다.</p>
         <p>활성 계정은 조회성 호출을 제외한 성공 호출 또는 작업 시작 기준입니다. 2일 이상은 서로 다른 KST 날짜의 의미 있는 사용이며 리텐션 아님.</p>
@@ -428,7 +426,7 @@ export default function AdminMcpReport() {
         <p>작업은 종료 이벤트가 24시간 넘게 없거나 시작 기록 없는 종료는 미확인으로 두며 실패로 추정하지 않습니다.</p>
         <p>지연 p95는 표본이 {RATE_SAMPLE_FLOOR}건 미만이면 관측된 최대값과 같습니다. 같은 구간의 비율은 흐리게 표시하며, 분모는 옆 열의 건수입니다.</p>
         <p>클라이언트·버전·User-Agent는 클라이언트가 보낸 주장값이며 실제 호스트나 사람 수를 증명하지 않습니다. 서버가 받은 MCP 요청과 작업 수명주기만 집계합니다.</p>
-      </details>
+      </section>
     </section>
   );
 }
@@ -441,7 +439,8 @@ function Header({
   report,
 }: {
   days: AdminMcpWindowDays;
-  setDays: (days: AdminMcpWindowDays) => void;
+  /** Absent when the window is shared with the rest of the admin. */
+  setDays?: (days: AdminMcpWindowDays) => void;
   includeInternal: boolean;
   setIncludeInternal: (value: boolean) => void;
   report?: McpReportData;
@@ -454,9 +453,11 @@ function Header({
         <p>{report ? `${report.window.start} — ${report.window.end} · ${report.window.timezone}` : 'MCP 사용 집계'}</p>
       </div>
       <div className="mcp-controls">
-        <div className="mcp-window" role="group" aria-label="조회 기간">
-          {WINDOWS.map((window) => <button type="button" key={window} aria-pressed={days === window} onClick={() => setDays(window)}>{window}일</button>)}
-        </div>
+        {setDays && (
+          <div className="mcp-window" role="group" aria-label="조회 기간">
+            {WINDOWS.map((window) => <button type="button" key={window} aria-pressed={days === window} onClick={() => setDays(window)}>{window}일</button>)}
+          </div>
+        )}
         <label className="mcp-internal-toggle">
           <input type="checkbox" checked={includeInternal} onChange={(event) => setIncludeInternal(event.target.checked)} />
           관리자 계정 포함

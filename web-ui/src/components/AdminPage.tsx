@@ -1,33 +1,34 @@
 import { useState, useEffect, useCallback, useRef, lazy, Suspense } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import './AdminPage.css';
 
+const AdminOverviewTab = lazy(() => import('./AdminOverviewTab'));
+const AdminConversationsTab = lazy(() => import('./AdminConversationsTab'));
 const AdminVisitsReport = lazy(() => import('./AdminVisitsReport'));
-const AdminMcpReport = lazy(() => import('./AdminMcpReport'));
-const AdminDashboardReport = lazy(() => import('./AdminDashboardReport'));
-const AdminAssistantReport = lazy(() => import('./AdminAssistantReport'));
 const AdminMembersReport = lazy(() => import('./AdminMembersReport'));
-import {
-  getAdminDashboard,
-  getAdminUsers,
-  updateUserRole,
-  deleteUser,
-  getAdminPapers,
-  getAdminPaperStats,
-  deleteAdminPapers,
-  getAdminBookmarks,
-  deleteAdminBookmark,
-  getAdminCurricula,
-} from '../api/client';
-import type { AdminDashboard, AdminUser, AdminPaper, AdminBookmark, AdminPaperUserStats, AdminCurriculaResponse } from '../api/client';
+const AdminContentTab = lazy(() => import('./AdminContentTab'));
+const AdminSystemTab = lazy(() => import('./AdminSystemTab'));
+import { useAdminWindow } from './adminShared';
+import { getAdminUsers, updateUserRole, deleteUser } from '../api/client';
+import type { AdminUser } from '../api/client';
 
-type Tab = 'dashboard' | 'visits' | 'mcp' | 'members';
+type Tab = 'overview' | 'conversations' | 'growth' | 'members' | 'content' | 'system';
 
+// Each tab answers one ops question; the order is the order an operator asks them.
 const TAB_LABELS: Record<Tab, string> = {
-  dashboard: '대시보드',
-  visits: '방문',
-  mcp: 'MCP 사용',
+  overview: '대시보드',
+  conversations: '대화',
+  growth: '성장',
   members: '회원',
+  content: '콘텐츠',
+  system: '시스템',
+};
+
+// Old ?tab= links keep landing somewhere sensible.
+const TAB_ALIASES: Record<string, Tab> = { dashboard: 'overview', visits: 'growth', mcp: 'system', members: 'members' };
+const tabFromParam = (value: string | null): Tab => {
+  if (value && value in TAB_LABELS) return value as Tab;
+  return (value && TAB_ALIASES[value]) || 'overview';
 };
 
 // Deletion stage keys (routers/deps/user_deletion.py) in the admin's words; unknown keys show as-is.
@@ -51,33 +52,14 @@ const DELETION_STAGE_LABELS: Record<string, string> = {
 
 export default function AdminPage() {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<Tab>('dashboard');
-
-  // Dashboard
-  const [stats, setStats] = useState<AdminDashboard | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = tabFromParam(searchParams.get('tab'));
+  const setActiveTab = (tab: Tab) => setSearchParams(tab === 'overview' ? {} : { tab }, { replace: true });
+  const [days, setDays] = useAdminWindow();
 
   // Users
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [usersLoading, setUsersLoading] = useState(false);
-
-  // Papers – tree view
-  const [paperStats, setPaperStats] = useState<AdminPaperUserStats | null>(null);
-  const [paperStatsLoading, setPaperStatsLoading] = useState(false);
-  const [openPaperFolder, setOpenPaperFolder] = useState<string | null>(null);
-  const [folderPapers, setFolderPapers] = useState<AdminPaper[]>([]);
-  const [folderPage, setFolderPage] = useState(1);
-  const [folderTotalPages, setFolderTotalPages] = useState(1);
-  const [folderTotal, setFolderTotal] = useState(0);
-  const [folderLoading, setFolderLoading] = useState(false);
-  const [selectedPapers, setSelectedPapers] = useState<Set<number>>(new Set());
-
-  // Bookmarks
-  const [bookmarks, setBookmarks] = useState<AdminBookmark[]>([]);
-  const [bookmarksLoading, setBookmarksLoading] = useState(false);
-
-  // Curricula
-  const [curriculaData, setCurriculaData] = useState<AdminCurriculaResponse | null>(null);
-  const [curriculaLoading, setCurriculaLoading] = useState(false);
 
   // Confirm dialog
   const [confirm, setConfirm] = useState<{
@@ -85,8 +67,7 @@ export default function AdminPage() {
     message: string;
     onConfirm: () => void | Promise<void>;
   } | null>(null);
-  // Blocks a second click landing in the same tick as the first: the repeat
-  // would fire another delete with indices the first one is about to shift.
+  // Prevent duplicate confirmation clicks from submitting the same deletion twice.
   const confirmBusy = useRef(false);
   const confirmDialogRef = useRef<HTMLDivElement>(null);
   // 다이얼로그를 연 버튼. 닫을 때 포커스를 그 자리로 돌려놔야 키보드 사용자가
@@ -132,22 +113,6 @@ export default function AdminPage() {
 
   // ── Data loaders ─────────────────────────────────────────────────
 
-  const [dashboardLoading, setDashboardLoading] = useState(false);
-  const [dashboardError, setDashboardError] = useState<string | null>(null);
-
-  const loadDashboard = useCallback(async () => {
-    setDashboardLoading(true);
-    setDashboardError(null);
-    try {
-      const data = await getAdminDashboard();
-      setStats(data);
-    } catch (err) {
-      setDashboardError(err instanceof Error ? err.message : 'Failed to load dashboard');
-    } finally {
-      setDashboardLoading(false);
-    }
-  }, []);
-
   const loadUsers = useCallback(async () => {
     setUsersLoading(true);
     try {
@@ -160,88 +125,9 @@ export default function AdminPage() {
     }
   }, []);
 
-  const loadPaperStats = useCallback(async () => {
-    setPaperStatsLoading(true);
-    try {
-      const data = await getAdminPaperStats();
-      setPaperStats(data);
-    } catch {
-      /* ignore */
-    } finally {
-      setPaperStatsLoading(false);
-    }
-  }, []);
-
-  const loadFolderPapers = useCallback(async (username: string, page: number) => {
-    setFolderLoading(true);
-    try {
-      const data = await getAdminPapers(page, 50, username);
-      setFolderPapers(data.papers);
-      setFolderPage(data.page);
-      setFolderTotalPages(data.total_pages);
-      setFolderTotal(data.total);
-      setSelectedPapers(new Set());
-    } catch {
-      /* ignore */
-    } finally {
-      setFolderLoading(false);
-    }
-  }, []);
-
-  const loadBookmarks = useCallback(async () => {
-    setBookmarksLoading(true);
-    try {
-      const data = await getAdminBookmarks();
-      setBookmarks(data.bookmarks);
-    } catch {
-      /* ignore */
-    } finally {
-      setBookmarksLoading(false);
-    }
-  }, []);
-
-  const loadCurricula = useCallback(async () => {
-    setCurriculaLoading(true);
-    try {
-      const data = await getAdminCurricula();
-      setCurriculaData(data);
-    } catch {
-      /* ignore */
-    } finally {
-      setCurriculaLoading(false);
-    }
-  }, []);
-
-  // ── Tab change → load data ───────────────────────────────────────
-
   useEffect(() => {
-    if (activeTab === 'dashboard') loadDashboard();
-    else if (activeTab === 'members') {
-      // 통합 탭은 네 소스를 함께 그리므로 병렬로 받는다.
-      loadUsers();
-      loadBookmarks();
-      loadCurricula();
-      loadPaperStats();
-    }
-  }, [activeTab, loadDashboard, loadUsers, loadPaperStats, loadBookmarks, loadCurricula]);
-
-  // ── Paper folder expand ──────────────────────────────────────────
-
-  // Members 트리의 유저 폴더가 열리면 username, 닫히면 null이 온다.
-  const handleToggleFolder = (username: string | null) => {
-    if (username === null) {
-      setOpenPaperFolder(null);
-      setFolderPapers([]);
-      setSelectedPapers(new Set());
-    } else {
-      setOpenPaperFolder(username);
-      // Clear here, not inside loadFolderPapers: that clear lands after the
-      // await, so switching straight from one member to another would leave
-      // the previous member's row indices selected while the new list loads.
-      setSelectedPapers(new Set());
-      loadFolderPapers(username, 1);
-    }
-  };
+    if (activeTab === 'members') loadUsers();
+  }, [activeTab, loadUsers]);
 
   // ── User actions ─────────────────────────────────────────────────
 
@@ -273,10 +159,7 @@ export default function AdminPage() {
           const result = await deleteUser(username);
           // Refresh from backend rather than optimistically splicing so
           // partial failures don't produce a stale-but-"gone" row.
-          // 통합 탭은 네 소스를 한 화면에 그리므로 북마크/커리큘럼/논문 집계도
-          // 함께 다시 받아야 삭제된 유저의 잔여 기록이 남지 않는다.
-          await Promise.all([loadUsers(), loadBookmarks(), loadCurricula(), loadPaperStats()]);
-          loadDashboard();
+          await loadUsers();
 
           const partials: string[] = Array.isArray(result?.partial_failures)
             ? result.partial_failures
@@ -302,82 +185,6 @@ export default function AdminPage() {
               ?.data?.detail ??
             (err instanceof Error ? err.message : '삭제에 실패했습니다');
           setNotice({ kind: 'error', text: `삭제 실패: ${detail}` });
-        }
-      },
-    });
-  };
-
-  // ── Paper actions ────────────────────────────────────────────────
-
-  const togglePaperSelect = (idx: number) => {
-    setSelectedPapers((prev) => {
-      const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
-      return next;
-    });
-  };
-
-  const toggleAllPapers = () => {
-    if (selectedPapers.size === folderPapers.length) {
-      setSelectedPapers(new Set());
-    } else {
-      setSelectedPapers(new Set(folderPapers.map((p) => p.index)));
-    }
-  };
-
-  const handleDeletePapers = () => {
-    // Send each row's fingerprint alongside its index: the index is only a
-    // position in the corpus, so the backend verifies the record is still the
-    // one that was listed and refuses (409) rather than deleting a neighbour.
-    const targets = folderPapers
-      .filter((p) => selectedPapers.has(p.index))
-      .map((p) => ({ index: p.index, fingerprint: p.fingerprint }));
-    if (targets.length === 0) return;
-    askConfirm({
-      title: '논문 삭제',
-      message: `선택한 논문 ${targets.length}편을 삭제합니다. 되돌릴 수 없습니다.`,
-      onConfirm: async () => {
-        closeConfirm();
-        try {
-          await deleteAdminPapers(targets);
-          if (openPaperFolder) loadFolderPapers(openPaperFolder, folderPage);
-          loadPaperStats();
-          loadDashboard();
-        } catch (err: unknown) {
-          // A 409 means the list moved under the admin and nothing was
-          // deleted — swallowing it would look like a successful delete.
-          const status = (err as { response?: { status?: number } })?.response?.status;
-          if (status === 409 && openPaperFolder) loadFolderPapers(openPaperFolder, folderPage);
-          const detail =
-            (err as { response?: { data?: { detail?: string } } })?.response?.data?.detail ??
-            (err instanceof Error ? err.message : '삭제에 실패했습니다');
-          setNotice({
-            kind: status === 409 ? 'warn' : 'error',
-            text:
-              status === 409
-                ? '목록이 바뀌어 아무것도 삭제하지 않았습니다. 새로고침된 목록에서 다시 선택하세요.'
-                : `삭제 실패: ${detail}`,
-          });
-        }
-      },
-    });
-  };
-
-  // ── Bookmark actions ─────────────────────────────────────────────
-
-  const handleDeleteBookmark = (bookmarkId: string, title: string) => {
-    askConfirm({
-      title: '북마크 삭제',
-      message: `북마크 "${title}"을(를) 삭제합니다. 되돌릴 수 없습니다.`,
-      onConfirm: async () => {
-        closeConfirm();
-        try {
-          await deleteAdminBookmark(bookmarkId);
-          setBookmarks((prev) => prev.filter((b) => b.id !== bookmarkId));
-          loadDashboard();
-        } catch {
-          /* ignore */
         }
       },
     });
@@ -423,68 +230,42 @@ export default function AdminPage() {
           ))}
         </div>
 
-        {/* Visits Tab */}
-        {activeTab === 'visits' && (
-          <Suspense fallback={<div className="admin-loading">Loading visitors...</div>}>
-            <AdminVisitsReport />
+        {activeTab === 'overview' && (
+          <Suspense fallback={<div className="admin-loading">개요 로딩 중...</div>}>
+            <AdminOverviewTab days={days} onDays={setDays} />
+          </Suspense>
+        )}
+        {activeTab === 'conversations' && (
+          <Suspense fallback={<div className="admin-loading">대화 로딩 중...</div>}>
+            <AdminConversationsTab days={days} onDays={setDays} />
+          </Suspense>
+        )}
+        {activeTab === 'growth' && (
+          <Suspense fallback={<div className="admin-loading">성장 로딩 중...</div>}>
+            <AdminVisitsReport days={days} onDays={setDays} />
+          </Suspense>
+        )}
+        {activeTab === 'content' && (
+          <Suspense fallback={<div className="admin-loading">콘텐츠 로딩 중...</div>}>
+            <AdminContentTab />
+          </Suspense>
+        )}
+        {activeTab === 'system' && (
+          <Suspense fallback={<div className="admin-loading">시스템 로딩 중...</div>}>
+            <AdminSystemTab days={days} onDays={setDays} />
           </Suspense>
         )}
 
-        {/* MCP usage is loaded independently from browser/GA4 analytics. */}
-        {activeTab === 'mcp' && (
-          <Suspense fallback={<div className="admin-loading">Loading MCP usage...</div>}>
-            <AdminMcpReport />
-          </Suspense>
-        )}
-
-        {/* Dashboard Tab */}
-        {/* One screen: the conversation report owns the layout; the legacy collection
-            report rides at its end as collapsed rows and loads on its own. */}
-        {activeTab === 'dashboard' && (
-          <Suspense fallback={<div className="admin-loading">대시보드 로딩 중...</div>}>
-            <AdminAssistantReport
-              legacy={
-                stats ? (
-                  <Suspense fallback={<div className="admin-loading">레거시 지표 로딩 중...</div>}>
-                    <AdminDashboardReport stats={stats} />
-                  </Suspense>
-                ) : dashboardError ? (
-                  <div className="assistant-block-error" role="alert">
-                    <span>레거시 지표를 불러오지 못했습니다 · {dashboardError}</span>
-                    <button type="button" className="admin-action-btn" onClick={loadDashboard}>다시 시도</button>
-                  </div>
-                ) : dashboardLoading ? (
-                  <div className="admin-loading">레거시 지표 불러오는 중...</div>
-                ) : null
-              }
-            />
-          </Suspense>
-        )}
-
-        {/* Members Tab — 계정 · 북마크 · 커리큘럼 · 논문 통합 */}
+        {/* Members: accounts and current assistant activity. */}
         {activeTab === 'members' && (
           <Suspense fallback={<div className="admin-loading">회원 정보를 불러오는 중...</div>}>
             <AdminMembersReport
+              days={days}
               users={users}
-              bookmarks={bookmarks}
-              curricula={curriculaData}
-              loading={usersLoading || bookmarksLoading || curriculaLoading || paperStatsLoading}
+              loading={usersLoading}
               currentUsername={currentUsername}
               onToggleRole={handleToggleRole}
               onDeleteUser={handleDeleteUser}
-              onDeleteBookmark={handleDeleteBookmark}
-              paperStats={paperStats}
-              folderPapers={folderPapers}
-              folderPage={folderPage}
-              folderTotalPages={folderTotalPages}
-              folderTotal={folderTotal}
-              folderLoading={folderLoading}
-              selectedPapers={selectedPapers}
-              onExpandMember={handleToggleFolder}
-              onPaperPageChange={loadFolderPapers}
-              onTogglePaperSelect={togglePaperSelect}
-              onToggleAllPapers={toggleAllPapers}
-              onDeletePapers={handleDeletePapers}
             />
           </Suspense>
         )}

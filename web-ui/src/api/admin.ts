@@ -162,13 +162,38 @@ export function resolveEstimatedAnswerFetches(
   };
 }
 
-export const fetchAdminVisitsReport = (days: number) =>
-  api.get<AdminVisitsReport>('/api/admin/analytics/visits', { params: { days } });
+export const fetchAdminVisitsReport = (days: number, signal?: AbortSignal) =>
+  api.get<AdminVisitsReport>('/api/admin/analytics/visits', { params: { days }, signal });
 
 export type AdminWindowDays = 7 | 28 | 90;
 export type AdminMcpWindowDays = AdminWindowDays;
 export type AssistantIntent = 'chat' | 'clarify' | 'search' | 'answer' | 'review' | 'open_pdf' | 'highlight_pdf' | 'answer_from_bookmarks';
+export interface AdminOverview {
+  window: { days: number; start: string; end: string };
+  totals: { visitors: number; page_views: number; returning_visitors: number };
+  comparison: { start: string; end: string; available: boolean; totals: AdminOverview['totals'] };
+  daily: { date: string; visitors: number | null }[];
+  top_pages: { path: string; title?: string | null; views: number }[];
+  acquisition: { state: 'connected' | 'failed' | 'not_connected'; synced_at: string | null; channels: { source: string; medium: string; sessions: number }[] };
+  measurement: { first_at: string | null; last_at: string | null; population: 'consented_browser_events' };
+}
+export const fetchAdminOverview = (days: AdminWindowDays, signal?: AbortSignal) =>
+  api.get<AdminOverview>('/api/admin/analytics/overview', { params: { days }, signal });
+
 type AdminWindow = { days: AdminWindowDays; start: string; end: string; timezone: string };
+
+export interface AdminGrowthStats {
+  window: AdminWindow;
+  totals: { active_users: number; new_users: number; returning_users: number; repeat_users: number; user_messages: number };
+  activation: { signups: number; eligible: number; activated: number; pending: number; pending_activated: number; rate: number | null };
+  retention: { day: number; eligible: number; returned: number; pending: number; rate: number | null }[];
+  daily: { date: string; active_users: number; new_users: number; returning_users: number; user_messages: number }[];
+  measurement: { population: string; activity: string; history: string; first_activity_date: string | null; unknown_signup_dates: number };
+  metric_definitions: Record<string, string>;
+}
+
+export const fetchAdminGrowthStats = (days: AdminWindowDays, signal?: AbortSignal) =>
+  api.get<AdminGrowthStats>('/api/admin/growth/stats', { params: { days }, signal });
 
 // Aggregates only: the backend never returns conversation titles, turn text,
 // memory text, USER.md or profile values on these endpoints.
@@ -430,3 +455,13 @@ export const getAdminCurricula = async (): Promise<AdminCurriculaResponse> => {
   const response = await api.get<AdminCurriculaResponse>('/api/admin/curricula');
   return response.data;
 };
+
+/** Data-file states for the 시스템 tab; the endpoint's username lists are deliberately not typed or shown. */
+export interface AdminDiagnostics {
+  files: Record<string, { exists: boolean; size: number }>;
+  /** -1 = file missing, -2 = table unreadable. */
+  counts: Record<string, number>;
+}
+
+export const fetchAdminDiagnostics = (signal?: AbortSignal) =>
+  api.get<AdminDiagnostics>('/api/admin/diagnostics', { signal });
