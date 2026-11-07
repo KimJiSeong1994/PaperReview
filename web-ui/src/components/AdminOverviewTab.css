@@ -1,0 +1,58 @@
+.admin-overview.visits-report { width: 100%; max-width: 1216px; padding: 20px 24px; gap: 14px; }
+.admin-overview .admin-tab-head h1 { font-size: 23px; letter-spacing: -0.6px; }
+.overview-meta, .overview-panel-head, .overview-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.overview-meta { font-size: 12px; }
+.overview-muted, .overview-panel-head > span { color: #777483; }
+.overview-metrics { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+.overview-metric { border: 1px solid #e9e7ef; border-radius: 12px; padding: 15px 18px; }
+.overview-metric:first-child { border-color: #d6d1fb; background: #faf9ff; }
+.overview-metric-label { margin: 0 0 8px; font-size: 13px; color: #565261; font-weight: 600; }
+.overview-metric-number { display: flex; align-items: baseline; gap: 6px; font-variant-numeric: tabular-nums; }
+.overview-metric-number strong { color: #22202e; font-size: 34px; line-height: 1.1; letter-spacing: -1px; }
+.overview-metric-number > span { color: #777483; font-size: 13px; }
+.overview-metric-change { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 10px; font-size: 11px; color: #777483; }
+.overview-change { font-weight: 650; padding: 3px 6px; border-radius: 4px; }
+.overview-change--up { color: #047857; background: #ecfdf5; }
+.overview-change--down { color: #b45309; background: #fffbeb; }
+.overview-change--muted { color: #777483; background: #f5f4f7; }
+.overview-panel { min-width: 0; padding: 15px 18px; border: 1px solid #e9e7ef; border-radius: 12px; }
+.overview-panel-head { margin-bottom: 8px; }
+.overview-panel-head h2 { margin: 0; font-size: 14px; color: #242130; font-weight: 700; }
+.overview-panel-head > span { font-size: 11px; }
+.overview-ranks { display: grid; grid-template-columns: 1.25fr 1fr; gap: 12px; }
+.overview-ranking { list-style: none; padding: 0; margin: 0; }
+.overview-ranking li { display: flex; align-items: center; gap: 12px; min-height: 35px; border-bottom: 1px solid #f1eff5; font-size: 12px; }
+.overview-ranking li:last-child { border-bottom: 0; }
+.overview-rank-number { width: 13px; flex-shrink: 0; font-size: 11px; color: #9994a5; font-variant-numeric: tabular-nums; }
+.overview-rank-title { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #373244; text-decoration: none; }
+a.overview-rank-title:hover { color: #4f46e5; text-decoration: underline; }
+.overview-ranking strong { flex-shrink: 0; font-size: 12px; font-weight: 650; color: #302b40; font-variant-numeric: tabular-nums; }
+.overview-ranking small { font-size: 10px; font-weight: 400; color: #8a8496; margin-left: 7px; }
+.overview-empty { color: #777483; padding: 24px 0; margin: 0; font-size: 13px; line-height: 1.7; }
+.overview-source-warning, .overview-source-time { font-size: 11px; margin: 6px 0 0; color: #777483; }
+.overview-source-warning { color: #b45309; }
+.overview-footer { align-items: baseline; font-size: 11px; color: #777483; }
+.overview-footer details { max-width: 75%; }
+.overview-footer summary { cursor: pointer; }
+.overview-footer p { line-height: 1.7; }
+.overview-footer > a { flex-shrink: 0; color: #4f46e5; text-decoration: none; font-weight: 600; }
+.admin-overview a:focus-visible, .overview-footer summary:focus-visible { outline: 2px solid #4f46e5; outline-offset: 3px; border-radius: 2px; }
+@media (max-width: 700px) {
+  .admin-overview.visits-report { padding: 16px; }
+  .overview-meta { flex-wrap: wrap; gap: 4px; }
+  .overview-metrics { gap: 8px; }
+  .overview-metric { padding: 12px 10px; }
+  .overview-metric-number strong { font-size: 26px; }
+  .overview-metric-number { gap: 3px; }
+  .overview-ranks { grid-template-columns: 1fr; }
+  .overview-panel { padding: 14px; }
+  .overview-footer { flex-wrap: wrap; }
+  .overview-footer details { max-width: 100%; }
+}
+@media (max-width: 430px) {
+  .overview-metrics { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .overview-metric:first-child { grid-column: 1 / -1; }
+  .overview-metric:first-child .overview-metric-number strong { font-size: 36px; }
+  .overview-metric-change { font-size: 10px; }
+  .overview-panel-head { flex-wrap: wrap; gap: 4px; }
+}

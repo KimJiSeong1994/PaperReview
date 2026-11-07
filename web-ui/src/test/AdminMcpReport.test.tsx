@@ -61,19 +61,19 @@ const REPORT: McpReportData = {
 };
 
 const response = (data: McpReportData) => Promise.resolve({ data } as Awaited<ReturnType<typeof fetchAdminMcpReport>>);
-// 차트는 접힌 일별 사용 섹션이 열릴 때만 마운트된다.
-const openDaily = async () => {
-  fireEvent.click(await screen.findByRole('heading', { name: '일별 사용' }));
+// The daily chart is visible once the report loads.
+const waitForDaily = async () => {
+  await screen.findByRole('heading', { name: '일별 사용' });
   return screen.findByTestId('mcp-daily-plot');
 };
 
 beforeEach(() => vi.clearAllMocks());
 
 describe('AdminMcpReport', () => {
-  it('plots daily usage with selectable job outcomes and a collapsed data table', async () => {
+  it('plots daily usage with selectable job outcomes and an accessible data table', async () => {
     vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(REPORT));
     render(<AdminMcpReport />);
-    await openDaily();
+    await waitForDaily();
     const props = plotSpy.mock.lastCall![0];
     expect(props.data).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: '서버 요청', type: 'scatter', mode: 'lines+markers', x: ['2026-09-05'], y: [12], visible: true }),
@@ -87,7 +87,7 @@ describe('AdminMcpReport', () => {
     expect(props.layout.xaxis.range).toEqual(['2026-08-10', '2026-09-06T23:59:59']);
     expect(props.layout.shapes).toEqual([]);
     expect(props.config.responsive).toBe(true);
-    expect(screen.getByText('데이터 표로 보기').closest('details')).not.toHaveAttribute('open');
+    expect(screen.getByRole('region', { name: '일별 사용 표' })).toHaveTextContent('2026-09-05');
   });
 
   it('distinguishes pre-measurement gaps, unmeasured tools and measured zero', async () => {
@@ -100,12 +100,12 @@ describe('AdminMcpReport', () => {
       ],
     }));
     render(<AdminMcpReport />);
-    await openDaily();
+    await waitForDaily();
     expect(plotSpy.mock.lastCall![0].data).toEqual(expect.arrayContaining([
       expect.objectContaining({ name: '서버 요청', y: [null, 0], connectgaps: false }),
       expect.objectContaining({ name: '도구 실행', y: [null, null], connectgaps: false }),
     ]));
-    expect(screen.getByText('데이터 표로 보기').closest('details')).toHaveTextContent('미계측');
+    expect(screen.getByRole('region', { name: '일별 사용 표' })).toHaveTextContent('미계측');
   });
 
   it('renders distinct request, observed tool, job, account, and repeat-account meanings', async () => {
@@ -124,14 +124,14 @@ describe('AdminMcpReport', () => {
     expect(screen.getByText('요청 연결률').parentElement).toHaveTextContent('90/120 · invocation');
 
     // 정의와 면책은 카드가 아니라 방법론에 산다 — 구분은 그대로, 위치만 옮겼다.
-    const method = within(screen.getByText('측정 한계와 출처').closest('details')!);
+    const method = within(screen.getByRole('region', { name: '측정 한계와 출처' }));
     expect(method.getByText(/리텐션 아님/)).toBeInTheDocument();
     expect(method.getByText(/조회성 호출을 제외한/)).toBeInTheDocument();
     expect(method.getByText(/전체 MCP 수집률이 아닙니다/)).toBeInTheDocument();
     expect(method.getByText(/실제 호스트나 사람 수를 증명하지 않습니다/)).toBeInTheDocument();
     expect(method.getByText(/설치 수, 사용자 수 또는 상업적 이용을 뜻하지 않습니다/)).toBeInTheDocument();
     expect(method.getByText(/24시간 넘게 없거나/)).toBeInTheDocument();
-    await openDaily();
+    await waitForDaily();
     expect(screen.getByText(/시작일 코호트/)).toBeInTheDocument();
   });
 
@@ -266,7 +266,7 @@ describe('AdminMcpReport', () => {
       daily: [{ ...REPORT.daily[0], requests: 3, tool_calls: 2, active_accounts: 1 }],
     }));
     render(<AdminMcpReport />);
-    await openDaily();
+    await waitForDaily();
 
     const { layout } = plotSpy.mock.lastCall![0];
     expect(layout.shapes).toEqual([expect.objectContaining({ x0: '2026-08-10', x1: '2026-08-20', layer: 'below' })]);
@@ -274,15 +274,24 @@ describe('AdminMcpReport', () => {
     expect(layout.yaxis).toEqual(expect.objectContaining({ rangemode: 'tozero', tickformat: ',d', dtick: 1 }));
   });
 
-  it('keeps the chart unmounted until the daily section is opened', async () => {
+  it('shows the daily chart without requiring a disclosure click', async () => {
     vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(REPORT));
     render(<AdminMcpReport />);
-    await screen.findByRole('heading', { name: 'MCP 사용 리포트' });
-    expect(screen.queryByTestId('mcp-daily-plot')).toBeNull();
-    expect(plotSpy).not.toHaveBeenCalled();
-    expect(screen.getByRole('heading', { name: '일별 사용' }).closest('details')).not.toHaveAttribute('open');
-    await openDaily();
+    expect(await screen.findByTestId('mcp-daily-plot')).toBeInTheDocument();
     expect(plotSpy).toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: '일별 사용' }).closest('details')).toBeNull();
+    expect(screen.getByRole('region', { name: '일별 사용 표' })).toBeInTheDocument();
+  });
+
+  it('uses the shared admin window without showing a second period selector', async () => {
+    vi.mocked(fetchAdminMcpReport).mockImplementation(() => response(REPORT));
+    const view = render(<AdminMcpReport days={7} />);
+    await waitFor(() => expect(fetchAdminMcpReport).toHaveBeenLastCalledWith(7, false, expect.any(AbortSignal)));
+    expect(screen.queryByRole('group', { name: '조회 기간' })).not.toBeInTheDocument();
+    view.rerender(<AdminMcpReport days={90} />);
+    await waitFor(() => expect(fetchAdminMcpReport).toHaveBeenLastCalledWith(90, false, expect.any(AbortSignal)));
+    fireEvent.click(await screen.findByRole('checkbox', { name: '관리자 계정 포함' }));
+    await waitFor(() => expect(fetchAdminMcpReport).toHaveBeenLastCalledWith(90, true, expect.any(AbortSignal)));
   });
 
   it('lists error codes under the table that produced them instead of a shared taxonomy', async () => {

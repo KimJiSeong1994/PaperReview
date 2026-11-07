@@ -1,12 +1,16 @@
-import { Component, lazy, Suspense, useCallback, useEffect, useId, useState } from 'react';
+import { Component, lazy, Suspense, useEffect, useId, useState } from 'react';
 import type { ReactNode } from 'react';
 import {
   fetchAdminVisitsReport,
   fetchSampleConversations,
+  type AdminWindowDays,
   resolveEstimatedAnswerFetches,
   type AdminVisitsReport as VisitsReportData,
 } from '../api/client';
 import type { SampleSummary } from '../types';
+import { useBlock } from './adminShared';
+import { AdminTabHeader, BlockError } from './AdminUi';
+import AdminGrowthReport from './AdminGrowthReport';
 
 const Plot = lazy(() => import('../PlotlyChart'));
 
@@ -18,25 +22,14 @@ const SERIES = {
   bar: '#5b4df5',
 };
 
-const WINDOWS = [7, 28, 90] as const;
 const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토'];
 const EVENT_LABELS: Record<string, string> = {
   page_view: '방문',
-  search: '검색',
-  paper_select: '논문 선택',
   login: '로그인',
   sign_up: '가입',
-  deep_review_start: '딥리뷰 시작',
-  deep_review_complete: '딥리뷰 완료',
-  deep_review_fail: '딥리뷰 실패',
-  bookmark_save: '북마크',
-  report_download: '리포트 다운로드',
-  poster_generate_start: '포스터 시작',
-  poster_generate_complete: '포스터 완료',
-  poster_generate_fail: '포스터 실패',
   sample_view: '샘플 노출 (홈 기본 포함)',
   sample_cta_click: '이어서 묻기 클릭',
-  conversation_start: '대화 시작',
+  conversation_start: '대화 생성',
 };
 const SAMPLE_FUNNEL_ID = 'sample_to_conversation';
 
@@ -208,87 +201,11 @@ function EmptyState({ children }: { children: ReactNode }) {
   return <p className="visits-note">{children}</p>;
 }
 
-/** Deep-review terminal outcome as one stacked bar: completed / failed /
- *  abandoned — separates "it broke" from "the user left". */
-function ReviewOutcome({ outcome }: { outcome: VisitsReportData['deep_review_outcome'] }) {
-  const { started, completed, failed, abandoned } = outcome;
-  const seg = (n: number) => `${(n / started) * 100}%`;
-  return (
-    <Card>
-      <div className="visits-funnel-head">
-        <span>딥리뷰 결과 — 시작 {fmt(started)}건</span>
-        <span className="visits-funnel-conv">완료율 {pct(completed / started)}</span>
-      </div>
-      <div className="visits-outcome-bar">
-        {completed > 0 && (
-          <span className="visits-outcome-seg visits-outcome-done" style={{ width: seg(completed) }} />
-        )}
-        {failed > 0 && (
-          <span className="visits-outcome-seg visits-outcome-fail" style={{ width: seg(failed) }} />
-        )}
-        {abandoned > 0 && (
-          <span className="visits-outcome-seg visits-outcome-drop" style={{ width: seg(abandoned) }} />
-        )}
-      </div>
-      <div className="visits-outcome-legend">
-        <span>
-          <i className="visits-outcome-done" />
-          완료 {fmt(completed)}
-        </span>
-        <span>
-          <i className="visits-outcome-fail" />
-          실패 {fmt(failed)}
-        </span>
-        <span>
-          <i className="visits-outcome-drop" />
-          이탈 {fmt(abandoned)}
-        </span>
-      </div>
-    </Card>
-  );
-}
-
-/** A curated conversion funnel: each step a bar scaled to its conversion rate
- *  (vs. the first step), with session count, rate, and drop-off from the
- *  previous step. Design-token bars (theme-aware), no chart dependency. */
-function FunnelChart({ funnel }: { funnel: VisitsReportData['funnels'][number] }) {
-  const base = funnel.steps[0]?.count ?? 0;
-  return (
-    <Card>
-      <div className="visits-funnel-head">
-        <span>{funnel.label}</span>
-        <span className="visits-funnel-conv">전환 {base ? pct(funnel.overall_conversion) : '—'}</span>
-      </div>
-      <div className="visits-funnel">
-        {funnel.steps.map((step, i) => (
-          <div className="visits-funnel-row" key={step.event}>
-            <span className="visits-funnel-name">{EVENT_LABELS[step.event] ?? step.event}</span>
-            <span className="visits-funnel-track">
-              <span
-                className="visits-funnel-fill"
-                style={{ width: `${base ? Math.max(step.rate * 100, step.count > 0 ? 3 : 0) : 0}%` }}
-              />
-              <span className="visits-funnel-count">{fmt(step.count)}</span>
-            </span>
-            <span className="visits-funnel-pct">
-              {base ? (i === 0 ? '100%' : pct(step.rate)) : '—'}
-              {i > 0 && step.drop_off > 0 && (
-                <span className="visits-funnel-drop">↓{fmt(step.drop_off)}</span>
-              )}
-            </span>
-          </div>
-        ))}
-      </div>
-    </Card>
-  );
-}
-
-function AdminVisitsReport() {
+/** Browser measurements remain independent of account growth and its availability. */
+function VisitsDetails({ days }: { days: AdminWindowDays }) {
   const colors = SERIES;
-  const [days, setDays] = useState<number>(28);
-  const [report, setReport] = useState<VisitsReportData | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const visits = useBlock(fetchAdminVisitsReport, days);
+  const report = visits.data;
   // Public sample list, only for titles; a failure leaves the slugs as labels.
   const [sampleList, setSampleList] = useState<SampleSummary[]>([]);
 
@@ -300,39 +217,8 @@ function AdminVisitsReport() {
     return () => controller.abort();
   }, []);
 
-  const load = useCallback(async (window: number) => {
-    setLoading(true);
-    setError(null);
-    try {
-      const response = await fetchAdminVisitsReport(window);
-      setReport(response.data);
-    } catch (err: unknown) {
-      const maybe = err as { response?: { data?: { detail?: string } }; message?: string };
-      setError(maybe.response?.data?.detail ?? maybe.message ?? '방문 리포트를 불러오지 못했습니다.');
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    let cancelled = false;
-    queueMicrotask(() => {
-      if (!cancelled) void load(days);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [days, load]);
-
-  if (loading && !report) return <div className="admin-loading">방문 리포트 로딩 중...</div>;
-  if (error) {
-    return (
-      <div className="admin-loading" style={{ color: 'var(--danger-strong)' }}>
-        Error: {error}
-      </div>
-    );
-  }
-  if (!report) return null;
+  if (visits.error) return <BlockError block={visits} label="방문 리포트" />;
+  if (!report) return <div className="admin-loading">방문 리포트 로딩 중...</div>;
 
   const { totals, daily } = report.traffic;
   const { timing } = report;
@@ -360,11 +246,12 @@ function AdminVisitsReport() {
   const suspectedScanHits = ai.suspected_scan_hits ?? 0;
   const observedLogDays = ai.log_window?.observed_days ?? days;
   const crawlerWindowLimited = observedLogDays > 0 && observedLogDays < days;
-  const productEvents = Object.entries(report.product_events).sort((a, b) => b[1] - a[1]);
+  const productEvents = Object.entries(report.product_events)
+    .filter(([name]) => Object.hasOwn(EVENT_LABELS, name))
+    .sort((a, b) => b[1] - a[1]);
   // Guard against an older backend during rollout that predates these keys.
   const allFunnels = report.funnels ?? [];
   const sampleFunnel = allFunnels.find((f) => f.id === SAMPLE_FUNNEL_ID) ?? null;
-  const funnels = allFunnels.filter((f) => f.id !== SAMPLE_FUNNEL_ID);
   // Every public sample gets a row (0 when no event names it); slugs seen only in events follow.
   const sampleStats = new Map((report.samples ?? []).map((row) => [row.slug, row]));
   const sampleRows = [
@@ -374,13 +261,6 @@ function AdminVisitsReport() {
     const row = sampleStats.get(slug);
     return { slug, title, page_views: row?.page_views ?? 0, card_views: row?.card_views ?? 0, cta_clicks: row?.cta_clicks ?? 0 };
   });
-  const reviewOutcome = report.deep_review_outcome ?? {
-    started: 0,
-    completed: 0,
-    failed: 0,
-    abandoned: 0,
-  };
-
   // Older backends did not expose measurement metadata. Keep the fallback so
   // a rolling deployment remains readable while preferring server definitions.
   const measurement = report.measurement ?? {
@@ -400,40 +280,11 @@ function AdminVisitsReport() {
 
   return (
     <div className="admin-dashboard visits-report">
-      <header className="visits-report-header">
-        <div className="visits-report-heading">
-          <span className="visits-report-kicker">ADMIN ANALYTICS</span>
-          <h1>방문 분석 리포트</h1>
-          <p>누가 들어왔고, 무엇을 살펴봤으며, 제품 행동으로 어떻게 이어졌는지 보여줍니다.</p>
-        </div>
-        <div className="visits-toolbar">
-          <div className="visits-window-picker" role="tablist" aria-label="기간 선택">
-            {WINDOWS.map((w) => (
-              <button
-                key={w}
-                role="tab"
-                aria-selected={days === w}
-                className={`visits-window-btn ${days === w ? 'visits-window-btn--active' : ''}`}
-                onClick={() => setDays(w)}
-              >
-                {w}일
-              </button>
-            ))}
-          </div>
-          <span className="visits-window-range">
-            {report.window.start} ~ {report.window.end} (KST)
-            {windowLimited && (
-              <>
-                <span className="visits-window-coverage">· 집계 {coveredDays}일분</span>
-                <InfoTip label="집계 기간 안내">
-                  분석 데이터가 아직 {coveredDays}일치만 쌓여 있어, 이보다 긴 기간(예: 28·90일)을
-                  선택해도 결과가 거의 같습니다. 데이터가 더 쌓일수록 기간별 차이가 뚜렷해집니다.
-                </InfoTip>
-              </>
-            )}
-          </span>
-        </div>
-      </header>
+      <AdminTabHeader
+        id="admin-visits-title"
+        title="방문·유입"
+        range={`${report.window.start} — ${report.window.end} · KST${windowLimited ? ` · 집계 ${coveredDays}일분` : ''}`}
+      />
 
       <section className="visits-summary" aria-labelledby="visits-summary-title">
         <span className="visits-summary-kicker">핵심 요약</span>
@@ -458,19 +309,12 @@ function AdminVisitsReport() {
         </div>
       </section>
 
-      <details className="visits-method">
-        <summary>
-          <span>측정 신뢰도와 집계 기준</span>
-          <span>동의 표본 · 활동일 {measurement.observed_days}일 · 마지막 {lastEventLabel}</span>
-        </summary>
-        <p>
-          방문·세션·페이지뷰는 분석에 동의한 브라우저의 퍼스트파티 이벤트 표본입니다. 방문자는
-          브라우저 식별자, 세션은 같은 브라우저 탭이 유지되는 동안의 이벤트 묶음이므로 전체 트래픽이나
-          GA식 30분 세션과 동일하지 않습니다. 사람 지표는 KST 달력일, AI·외부 유입은 nginx 로그의
-          최근 시간 범위로 집계합니다. 선택 기간 이벤트는 {fmt(measurement.event_count)}건이며,
-          퍼스트파티 마지막 수신 시각은 {lastEventLabel}입니다.
-        </p>
-      </details>
+      <p
+        className="visits-method-line"
+        title={`방문·세션·페이지뷰는 분석에 동의한 브라우저의 퍼스트파티 이벤트 표본입니다. 방문자는 브라우저 식별자, 세션은 같은 브라우저 탭이 유지되는 동안의 이벤트 묶음이므로 전체 트래픽이나 GA식 30분 세션과 동일하지 않습니다. 사람 지표는 KST 달력일, AI·외부 유입은 nginx 로그의 최근 시간 범위로 집계합니다. 선택 기간 이벤트는 ${fmt(measurement.event_count)}건입니다.`}
+      >
+        측정 기준: 동의 표본 · 활동일 {measurement.observed_days}일 · 이벤트 {fmt(measurement.event_count)}건 · 마지막 {lastEventLabel} · 30분 비활동 기준 세션이 아닙니다
+      </p>
 
       <Band
         label="사람 방문"
@@ -556,9 +400,9 @@ function AdminVisitsReport() {
             </Suspense>
           </ChartErrorBoundary>
           <p className="visits-caption">마지막 날짜는 아직 집계 중이라 낮게 보일 수 있습니다.</p>
-          <details className="visits-table-toggle">
-            <summary>데이터 표로 보기</summary>
-            <table className="visits-table">
+          {/* The chart's text alternative: read by screen readers, not drawn. */}
+          <div className="admin-sr-only">
+            <table className="visits-table" aria-label="일별 방문 표">
               <thead>
                 <tr>
                   <th>날짜</th>
@@ -578,7 +422,7 @@ function AdminVisitsReport() {
                 ))}
               </tbody>
             </table>
-          </details>
+          </div>
           </Card>
         )}
       </Section>
@@ -703,7 +547,7 @@ function AdminVisitsReport() {
 
       <Section
         title="어디로 들어와서 남는가"
-        tip="세션이 처음 도착한 페이지(랜딩)별 참여율입니다. 참여율 = 2페이지 이상 봤거나 제품 이벤트(검색·북마크 등)를 남긴 세션의 비율. 낮으면 유입은 되지만 읽히지 않는다는 뜻이고, '즉시 이탈 많음'은 세션 5건 이상에서 참여율 30% 미만인 랜딩에 붙습니다."
+        tip="세션이 처음 도착한 페이지(랜딩)별 참여율입니다. 참여율 = 2페이지 이상 봤거나 제품 이벤트를 남긴 세션의 비율. 낮으면 유입은 되지만 읽히지 않는다는 뜻이고, '즉시 이탈 많음'은 세션 5건 이상에서 참여율 30% 미만인 랜딩에 붙습니다."
       >
         {report.landing.length === 0 ? (
           <EmptyState>이 기간에 랜딩 데이터가 없습니다.</EmptyState>
@@ -849,8 +693,8 @@ function AdminVisitsReport() {
               <div className="visits-card-stack">
                 {(ai.crawled_pages?.length ?? 0) > 0 && (
                   <Card>
-                    <details className="visits-drill">
-                      <summary className="visits-subhead">검증된 봇이 읽은 페이지 (색인 커버리지)</summary>
+                    <div className="visits-drill">
+                      <h4 className="visits-subhead">검증된 봇이 읽은 페이지 (색인 커버리지)</h4>
                       <table className="visits-table">
                         <thead>
                           <tr>
@@ -867,13 +711,13 @@ function AdminVisitsReport() {
                           ))}
                         </tbody>
                       </table>
-                    </details>
+                    </div>
                   </Card>
                 )}
                 {answerFetchPaths.length > 0 && (
                   <Card>
-                    <details className="visits-drill">
-                      <summary className="visits-subhead">AI 답변이 가져간 페이지 (추정 fetch)</summary>
+                    <div className="visits-drill">
+                      <h4 className="visits-subhead">AI 답변이 가져간 페이지 (추정 fetch)</h4>
                       <table className="visits-table">
                         <thead>
                           <tr>
@@ -890,7 +734,7 @@ function AdminVisitsReport() {
                           ))}
                         </tbody>
                       </table>
-                    </details>
+                    </div>
                   </Card>
                 )}
               </div>
@@ -1001,13 +845,13 @@ function AdminVisitsReport() {
       </Section>
 
       <Band
-        label="제품"
-        title="제품 행동과 전환"
-        description="방문이 검색, 딥리뷰, 북마크 같은 실제 제품 사용으로 이어졌는지 봅니다."
+        label="전환"
+        title="샘플에서 대화로"
+        description="비로그인 샘플이 대화로 이어지는지, 샘플을 본 브라우저가 대화를 생성하는지 봅니다. 실제 메시지 이용은 위 계정 지표에서 확인합니다."
       />
 
       <Section
-        title="샘플 대화"
+        title="샘플 → 대화"
         tip="비로그인 샘플이 대화로 이어지는지 봅니다. 샘플 노출 → 이어서 묻기 클릭 → 대화 시작 순서의 세션 퍼널이며, 로그인 단계는 넣지 않습니다. 분석 동의 사용자만 집계해 하한값입니다. 퍼널 첫 단계에는 홈이 기본으로 보여 주는 첫 샘플 노출이 포함되고, 표의 조회·CTA 율은 카드 클릭과 샘플 페이지만 셉니다."
         note="동의 사용자만(하한값) · 퍼널은 홈 기본 노출 포함, 표는 카드 클릭+페이지만"
       >
@@ -1058,35 +902,8 @@ function AdminVisitsReport() {
       </Section>
 
       <Section
-        title="전환 퍼널"
-        note="구 검색 페이지 기준 — 대화형 홈 이용은 대시보드 탭의 대화 운영 리포트에서 봅니다"
-        tip="세션 단위 순차 전환입니다. 각 단계는 같은 세션 안에서 앞 단계를 거친 뒤 해당 이벤트를 남긴 세션 수이며, 전환율은 첫 단계 대비 비율입니다. 표본이 작으면 비율이 크게 흔들리니 건수를 함께 보세요."
-      >
-        {funnels.every((f) => (f.steps[0]?.count ?? 0) === 0) ? (
-          <EmptyState>이 기간에 퍼널 첫 단계에 도달한 세션이 없습니다.</EmptyState>
-        ) : (
-          <div className="visits-funnel-grid">
-            {funnels.map((f) => (
-              <FunnelChart key={f.id} funnel={f} />
-            ))}
-          </div>
-        )}
-      </Section>
-
-      <Section
-        title="딥리뷰 결과"
-        tip="딥리뷰를 시작한 세션이 완료됐는지, 실패했는지, 아니면 완료·실패 없이 이탈했는지를 나눕니다. 시작→완료 이탈 중 '실패'와 '그냥 떠남'을 구분해 줍니다."
-      >
-        {reviewOutcome.started === 0 ? (
-          <EmptyState>이 기간에 시작된 딥리뷰가 없습니다.</EmptyState>
-        ) : (
-          <ReviewOutcome outcome={reviewOutcome} />
-        )}
-      </Section>
-
-      <Section
         title="제품 이벤트"
-        tip="방문자가 남긴 핵심 행동(검색·로그인·딥리뷰·북마크 등)의 발생 횟수로, 트래픽이 실제 제품 사용으로 이어졌는지 봅니다."
+        tip="방문자가 남긴 핵심 행동(로그인·가입·샘플 조회·대화 생성 등)의 발생 횟수로, 트래픽이 실제 제품 사용으로 이어졌는지 봅니다."
       >
         {productEvents.length === 0 ? (
           <EmptyState>이 기간에 기록된 제품 이벤트가 없습니다.</EmptyState>
@@ -1098,8 +915,17 @@ function AdminVisitsReport() {
           </div>
         )}
       </Section>
+
     </div>
   );
 }
 
-export default AdminVisitsReport;
+export default function AdminVisitsReport({ days, onDays }: { days: AdminWindowDays; onDays: (days: AdminWindowDays) => void }) {
+  return <div className="admin-tabstack">
+    <article className="admin-dashboard visits-report admin-tabview" aria-labelledby="admin-growth-title">
+      <AdminTabHeader id="admin-growth-title" title="성장" days={days} onDays={onDays} />
+      <AdminGrowthReport days={days} />
+    </article>
+    <VisitsDetails days={days} />
+  </div>;
+}

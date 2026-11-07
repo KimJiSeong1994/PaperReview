@@ -6,7 +6,7 @@ import { fetchAdminVisitsReport, fetchSampleConversations, resolveEstimatedAnswe
 vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
   // Public sample list, joined by slug for titles; empty unless a test sets it.
-  return { ...actual, fetchAdminVisitsReport: vi.fn(), fetchSampleConversations: vi.fn(() => Promise.resolve([])) };
+  return { ...actual, fetchAdminGrowthStats: vi.fn(() => new Promise(() => {})), fetchAdminVisitsReport: vi.fn(), fetchSampleConversations: vi.fn(() => Promise.resolve([])) };
 });
 
 vi.mock('../PlotlyChart', () => ({
@@ -47,7 +47,7 @@ const REPORT = {
   top_pages: [{ path: '/blog', page_views: 40, visitors: 9 }],
   landing: [{ path: '/blog', sessions: 10, engaged_rate: 0.2 }],
   acquisition: { utm_sources: [] },
-  product_events: { search: 3 },
+  product_events: { search: 3, paper_select: 4, deep_review_start: 2, deep_review_complete: 1, deep_review_fail: 1, bookmark_save: 5, report_download: 1, poster_generate_start: 1, poster_generate_complete: 1, poster_generate_fail: 1, login: 2, conversation_start: 6 },
   funnels: [
     {
       id: 'search_to_review',
@@ -148,8 +148,8 @@ describe('AdminVisitsReport', () => {
     vi.mocked(fetchAdminVisitsReport).mockResolvedValue({
       data: { ...REPORT, ai: { ...REPORT.ai, estimated_answer_fetches: 0, citation_clicks: 5 } },
     } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
-    render(<AdminVisitsReport />);
-    await screen.findByRole('heading', { name: '방문 분석 리포트' });
+    render(<AdminVisitsReport days={28} onDays={vi.fn()} />);
+    await screen.findByRole('heading', { name: '방문·유입' });
     expect(screen.getAllByText('0').length).toBeGreaterThan(0);
     expect(warning).toHaveBeenCalledWith(
       expect.stringContaining('estimated_answer_fetches'),
@@ -163,8 +163,8 @@ describe('AdminVisitsReport', () => {
     vi.mocked(fetchAdminVisitsReport).mockResolvedValue({
       data: { ...REPORT, ai: withoutLegacy },
     } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
-    render(<AdminVisitsReport />);
-    await screen.findByRole('heading', { name: '방문 분석 리포트' });
+    render(<AdminVisitsReport days={28} onDays={vi.fn()} />);
+    await screen.findByRole('heading', { name: '방문·유입' });
     expect(screen.getAllByText('확인 불가').length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText(/답변 fetch 확인 불가/)).toBeInTheDocument();
   });
@@ -176,8 +176,8 @@ describe('AdminVisitsReport', () => {
         ai: { ...REPORT.ai, ai_referral_hits: undefined },
       },
     } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
-    const missing = render(<AdminVisitsReport />);
-    await screen.findByRole('heading', { name: '방문 분석 리포트' });
+    const missing = render(<AdminVisitsReport days={28} onDays={vi.fn()} />);
+    await screen.findByRole('heading', { name: '방문·유입' });
     expect(screen.getByText(/실제 유입 확인 불가/)).toBeInTheDocument();
     expect(screen.getByText('AI 클릭 유입').closest('.admin-stat-card')).toHaveTextContent('확인 불가');
     missing.unmount();
@@ -188,8 +188,8 @@ describe('AdminVisitsReport', () => {
         ai: { ...REPORT.ai, ai_referral_hits: 0 },
       },
     } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
-    render(<AdminVisitsReport />);
-    await screen.findByRole('heading', { name: '방문 분석 리포트' });
+    render(<AdminVisitsReport days={28} onDays={vi.fn()} />);
+    await screen.findByRole('heading', { name: '방문·유입' });
     expect(screen.getByText(/실제 유입 0번/)).toBeInTheDocument();
     expect(screen.getByText('AI 클릭 유입').closest('.admin-stat-card')).toHaveTextContent('0');
   });
@@ -205,7 +205,7 @@ describe('AdminVisitsReport', () => {
         },
       },
     } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
-    const first = render(<AdminVisitsReport />);
+    const first = render(<AdminVisitsReport days={28} onDays={vi.fn()} />);
     expect(await screen.findByText('/blog/canonical-path')).toBeInTheDocument();
     expect(screen.queryByText('/blog/legacy-path')).not.toBeInTheDocument();
     first.unmount();
@@ -222,7 +222,7 @@ describe('AdminVisitsReport', () => {
         },
       },
     } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
-    render(<AdminVisitsReport />);
+    render(<AdminVisitsReport days={28} onDays={vi.fn()} />);
     expect(await screen.findByText(/nginx 로그를 읽을 수 없어/)).toHaveTextContent('PermissionError');
     expect(screen.getByText(/답변 fetch 확인 불가 · 실제 유입 확인 불가/)).toBeInTheDocument();
     expect(screen.queryByText(/답변 fetch 7번/)).not.toBeInTheDocument();
@@ -233,15 +233,15 @@ describe('AdminVisitsReport', () => {
       data: REPORT,
     } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
 
-    render(<AdminVisitsReport />);
+    render(<AdminVisitsReport days={28} onDays={vi.fn()} />);
 
-    await waitFor(() => expect(fetchAdminVisitsReport).toHaveBeenCalledWith(28));
-    expect(await screen.findByRole('heading', { name: '방문 분석 리포트' })).toBeInTheDocument();
+    await waitFor(() => expect(fetchAdminVisitsReport).toHaveBeenCalledWith(28, expect.any(AbortSignal)));
+    expect(await screen.findByRole('heading', { name: '방문·유입' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '이번 기간을 한 문장씩 읽어보세요' })).toBeInTheDocument();
     expect(screen.getByText('12명이 30번 방문')).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: '도달과 이용' })).toBeInTheDocument();
     expect(screen.getByRole('heading', { name: 'AI와 외부 유입' })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { name: '제품 행동과 전환' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: '샘플에서 대화로' })).toBeInTheDocument();
     expect(await screen.findByText('방문 추이')).toBeInTheDocument();
     // Band dividers group the report.
     expect(screen.getByText('사람 방문')).toBeInTheDocument();
@@ -249,9 +249,9 @@ describe('AdminVisitsReport', () => {
     // At-a-glance hero repeats headline numbers, so several appear twice.
     expect(screen.getAllByText('12').length).toBeGreaterThanOrEqual(1); // visitors
     expect(screen.getAllByText('60%').length).toBeGreaterThanOrEqual(1); // engaged rate
-    expect(screen.getByText(/퍼스트파티 이벤트 표본/)).toBeInTheDocument(); // data-source line
+    expect(screen.getByTitle(/퍼스트파티 이벤트 표본/)).toBeInTheDocument(); // data-source line
     expect(screen.getByText(/동의 표본/)).toBeInTheDocument();
-    expect(screen.getByText(/30분 비활동 기준 세션이 아닙니다/)).toBeInTheDocument();
+    expect(screen.getAllByText(/30분 비활동 기준 세션이 아닙니다/).length).toBeGreaterThan(0);
     expect(screen.getByText('독자층')).toBeInTheDocument();
     expect(screen.getByText('8')).toBeInTheDocument(); // new visitors tile
     expect(screen.getByText('GPTBot')).toBeInTheDocument();
@@ -268,18 +268,13 @@ describe('AdminVisitsReport', () => {
     expect(screen.getByText('즉시 이탈 많음')).toBeInTheDocument();
     expect(screen.getByText('GA4 채널')).toBeInTheDocument();
     expect(screen.getByText(/연동을 기다리고 있습니다/)).toBeInTheDocument();
-    expect(screen.getAllByText('검색').length).toBeGreaterThanOrEqual(1); // product event + funnel step label
-    // Conversion funnel section renders with its steps + overall conversion.
-    expect(screen.getByText('전환 퍼널')).toBeInTheDocument();
-    expect(screen.getByText('검색 → 딥리뷰 완료')).toBeInTheDocument();
-    expect(screen.getByText('전환 25%')).toBeInTheDocument();
-    expect(screen.getByText('↓5')).toBeInTheDocument(); // drop-off annotation
-    // Deep-review outcome breakdown (완료/실패/이탈).
-    expect(screen.getByText('딥리뷰 결과')).toBeInTheDocument();
-    expect(screen.getByText(/딥리뷰 결과 — 시작 5건/)).toBeInTheDocument();
-    expect(screen.getByText('완료율 40%')).toBeInTheDocument();
-    expect(screen.getByText(/실패 1/)).toBeInTheDocument();
-    expect(screen.getByText(/이탈 2/)).toBeInTheDocument();
+    expect(screen.queryByText('구 검색 페이지 (/?q=)')).not.toBeInTheDocument();
+    expect(screen.queryByText('검색 → 딥리뷰 완료')).not.toBeInTheDocument();
+    expect(screen.queryByText(/딥리뷰 결과/)).not.toBeInTheDocument();
+    for (const label of ['검색', '논문 선택', '딥리뷰 시작', '딥리뷰 완료', '딥리뷰 실패', '북마크', '리포트 다운로드', '포스터 시작', '포스터 완료', '포스터 실패']) {
+      expect(screen.queryByText(label, { exact: true })).not.toBeInTheDocument();
+    }
+    expect(screen.getByText('로그인')).toBeInTheDocument();
   }, 20_000);
 
   it('shows the sample funnel and a per-sample table joined to public titles, zero rows included', async () => {
@@ -307,19 +302,19 @@ describe('AdminVisitsReport', () => {
       },
     } as unknown as Awaited<ReturnType<typeof fetchAdminVisitsReport>>);
 
-    render(<AdminVisitsReport />);
+    render(<AdminVisitsReport days={28} onDays={vi.fn()} />);
 
-    expect(await screen.findByText('샘플 대화')).toBeInTheDocument();
+    expect(await screen.findByText('샘플 → 대화')).toBeInTheDocument();
     expect(screen.getByText('동의 사용자만(하한값) · 퍼널은 홈 기본 노출 포함, 표는 카드 클릭+페이지만')).toBeInTheDocument();
     // The funnel is one inline line: count per step, rate from step 2 on.
     const funnel = screen.getByLabelText('샘플 → CTA → 첫 대화');
-    expect(funnel).toHaveTextContent('샘플 노출 (홈 기본 포함) 20→이어서 묻기 클릭 525%→대화 시작 210%');
+    expect(funnel).toHaveTextContent('샘플 노출 (홈 기본 포함) 20→이어서 묻기 클릭 525%→대화 생성 210%');
     // Funnel step 1 includes the home default; the table counts card clicks and page opens only.
     expect(screen.getByText('샘플 노출 (홈 기본 포함)')).toBeInTheDocument();
     expect(screen.getByText('샘플 조회 · 카드 클릭+페이지')).toBeInTheDocument();
     expect(screen.getByText('이어서 묻기 클릭')).toBeInTheDocument();
-    expect(screen.getByText('대화 시작')).toBeInTheDocument();
-    expect(screen.getByText(/구 검색 페이지 기준/)).toBeInTheDocument();
+    expect(screen.getAllByText('대화 생성').length).toBeGreaterThan(0);
+    expect(screen.queryByText('구 검색 페이지 (/?q=)')).not.toBeInTheDocument();
 
     const seen = (await screen.findByText('GraphRAG 비교')).closest('tr') as HTMLElement;
     // CTA rate = cta / sample_view (6 / 25); page views are the same visits seen by the router, not added.
@@ -330,7 +325,7 @@ describe('AdminVisitsReport', () => {
 
   it('surfaces the API error state', async () => {
     vi.mocked(fetchAdminVisitsReport).mockRejectedValue(new Error('boom'));
-    render(<AdminVisitsReport />);
+    render(<AdminVisitsReport days={28} onDays={vi.fn()} />);
     expect(await screen.findByText(/boom/)).toBeInTheDocument();
   });
 });

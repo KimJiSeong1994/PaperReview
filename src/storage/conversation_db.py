@@ -349,6 +349,26 @@ class ConversationDB:
         )
         return [dict(r) for r in rows]
 
+    def user_activity_days(self, until: str) -> List[Dict[str, Any]]:
+        """Retained user-message activity per owner/KST day, without message text.
+
+        Read history before the window too: otherwise existing users would be
+        mistaken for newly activated accounts when the window changes.
+        """
+        rows = self._read(
+            """
+            SELECT c.username, c.account_incarnation,
+                   date(t.created_at, '+9 hours') AS date,
+                   MIN(julianday(t.created_at)) AS first_jd,
+                   COUNT(*) AS messages
+              FROM turns t JOIN conversations c ON c.id = t.conversation_id
+             WHERE t.role = 'user' AND julianday(t.created_at) <= julianday(?)
+             GROUP BY c.username, c.account_incarnation, date(t.created_at, '+9 hours')
+            """,
+            (until,),
+        )
+        return [dict(row) for row in rows]
+
     def first_conversation_by_owner(self) -> Dict[Tuple[str, str], str]:
         """(username, incarnation) -> MIN(created_at)."""
         rows = self._read(
