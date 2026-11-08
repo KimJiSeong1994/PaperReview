@@ -414,7 +414,9 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
   // ── Data fetching ──────────────────────────────────────────────────
 
+  const listRequestId = useRef(0);
   const loadPosts = useCallback(async () => {
+    const requestId = ++listRequestId.current;
     setLoading(true);
     setError(null);
     try {
@@ -422,14 +424,25 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
       // show accurate counts and switch tabs client-side without refetching.
       // With ?tag= the server narrows it first; the category tabs then filter
       // that already-narrowed set client-side, exactly as before.
-      const response = await fetchBlogPosts(tagFilter || undefined, undefined, 1, 100);
-      setPosts((response.data?.posts ?? response.data) as BlogPost[]);
+      const collected: BlogPost[] = [];
+      for (let page = 1; ; page += 1) {
+        const { data } = await fetchBlogPosts(tagFilter || undefined, undefined, page, 100);
+        if (requestId !== listRequestId.current) return;
+        if (!Array.isArray(data?.posts) || data.page !== page
+          || !Number.isInteger(data.pages) || data.pages < page) {
+          throw new Error('Invalid blog pagination response.');
+        }
+        collected.push(...data.posts);
+        if (page === data.pages) break;
+      }
+      setPosts(collected);
     } catch (err: unknown) {
+      if (requestId !== listRequestId.current) return;
       setError(getErrorMessage(err, 'Failed to load posts.'));
       // Fall back to empty list so UI is usable
       setPosts([]);
     } finally {
-      setLoading(false);
+      if (requestId === listRequestId.current) setLoading(false);
     }
   }, [tagFilter]);
 
@@ -578,14 +591,18 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
   useEffect(() => {
     if (slug) return;
+    let cancelled = false;
     queueMicrotask(() => {
-      void loadPosts();
+      if (!cancelled) void loadPosts();
     });
+    return () => {
+      cancelled = true;
+      listRequestId.current += 1;
+    };
   }, [loadPosts, slug]);
 
-  // A deep link into a chapter never runs the list fetch, and the newest-100
-  // list may not hold an older chapter anyway, so the end-of-article nav asks
-  // for the next chapter itself. On failure the generic label stays.
+  // A deep link into a chapter never runs the list fetch, so the end-of-article
+  // nav asks for the next chapter itself. On failure the generic label stays.
   const nextChapterSlug = useMemo(() => {
     const seriesId = slug ? seriesOf(slug) : null;
     if (!seriesId) return null;

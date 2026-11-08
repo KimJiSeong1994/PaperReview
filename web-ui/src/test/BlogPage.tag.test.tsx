@@ -27,7 +27,7 @@ function post(id: string, title: string, extra: Record<string, unknown> = {}) {
 }
 
 type PostsResponse = Awaited<ReturnType<typeof fetchBlogPosts>>;
-const respond = (posts: unknown[]) => ({ data: { posts } }) as unknown as PostsResponse;
+const respond = (posts: unknown[]) => ({ data: { posts, page: 1, pages: 1 } }) as unknown as PostsResponse;
 
 function LocationProbe() {
   const { pathname, search } = useLocation();

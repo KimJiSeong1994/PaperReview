@@ -57,7 +57,7 @@ describe('blog reading levels', () => {
       matches: true, addEventListener: vi.fn(), removeEventListener: vi.fn(),
     })));
     mockPost();
-    vi.mocked(fetchBlogPosts).mockResolvedValue({ data: { posts: [] } } as never);
+    vi.mocked(fetchBlogPosts).mockResolvedValue({ data: { posts: [], page: 1, pages: 1 } } as never);
   });
   afterEach(() => { cleanup(); vi.unstubAllGlobals(); });
 
@@ -235,7 +235,7 @@ describe('blog reading levels', () => {
   it('fetches both bodies before editing a list summary', async () => {
     const user = userEvent.setup();
     const summary = Object.fromEntries(Object.entries(POST).filter(([key]) => !['content', 'deep_content'].includes(key)));
-    vi.mocked(fetchBlogPosts).mockResolvedValue({ data: { posts: [summary] } } as never);
+    vi.mocked(fetchBlogPosts).mockResolvedValue({ data: { posts: [summary], page: 1, pages: 1 } } as never);
     mount('/blog', true);
     await user.click(await screen.findByRole('button', { name: 'Edit post' }));
     await waitFor(() => expect(screen.getByLabelText('상세 본문 (Markdown, 선택)')).toHaveValue(DEEP));
@@ -246,7 +246,7 @@ describe('blog reading levels', () => {
     const user = userEvent.setup();
     const second = { ...POST, id: 'second', slug: 'second', title: 'Second post' };
     const summaries = [POST, second].map(p => Object.fromEntries(Object.entries(p).filter(([key]) => !['content', 'deep_content'].includes(key))));
-    vi.mocked(fetchBlogPosts).mockResolvedValue({ data: { posts: summaries } } as never);
+    vi.mocked(fetchBlogPosts).mockResolvedValue({ data: { posts: summaries, page: 1, pages: 1 } } as never);
     let resolveFirst!: (value: unknown) => void;
     let resolveSecond!: (value: unknown) => void;
     const firstPromise = new Promise(resolve => { resolveFirst = resolve; });
