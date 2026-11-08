@@ -811,7 +811,7 @@ def test_dwe_series_ends_with_systematic_contextualized_embedding_comparison() -
     assert "동적 단어 임베딩의 핵심 논문을 읽습니다." in BLOG_SERIES["dwe"]["description"]
 
 
-def test_graphrag_series_follows_foundational_publication_order() -> None:
+def test_graphrag_series_preserves_method_order_then_closes_with_evaluation() -> None:
     from routers.seo import BLOG_SERIES
 
     slugs = BLOG_SERIES["graphrag"]["slugs"]
@@ -827,11 +827,63 @@ def test_graphrag_series_follows_foundational_publication_order() -> None:
         "deep-graphrag",
         "causalrag2-hugrag-hierarchical-causal-gating",
         "ragu",
+        "rag-vs-graphrag-systematic-evaluation",
     ]
-    assert "GraphRAG 계열의 핵심 논문을 기초 연구부터 최초 공개 순서로 읽습니다." in (
+    assert "방법론을 기초 연구부터 최초 공개 순서로 읽고, 마지막에 종합 평가" in (
         BLOG_SERIES["graphrag"]["description"]
     )
     assert "기초 연구부터 최초 공개 순서" in BLOG_SERIES["graphrag"]["description"]
+
+
+@pytest.mark.parametrize(
+    "series_id",
+    ["agent-skills", "agent-harness", "agent-memory", "efficient-attention", "gnn", "graphrag"],
+)
+def test_published_series_order_discovery_and_continuation(monkeypatch, series_id) -> None:
+    import json
+    import re
+
+    from routers.seo import BLOG_SERIES
+
+    slugs = BLOG_SERIES[series_id]["slugs"]
+    posts = [
+        {**_FIXED_POSTS[0], "id": slug, "slug": slug, "title": slug}
+        for slug in reversed(slugs)
+    ]
+    monkeypatch.setattr("routers.seo._load_posts", lambda: posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    client = TestClient(app)
+    path = f"/blog/series/{series_id}"
+    response = client.get(path)
+    assert response.status_code == 200
+    main = _assert_series_main_ends_after_reading(response.text)
+    reading = main[main.index('<section class="blog-series-reading"'):]
+    assert re.findall(r'href="/blog/([^"]+)"', reading) == slugs
+    script = re.search(
+        r'<script type="application/ld\+json" id="seo-json-ld">(.*?)</script>',
+        response.text,
+        re.DOTALL,
+    )
+    graph = json.loads(script.group(1))["@graph"]
+    collection = next(node for node in graph if node.get("@type") == "CollectionPage")
+    assert collection["mainEntity"]["numberOfItems"] == len(slugs)
+    assert [
+        item["url"].rsplit("/", 1)[-1]
+        for item in collection["mainEntity"]["itemListElement"]
+    ] == slugs
+    assert f'href="{path}"' in client.get("/blog").text
+    assert f"https://jiphyeonjeon.kr{path}" in client.get("/sitemap.xml").text
+    assert f"https://jiphyeonjeon.kr{path}" in client.get("/llms.txt").text
+    for index, slug in enumerate(slugs):
+        html = client.get(f"/blog/{slug}").text
+        assert f'href="{path}"' in html
+        if index:
+            assert f'rel="prev" href="/blog/{slugs[index - 1]}"' in html
+        if index < len(slugs) - 1:
+            assert f'rel="next" href="/blog/{slugs[index + 1]}"' in html
+        else:
+            assert f'href="{path}#series-reading-title"' in html
+            assert 'class="blog-series-next-primary"' not in html
 
 
 def test_graph_causality_series_follows_foundational_order() -> None:

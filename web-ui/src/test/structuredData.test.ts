@@ -341,7 +341,7 @@ describe('series', () => {
     expect(seriesOf(slug)).toBe('dwe');
   });
 
-  it('orders GraphRAG from foundational work by first publication', () => {
+  it('preserves GraphRAG method order and closes with comparative evaluation', () => {
     expect(BLOG_SERIES.graphrag.slugs).toEqual([
       'knowledge-graph-prompting-multi-document-qa',
       'ms-graphrag-global-query-focused-summarization',
@@ -354,11 +354,34 @@ describe('series', () => {
       'deep-graphrag',
       'causalrag2-hugrag-hierarchical-causal-gating',
       'ragu',
+      'rag-vs-graphrag-systematic-evaluation',
     ]);
-    expect(BLOG_SERIES.graphrag.slugs).toHaveLength(11);
+    expect(BLOG_SERIES.graphrag.slugs).toHaveLength(12);
     expect(BLOG_SERIES.graphrag.description).toContain('기초 연구부터 최초 공개 순서');
+    expect(BLOG_SERIES.graphrag.description).toContain('마지막에 종합 평가');
     expect(seriesOf(BLOG_SERIES.graphrag.slugs[0])).toBe('graphrag');
     expect(seriesOf(BLOG_SERIES.graphrag.slugs.at(-1)!)).toBe('graphrag');
+  });
+
+  it('connects normalization to the modernized GNN baseline', () => {
+    expect(BLOG_SERIES.gnn.slugs.slice(-2)).toEqual([
+      'graphnorm',
+      'classic-gnns-strong-baselines-graph-level-tasks-gnnplus-review-2026',
+    ]);
+    expect(seriesOf('graphnorm')).toBe('gnn');
+  });
+
+  it('separates external skills, execution, active context and attention architecture', () => {
+    expect(seriesOf('agent-memory-distillation')).toBe('agent-skills');
+    expect(seriesOf('skill-plus-plus')).toBe('agent-skills');
+    expect(seriesOf('veriharness')).toBe('agent-harness');
+    expect(seriesOf('you-dont-need-long-context')).toBe('agent-memory');
+    expect(seriesOf('kimi-linear')).toBe('efficient-attention');
+    for (const deferred of ['dynaflow', 'harness-aware-distillation', 'spectrag']) {
+      expect(seriesOf(deferred)).toBeNull();
+    }
+    expect(seriesOf('hipporag2-from-rag-to-memory')).toBe('graphrag');
+    expect(seriesOf('skillopt-search-policy-training-90c0bb4ee568')).toBe('jiphyeonjeon-build');
   });
 
   it('orders Graph causality from PCM through CIC to IC2', () => {

@@ -63,9 +63,13 @@ def test_series_titles_descriptions_and_slugs_match() -> None:
 def test_every_series_slug_is_a_published_post() -> None:
     import json
 
-    posts = json.loads(Path("data/blog/posts.json").read_text(encoding="utf-8"))
-    posts = posts.get("posts", posts) if isinstance(posts, dict) else posts
-    published = {p["slug"] for p in posts if p.get("published")}
+    # Content is published in jiphyeonjeon-content, not the frozen app fallback.
+    # Refresh this offline snapshot from every page of the public posts API when
+    # adding series members; never amend data/blog/posts.json to satisfy this gate.
+    snapshot = json.loads(
+        Path("tests/fixtures/blog_series_publications.json").read_text(encoding="utf-8")
+    )
+    published = set(snapshot["published_slugs"])
     for series_id, entry in BLOG_SERIES.items():
         missing = [s for s in entry["slugs"] if s not in published]
         assert not missing, f"{series_id} points at unpublished slugs: {missing}"
