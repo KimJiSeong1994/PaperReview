@@ -82,8 +82,10 @@ const CHART_LAYOUT = {
 };
 
 /** Plotly chart with hex colors, loaded lazily; a load failure leaves a one-line note. */
-export function AdminChart({ data, label, height = 220, barmode, showlegend }: {
+export function AdminChart({ data, label, height = 220, barmode, showlegend, maxCount }: {
   data: Data[]; label: string; height?: number; barmode?: 'stack' | 'group'; showlegend?: boolean;
+  /** Count charts need integer ticks even when only one or two events occurred. */
+  maxCount?: number;
 }) {
   return (
     <LazyLoadErrorBoundary fallback={<div className="admin-empty">차트를 표시할 수 없습니다.</div>}>
@@ -91,7 +93,10 @@ export function AdminChart({ data, label, height = 220, barmode, showlegend }: {
         <div role="img" aria-label={label}>
           <Plot
             data={data}
-            layout={{ ...CHART_LAYOUT, height, ...(barmode ? { barmode } : {}), ...(showlegend === undefined ? {} : { showlegend }) }}
+            layout={{ ...CHART_LAYOUT, height,
+              ...(maxCount !== undefined ? { yaxis: { ...CHART_LAYOUT.yaxis, tickformat: ',d', nticks: 6,
+                ...(maxCount <= 5 ? { dtick: 1, range: [0, Math.max(1, maxCount) * 1.1] } : {}) } } : {}),
+              ...(barmode ? { barmode } : {}), ...(showlegend === undefined ? {} : { showlegend }) }}
             config={{ displayModeBar: false, responsive: true }}
             style={{ width: '100%' }}
           />
