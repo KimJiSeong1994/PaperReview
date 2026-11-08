@@ -141,7 +141,7 @@ BLOG_SERIES: dict[str, dict] = {
     "jiphyeonjeon-build": {
         "title": "집현전 개발 시리즈",
         "description": (
-            "집현전을 만들며 남긴 개발 기록 7편을 시간순으로 읽습니다. "
+            "집현전을 만들며 남긴 개발 기록을 시간순으로 읽습니다. "
             "검색 에이전트에서 출발해 논문 관계 그래프, 자동 하이라이트, 읽기 커리큘럼으로 "
             "이어집니다. 이어 MCP 도구 확장, 연구자 페르소나 기반 추천, 검색 프롬프트 선택을 "
             "다루며 논문을 찾는 기능이 읽기와 개인화로 넓어지는 흐름을 살펴봅니다."
@@ -159,7 +159,7 @@ BLOG_SERIES: dict[str, dict] = {
     "gnn": {
         "title": "GNN 논문 리뷰 시리즈",
         "description": (
-            "그래프 표현 학습과 그래프 신경망(GNN)을 11편으로 읽는 시리즈입니다. "
+            "그래프 표현 학습과 그래프 신경망(GNN)의 핵심 논문을 읽는 시리즈입니다. "
             "노드를 벡터로 표현하는 기초에서 이웃 정보 집계와 새 노드로의 일반화, "
             "이종 그래프와 예측 설명, 공정한 기준선 비교로 이어집니다. "
             "성능 순위가 아니라 개념을 연결하는 읽기 순서입니다."
@@ -181,7 +181,7 @@ BLOG_SERIES: dict[str, dict] = {
     "dwe": {
         "title": "DWE 논문 리뷰 시리즈",
         "description": (
-            "단어 의미의 시간적 변화를 추적하는 동적 단어 임베딩의 핵심 논문 12편을 읽습니다. "
+            "단어 의미의 시간적 변화를 추적하는 동적 단어 임베딩의 핵심 논문을 읽습니다. "
             "변화의 통계적 탐지에서 출발해 시간 구간 사이의 임베딩 정렬과 동적 모델을 살펴보고, "
             "문맥화 표현과 용법 분석, 체계 비교로 이어집니다. 각 단계에서 무엇을 의미 변화로 "
             "측정하고 서로 다른 시점의 표현을 어떻게 비교하는지에 초점을 맞춥니다."
@@ -204,7 +204,7 @@ BLOG_SERIES: dict[str, dict] = {
     "graphrag": {
         "title": "GraphRAG 논문 리뷰 시리즈",
         "description": (
-            "LLM 검색증강생성에 그래프를 결합하는 GraphRAG 계열의 핵심 논문 11편을 "
+            "LLM 검색증강생성에 그래프를 결합하는 GraphRAG 계열의 핵심 논문을 "
             "기초 연구부터 최초 공개 순서로 읽습니다. 문서 그래프 탐색과 전역 요약에서 "
             "연상 기억, 이중 검색, 인과·계층 검색과 다단계 파이프라인으로 이어집니다. "
             "문서 간 관계를 어떻게 색인하고 무엇을 검색하며, 답변의 근거를 어디까지 "
@@ -227,7 +227,7 @@ BLOG_SERIES: dict[str, dict] = {
     "graph-causality": {
         "title": "Graph causality 논문 리뷰 시리즈",
         "description": (
-            "그래프와 동역학 시계열에서 인과 구조를 복원하려는 핵심 논문 3편을 "
+            "그래프와 동역학 시계열에서 인과 구조를 복원하려는 핵심 논문을 "
             "공개·기초 흐름 순서로 읽습니다. PCM의 간접 인과 구분에서 CIC의 잠재 교란자 "
             "분해, IC2의 개입 동역학 인과 추정으로 이어집니다. 직접 인과, 간접 인과, "
             "잠재 교란자를 각 방법이 어떻게 구분하려는지 살펴봅니다."
@@ -1714,7 +1714,7 @@ async def blog_index_ssr() -> HTMLResponse:
         if any(s in published_slugs for s in series["slugs"])
     )
     series_block = (
-        f'<nav aria-label="Series"><h2>Series</h2><ul>{series_links}</ul></nav>'
+        f'<nav id="series-index" aria-label="Series"><h2>Series</h2><ul>{series_links}</ul></nav>'
         if series_links
         else ""
     )
@@ -1923,9 +1923,9 @@ async def sitemap() -> Response:
 
     published = [p for p in posts if p.get("published")]
 
-    # Site-wide freshness signal for the non-post hub rows (home/blog/category/
-    # series): the most recent post date. Helps crawlers re-fetch hubs when
-    # any post changes.
+    # Site-wide freshness signal for non-post rows (home/blog/category): the
+    # most recent published post date. Series hubs intentionally omit lastmod;
+    # no trustworthy series-hub revision timestamp exists.
     site_lastmod = max((_format_date(p) for p in published), default="")
     lm = f"<lastmod>{site_lastmod}</lastmod>" if site_lastmod else ""
 
@@ -1957,7 +1957,7 @@ async def sitemap() -> Response:
         if any(s in published_slugs for s in series["slugs"]):
             rows.append(
                 f"  <url><loc>{SITE_URL}/blog/series/{sid}</loc>"
-                f"{lm}<priority>0.7</priority></url>"
+                f"<priority>0.7</priority></url>"
             )
     for post in published:
         try:

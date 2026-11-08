@@ -369,7 +369,8 @@ describe('series', () => {
       'cic-dynamical-causality-under-invisible-confounders',
       'ic2-interventional-dynamical-causality-under-latent-confounders',
     ]);
-    expect(series.description).toContain('핵심 논문 3편');
+    expect(series.description).toContain('핵심 논문을');
+    expect(series.description).not.toMatch(/\d+\s*편/);
     expect(series.description).toContain('공개·기초 흐름 순서');
     expect(seriesOf(series.slugs[0])).toBe('graph-causality');
     expect(seriesOf(series.slugs.at(-1)!)).toBe('graph-causality');
