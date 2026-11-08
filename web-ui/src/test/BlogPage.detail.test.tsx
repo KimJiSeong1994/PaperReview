@@ -288,7 +288,8 @@ describe('BlogPage detail layout', () => {
     const nav = await screen.findByRole('navigation', { name: '시리즈 이어 읽기' });
     expect(nav.textContent).toContain('시리즈의 마지막 글입니다');
     expect(nav.querySelector('a[href="/blog/series/gnn#series-reading-title"]')).toHaveTextContent('시리즈 목차로 돌아가기');
-    expect(nav.querySelector('a[href="/blog/series/gnn#geo-comparison-title"]')).toHaveTextContent('논문 선택 비교 보기');
+    expect(nav.querySelector('a[href="/blog/series/gnn#geo-comparison-title"]')).toBeNull();
+    expect(nav).not.toHaveTextContent('논문 선택 비교 보기');
     expect(nav.querySelector('a[rel="next"]')).toBeNull();
     // Primary/done block comes before the tertiary previous link.
     const done = nav.querySelector('.blog-series-next-done')!;

@@ -2308,78 +2308,6 @@
   font-size: inherit;
 }
 
-.geo-comparison {
-  margin: 4rem 0;
-  min-width: 0;
-}
-
-.geo-comparison-question {
-  max-width: 72ch;
-  font-size: 1.0625rem;
-  color: var(--text-soft);
-}
-
-.geo-state {
-  display: inline-flex;
-  align-items: center;
-  padding: 2px 10px;
-  margin-right: 6px;
-  border-radius: 100px;
-  font-size: 0.8125rem;
-  font-weight: 600;
-}
-
-dd[data-state='unknown'] .geo-state {
-  background: var(--wov-06);
-  color: var(--text-muted);
-}
-
-dd[data-state='not_applicable'] .geo-state {
-  background: var(--wov-04);
-  color: var(--text-faint);
-}
-
-dd[data-state='unknown'],
-dd[data-state='not_applicable'] {
-  color: var(--text-muted);
-}
-
-.geo-comparison-sources,
-.geo-evidence-method-sources {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
-}
-
-.geo-evidence-method-sources {
-  margin: 0.5rem 0 1.5rem;
-}
-
-.geo-comparison-sources a,
-.geo-evidence-method-sources a {
-  display: inline-flex;
-  align-items: center;
-  padding: 6px 12px;
-  border-radius: 100px;
-  background: var(--wov-06);
-  color: var(--indigo);
-  font-size: 0.8125rem;
-  text-decoration: none;
-  transition: background 0.16s, color 0.16s;
-}
-
-.geo-comparison-sources a:hover,
-.geo-evidence-method-sources a:hover {
-  background: var(--wov-10);
-  color: var(--indigo-strong);
-}
-
-.geo-comparison-limits,
-.geo-comparison-source-note {
-  color: var(--text-soft);
-}
-
 .blog-series-page .blog-content {
   min-width: 0;
   max-width: 1028px;
@@ -2498,126 +2426,8 @@ dd[data-state='not_applicable'] {
   letter-spacing: 0;
 }
 
-.blog-series-page .blog-series-resources {
-  min-width: 0;
-  margin-top: 2.5rem;
-  border-top: 1px solid var(--wov-12);
-  border-bottom: 1px solid var(--wov-12);
-}
-
-.blog-series-page .blog-series-resources > summary {
-  min-height: 44px;
-  padding: 0.75rem 0;
-  color: var(--text-soft);
-  font-size: 0.9375rem;
-  font-weight: 650;
-  cursor: pointer;
-}
-
-.blog-series-page .blog-series-resources > summary::marker {
-  color: var(--indigo);
-}
-
-.blog-series-page .blog-series-resources-content {
-  min-width: 0;
-  padding: 0.5rem 0 2rem;
-}
-
-.blog-series-page .blog-series-resource-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem 1.25rem;
-  margin-bottom: 1.5rem;
-}
-
-.blog-series-page .blog-series-resource-nav a {
-  padding: 0.75rem 0;
-  color: var(--indigo);
-}
-
-.blog-series-page .blog-series-about {
-  margin: 0 0 2.5rem;
-}
-
-.blog-series-page .blog-series-about h2 {
-  margin: 0 0 0.5rem;
-  font-size: 1.25rem;
-}
-
-.blog-series-page .blog-series-about p {
-  max-width: 72ch;
-  margin: 0;
-  color: var(--text-soft);
-  text-wrap: pretty;
-}
-
-.blog-series-page .blog-series-path ol {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  gap: 1rem;
-}
-
-.blog-series-page .blog-series-path li {
-  background: var(--wov-04);
-  border: 1px solid transparent;
-  border-radius: 14px;
-  transition: border-color 0.15s, background-color 0.15s;
-}
-
-.blog-series-page .blog-series-path li:hover,
-.blog-series-page .blog-series-path li:focus-within {
-  background: var(--indigo-bd-08);
-}
-
-/* The card is the affordance (surface, chapter count, hover/focus lift);
-   no glyph, so nothing spurious lands in the accessible name. */
-.blog-series-page .blog-series-path a {
-  display: flex;
-  flex-direction: column;
-  gap: 0.375rem;
-  padding: 0.875rem 1rem;
-  min-height: 44px;
-  color: var(--text-hi);
-  font-weight: 600;
-  text-decoration: none;
-  border-radius: 14px;
-}
-
-.blog-series-page .blog-series-path-title {
-  text-wrap: balance;
-}
-
-.blog-series-page .blog-series-path a:hover {
-  color: var(--indigo-strong);
-}
-
-.blog-series-page .blog-series-path-meta {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--text-soft);
-  text-decoration: none;
-}
-
-/* A five-stage path is 3+2 on tablets and 2-up on phones; never 4+1. */
-@media (min-width: 640px) and (max-width: 1023px) {
-  .blog-series-page .blog-series-path ol[data-count='5'] {
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-  }
-}
-
-@media (max-width: 639px) {
-  .blog-series-page .blog-series-path ol {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 0.75rem;
-  }
-}
-
-/* Link language: arrows mark in-page jumps; outbound links underline on hover. */
-.blog-series-error button,
-.blog-series-text-link {
+/* Retry control styling. */
+.blog-series-error button {
   display: inline-flex;
   align-items: center;
   gap: 0.375rem;
@@ -2625,11 +2435,6 @@ dd[data-state='not_applicable'] {
   color: var(--indigo);
   text-decoration: none;
   transition: color 0.15s;
-}
-
-.blog-series-text-link:hover {
-  color: var(--indigo-strong);
-  text-decoration: underline;
 }
 
 .blog-series-error button {
@@ -2644,7 +2449,6 @@ dd[data-state='not_applicable'] {
 
 .blog-series-page a:focus-visible,
 .blog-series-page button:focus-visible,
-.blog-series-page summary:focus-visible,
 .blog-logo:focus-visible,
 .blog-nav-btn:focus-visible,
 .blog-series-next a:focus-visible {
@@ -2672,155 +2476,9 @@ dd[data-state='not_applicable'] {
   background: var(--wov-04);
 }
 
-.geo-comparison-limits {
-  padding: 1rem 1.25rem;
-  background: var(--wov-04);
-  border-radius: 14px;
-  color: var(--text-soft);
-}
-
-.blog-series-reading,
-.geo-evidence {
+.blog-series-reading {
   margin-top: 4rem;
   min-width: 0;
-}
-
-.blog-series-page .blog-series-stage-description,
-.geo-comparison-source-note {
-  max-width: 72ch;
-  color: var(--text-soft);
-  text-wrap: pretty;
-}
-
-.geo-comparison-caveat {
-  max-width: 72ch;
-  color: var(--text-muted);
-  margin-bottom: 1.5rem;
-}
-
-.geo-decision-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 1.5rem 2rem;
-}
-
-.geo-decision-grid[data-count='3'] {
-  grid-template-columns: repeat(3, minmax(0, 1fr));
-}
-
-.geo-decision {
-  background: var(--wov-04);
-  border-radius: 20px;
-  padding: 24px;
-}
-
-.geo-decision h3,
-.geo-evidence-method h3 {
-  font-size: 1.25rem;
-  margin: 0 0 1.25rem;
-}
-
-.geo-decision h3 a,
-.geo-evidence-method h3 a {
-  color: var(--text-hi);
-  text-decoration: none;
-  transition: color 0.15s;
-}
-
-.geo-decision h3 a:hover,
-.geo-evidence-method h3 a:hover {
-  color: var(--indigo);
-  text-decoration: underline;
-  text-decoration-thickness: 1px;
-  text-underline-offset: 0.25em;
-}
-
-.geo-decision dl,
-.geo-evidence-method dl {
-  margin: 0;
-}
-
-.geo-decision dl > div {
-  display: grid;
-  grid-template-columns: 4rem minmax(0, 1fr);
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.geo-decision dt,
-.geo-evidence-method dt {
-  font-weight: 700;
-  color: var(--text-hi);
-}
-
-.geo-decision dd {
-  margin: 0;
-  max-width: 72ch;
-  color: var(--text-soft);
-  text-wrap: pretty;
-}
-
-.geo-evidence-method dd {
-  margin: 0;
-  max-width: 64ch;
-  color: var(--text-soft);
-  text-wrap: pretty;
-}
-
-.blog-series-page .blog-series-stage {
-  margin-top: 3rem;
-}
-
-.blog-series-page .blog-series-resources-content > .blog-series-stage {
-  margin-top: 2rem;
-}
-
-.blog-series-page .blog-series-stage-heading {
-  display: flex;
-  align-items: baseline;
-  gap: 0.75rem;
-  flex-wrap: wrap;
-}
-
-/* Stage headings must outrank the 20px row titles they group. */
-.blog-series-page .blog-series-stage-heading h3 {
-  margin: 0;
-  font-size: clamp(1.375rem, 2vw, 1.625rem);
-}
-
-.blog-series-page .blog-series-stage-meta {
-  font-size: 0.8125rem;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.geo-evidence {
-  border-top: 1px solid var(--wov-12);
-  padding-top: 2.5rem;
-}
-
-.geo-evidence-method {
-  margin-top: 3rem;
-}
-
-.geo-evidence-method + .geo-evidence-method {
-  border-top: 1px solid var(--wov-12);
-  padding-top: 2.5rem;
-}
-
-.geo-evidence-method-sources-label {
-  margin-right: 0.5rem;
-  font-size: 13px;
-  font-weight: 600;
-  color: var(--text-muted);
-}
-
-.geo-evidence-method dl > div {
-  display: grid;
-  grid-template-columns: minmax(8rem, 1fr) minmax(0, 3fr);
-  gap: 1.5rem;
-  border-top: 1px solid var(--wov-12);
-  padding: 1.25rem 0;
 }
 
 @media (max-width: 800px) and (min-width: 641px) {
@@ -2872,19 +2530,6 @@ dd[data-state='not_applicable'] {
   .blog-series-page .blog-series-pos {
     flex-basis: 1.75rem;
     font-size: 0.8125rem;
-  }
-}
-
-@media (max-width: 767px) {
-  .blog-series-page .geo-decision-grid,
-  .blog-series-page .geo-decision-grid[data-count='3'] {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 1rem;
-  }
-
-  .blog-series-page .geo-evidence-method dl > div {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 0.5rem;
   }
 }
 

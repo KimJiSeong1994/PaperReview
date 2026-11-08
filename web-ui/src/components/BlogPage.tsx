@@ -1227,7 +1227,6 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
           <div className="blog-series-next-done">
             <span>{'시리즈의 마지막 글입니다'}</span>
             <a href={`/blog/series/${seriesId}#series-reading-title`}>{'시리즈 목차로 돌아가기'}</a>
-            {comparison && <a href={`/blog/series/${seriesId}#geo-comparison-title`}>{'논문 선택 비교 보기'}</a>}
           </div>
         )}
         {prevSlug && (
