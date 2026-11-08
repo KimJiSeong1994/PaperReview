@@ -152,7 +152,7 @@ describe('BlogPage detail layout', () => {
     vi.clearAllMocks();
     stubViewport(true);
     vi.stubGlobal('IntersectionObserver', NoopIntersectionObserver);
-    vi.mocked(fetchBlogPosts).mockResolvedValue({ data: { posts: [] } } as unknown as PostsResponse);
+    vi.mocked(fetchBlogPosts).mockResolvedValue({ data: { posts: [], page: 1, pages: 1 } } as unknown as PostsResponse);
   });
 
   afterEach(() => {
@@ -226,7 +226,7 @@ describe('BlogPage detail layout', () => {
     const currentFixture = post(SERIES_SLUG, CONTENT, { title: 'DeepWalk list card' });
     const nextFixture = post(NEXT_SLUG, CONTENT, { title: 'SDNE Review' });
     vi.mocked(fetchBlogPosts).mockResolvedValue({
-      data: { posts: [currentFixture, nextFixture] },
+      data: { posts: [currentFixture, nextFixture], page: 1, pages: 1 },
     } as unknown as PostsResponse);
     vi.mocked(fetchBlogPost).mockResolvedValue({ data: currentFixture } as unknown as PostResponse);
 

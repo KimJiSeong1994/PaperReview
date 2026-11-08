@@ -36,7 +36,7 @@ const ALL_POSTS = [post('a', 'Ranking rewrite'), post('b', 'Crawler health')];
 const MANY_RESULTS = Array.from({ length: 12 }, (_, i) => post(`p${i}`, `Match ${i}`));
 
 type PostsResponse = Awaited<ReturnType<typeof fetchBlogPosts>>;
-const respond = (posts: unknown[]) => ({ data: { posts } }) as unknown as PostsResponse;
+const respond = (posts: unknown[]) => ({ data: { posts, page: 1, pages: 1 } }) as unknown as PostsResponse;
 
 /** Calls carrying the 5th (`q`) argument — i.e. searches, not the initial load-all. */
 function searchCalls() {

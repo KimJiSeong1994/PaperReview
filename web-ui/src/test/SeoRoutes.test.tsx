@@ -14,7 +14,7 @@ vi.mock('../api/client', async () => {
   const actual = await vi.importActual<typeof import('../api/client')>('../api/client');
   return {
     ...actual,
-    fetchBlogPosts: vi.fn().mockResolvedValue({ data: { posts: [] } }),
+    fetchBlogPosts: vi.fn().mockResolvedValue({ data: { posts: [], page: 1, pages: 1 } }),
     fetchBlogPost: vi.fn(),
     getSharedBookmark: vi.fn(),
     getSharedCurriculum: vi.fn(),
@@ -235,6 +235,8 @@ Content after the formula.`,
     vi.mocked(fetchBlogPosts).mockResolvedValue({
       data: {
         posts: [{ ...blogPost, category: 'paper-review', published: true }],
+        page: 1,
+        pages: 1,
       },
     } as unknown as Awaited<ReturnType<typeof fetchBlogPosts>>);
 

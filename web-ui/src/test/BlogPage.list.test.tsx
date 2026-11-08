@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useLocation } from 'react-router-dom';
 import BlogPage from '../components/BlogPage';
 import { fetchBlogPosts } from '../api/client';
@@ -42,7 +42,7 @@ const POSTS = [
 // Newest → oldest: f, e, d | c, b, a. The first three are the hero's.
 
 type PostsResponse = Awaited<ReturnType<typeof fetchBlogPosts>>;
-const respond = (posts: unknown[]) => ({ data: { posts } }) as unknown as PostsResponse;
+const respond = (posts: unknown[], page = 1, pages = 1) => ({ data: { posts, page, pages } }) as unknown as PostsResponse;
 
 function LocationProbe() {
   const { pathname, search } = useLocation();
@@ -426,6 +426,63 @@ describe('BlogPage series index', () => {
     expect(card).toHaveAttribute('href', `/blog/series/${sid}`);
     expect(within(card).getByRole('heading', { name: series.title })).toBeInTheDocument();
     expect(within(card).getByText(`아티클 ${series.slugs.length}개`)).toBeInTheDocument();
+  });
+
+  it('loads older pages so every series can use its actual first-chapter image', async () => {
+    const recent = Array.from({ length: 100 }, (_, i) => post(`recent-${i}`, '03'));
+    const chapters = entries.map(([sid, series]) => post(sid, '01', {
+      slug: series.slugs[0],
+      thumbnail_url: `/api/blog/figures/${sid}-cover.png`,
+    }));
+    vi.mocked(fetchBlogPosts)
+      .mockResolvedValueOnce(respond(recent, 1, 2))
+      .mockResolvedValueOnce(respond(chapters, 2, 2));
+    renderBlog();
+    await screen.findByRole('region', { name: '아티클 시리즈' });
+    expect(fetchBlogPosts).toHaveBeenNthCalledWith(2, undefined, undefined, 2, 100);
+    expect(fetchBlogPosts).toHaveBeenCalledTimes(2);
+    for (const [sid] of entries) {
+      const card = section().querySelector(`a[href="/blog/series/${sid}"]`)!;
+      expect(card.querySelector('img')).toHaveAttribute('src', `/api/blog/figures/${sid}-cover.png?w=456`);
+    }
+  });
+
+  it('does not present a truncated list when a later page fails', async () => {
+    vi.mocked(fetchBlogPosts)
+      .mockResolvedValueOnce(respond([post('partial', '01')], 1, 2))
+      .mockRejectedValueOnce(new Error('page two failed'));
+    renderBlog();
+    await screen.findByText('page two failed');
+    expect(screen.queryByRole('heading', { name: 'Post partial' })).toBeNull();
+    expect(fetchBlogPosts).toHaveBeenCalledTimes(2);
+  });
+
+  it.each([
+    { page: 1, pages: 2, posts: [] },
+    { page: 2, pages: 1, posts: [] },
+    { page: 2, pages: 2.5, posts: [] },
+    { page: 2, pages: 2, posts: null },
+  ])('rejects invalid pagination without continuing: %j', async (data) => {
+    vi.mocked(fetchBlogPosts)
+      .mockResolvedValueOnce(respond([post('partial', '01')], 1, 2))
+      .mockResolvedValueOnce({ data } as PostsResponse);
+    renderBlog();
+    await screen.findByText('Invalid blog pagination response.');
+    expect(screen.queryByRole('heading', { name: 'Post partial' })).toBeNull();
+    expect(fetchBlogPosts).toHaveBeenCalledTimes(2);
+  });
+
+  it('stops an obsolete pagination chain after unmount', async () => {
+    let resolve!: (value: PostsResponse) => void;
+    const pending = new Promise<PostsResponse>((done) => { resolve = done; });
+    vi.mocked(fetchBlogPosts)
+      .mockResolvedValueOnce(respond([post('partial', '01')], 1, 3))
+      .mockReturnValueOnce(pending);
+    const view = renderBlog();
+    await waitFor(() => expect(fetchBlogPosts).toHaveBeenCalledTimes(2));
+    view.unmount();
+    await act(async () => { resolve(respond([post('late', '02')], 2, 3)); });
+    expect(fetchBlogPosts).toHaveBeenCalledTimes(2);
   });
 
   it('covers a card with its first chapter thumbnail, or with nothing at all', async () => {
