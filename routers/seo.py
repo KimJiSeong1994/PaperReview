@@ -94,15 +94,6 @@ DIST_INDEX = Path("web-ui/dist/index.html")
 
 ORG_ID = "https://jiphyeonjeon.kr/#organization"
 
-_GEO_AXIS_LABELS = {
-    "retrieval_or_representation_unit": "다루는 정보·표현 단위",
-    "graph_construction": "입력 그래프와 구성",
-    "evaluation_context": "평가 조건",
-    "traceability": "설명·근거 확인",
-    "cost": "비용",
-    "failure_conditions": "실패 조건",
-}
-
 # Maintainer profile links shown site-wide for service credibility. Keep in
 # sync with web-ui/src/components/SiteFooter.tsx and structuredData.ts.
 GITHUB_PROFILE_URL = "https://github.com/KimJiSeong1994"
@@ -1000,144 +991,6 @@ def _first_sentence(text: str) -> str:
     return trimmed if cut == -1 else trimmed[: cut + 1]
 
 
-def _series_shared_sources(entry: dict, axes: list[str]) -> list[str] | None:
-    """Return the shared source list when every axis cites the same sources."""
-    first = entry["values"][axes[0]]["sources"]
-    if not first:
-        return None
-    if all(entry["values"][axis]["sources"] == first for axis in axes):
-        return first
-    return None
-
-
-def _series_source_links_html(sources: list[str]) -> str:
-    links = "".join(
-        f'<a href="{html.escape(source, quote=True)}" rel="noopener noreferrer">'
-        f"출처 {index}</a>"
-        for index, source in enumerate(sources, start=1)
-    )
-    return f'<span class="geo-comparison-sources">{links}</span>'
-
-
-def _series_comparison_cell_html(cell: dict, *, include_sources: bool = True) -> str:
-    content = cell["value"] if cell["state"] == "known" else cell["reason"]
-    state_label = {
-        "known": "",
-        "unknown": '<span class="geo-state">미확인</span>',
-        "not_applicable": '<span class="geo-state">해당 없음</span>',
-    }[cell["state"]]
-    provenance = _series_source_links_html(cell["sources"]) if include_sources and cell["sources"] else ""
-    return f"{state_label}{html.escape(content or '')}{provenance}"
-
-
-def _series_reading_guide_html(comparison: dict, by_slug: dict[str, dict]) -> str:
-    if not comparison:
-        return ""
-    items = []
-    stages = []
-    for index, step in enumerate(comparison["reading_guide"], start=1):
-        members = [by_slug[slug] for slug in step["slugs"] if slug in by_slug]
-        minutes = _series_total_minutes(members)
-        meta = (
-            f'<span class="blog-series-path-meta">{len(members)}편'
-            f'{f" · {minutes}분" if minutes is not None else ""}</span>'
-            if members else ""
-        )
-        items.append(
-            f'<li><a href="#series-stage-{index}">'
-            f'<span class="blog-series-path-title">{html.escape(step["title"])}</span>'
-            f"{meta}</a></li>"
-        )
-        stage_meta = (
-            f'<span class="blog-series-stage-meta">{len(members)}편'
-            f'{f" · {minutes}분" if minutes is not None else ""}</span>'
-            if members else ""
-        )
-        empty_message = '<p>이 단계에는 아직 공개된 글이 없습니다.</p>' if not members else ""
-        stages.append(
-            f'<section class="blog-series-stage" aria-labelledby="series-stage-{index}">'
-            '<div class="blog-series-stage-heading">'
-            f'<h3 id="series-stage-{index}">{html.escape(step["title"])}</h3>{stage_meta}</div>'
-            f'<p class="blog-series-stage-description">{html.escape(step["description"])}</p>'
-            f'{empty_message}</section>'
-        )
-    return (
-        '<nav class="blog-series-path" aria-labelledby="series-guide-title">'
-        '<h2 id="series-guide-title">한눈에 보는 학습 경로</h2>'
-        f'<ol data-count="{len(items)}">{"".join(items)}</ol></nav>{"".join(stages)}'
-    )
-
-
-def _series_comparison_html(
-    comparison: dict, posts_by_slug: dict[str, dict], *, detailed: bool = False
-) -> str:
-    """Render a validated comparison as readable, escaped HTML."""
-    if not comparison:
-        return ""
-
-    entries = comparison["entries"]
-    def entry_link(entry: dict) -> str:
-        title = posts_by_slug.get(entry["slug"], {}).get("title")
-        if not title:
-            return html.escape(entry["label"])
-        title_attr = f' title="{html.escape(title, quote=True)}"'
-        return (
-            f'<a href="/blog/{html.escape(entry["slug"], quote=True)}"{title_attr}>'
-            f'{html.escape(entry["label"])}</a>'
-        )
-
-    cards = []
-    for index, entry in enumerate(entries, start=1):
-        if not detailed:
-            summary = "".join(
-                f"<div><dt>{label}</dt><dd>{html.escape(entry['summary'][key])}</dd></div>"
-                for key, label in (("role", "역할"), ("fit", "이럴 때"), ("caution", "주의점"))
-            )
-            cards.append(
-                f'<article class="geo-decision"><h3>{entry_link(entry)}</h3><dl>{summary}</dl>'
-                f'<a class="blog-series-text-link" href="#series-evidence-{index}">'
-                f'{html.escape(entry["label"])} 상세 근거 <span aria-hidden="true">→</span></a></article>'
-            )
-            continue
-        hoisted = _series_shared_sources(entry, comparison["axes"])
-        hoisted_html = (
-            '<div class="geo-evidence-method-sources">'
-            '<span class="geo-evidence-method-sources-label">전 항목 출처</span>'
-            f"{_series_source_links_html(hoisted)}</div>"
-            if hoisted else ""
-        )
-        axes = "".join(
-            "<div>"
-            f'<dt>{html.escape(_GEO_AXIS_LABELS[axis])}</dt>'
-            f'<dd data-state="{html.escape(entry["values"][axis]["state"], quote=True)}">'
-            f'{_series_comparison_cell_html(entry["values"][axis], include_sources=hoisted is None)}</dd></div>'
-            for axis in comparison["axes"]
-        )
-        cards.append(
-            f'<article class="geo-evidence-method" aria-labelledby="series-evidence-{index}">'
-            f'<h3 id="series-evidence-{index}">{entry_link(entry)}</h3>{hoisted_html}<dl>{axes}</dl>'
-            '<a class="blog-series-text-link" href="#geo-comparison-title">논문 선택 비교로 돌아가기 '
-            '<span aria-hidden="true">↑</span></a></article>'
-        )
-
-    if detailed:
-        return (
-            '<section class="geo-evidence" aria-labelledby="series-evidence-title">'
-            '<h2 id="series-evidence-title">상세 근거와 출처</h2>'
-            f'<p class="geo-comparison-limits"><strong>해석 한계:</strong> {html.escape(comparison["limits"])}</p>'
-            f'<p class="geo-comparison-source-note">{html.escape(comparison["source_note"])}</p>'
-            f'{"".join(cards)}</section>'
-        )
-    return (
-        '<section class="geo-comparison" aria-labelledby="geo-comparison-title">'
-        '<h2 id="geo-comparison-title">논문 선택 비교</h2>'
-        f'<p class="geo-comparison-question">{html.escape(comparison["question"])}</p>'
-        '<p class="geo-comparison-caveat">성능 순위가 아닌 역할 비교입니다. 평가 조건과 한계는 상세 근거에서 확인하세요.</p>'
-        f'<div class="geo-decision-grid" data-count="{len(entries)}">{"".join(cards)}</div>'
-        "</section>"
-    )
-
-
 def _series_created_date(post: dict) -> str | None:
     """Return a valid created-at calendar date for series-row metadata."""
     raw = post.get("created_at")
@@ -1532,13 +1385,9 @@ def _series_next_html(
             f'href="/blog/{html.escape(next_slug, quote=True)}">다음: {label} →</a>'
         )
     else:
-        compare = (
-            f'<a href="{hub}#geo-comparison-title">논문 선택 비교 보기</a>'
-            if comparison else ""
-        )
         parts.append(
             '<div class="blog-series-next-done"><span>시리즈의 마지막 글입니다</span>'
-            f'<a href="{hub}#series-reading-title">시리즈 목차로 돌아가기</a>{compare}</div>'
+            f'<a href="{hub}#series-reading-title">시리즈 목차로 돌아가기</a></div>'
         )
     if position > 1:
         parts.append(
@@ -1804,7 +1653,6 @@ async def blog_series_ssr(series_id: str) -> HTMLResponse:
 
     by_slug = {p.get("slug"): p for p in posts if p.get("published")}
     ordered = [by_slug[s] for s in series["slugs"] if s in by_slug]
-    comparison = load_geo_comparisons().get(series_id, {})
 
     reading_list = _series_reading_list_html(ordered)
     total_minutes = _series_total_minutes(ordered)
@@ -1813,30 +1661,6 @@ async def blog_series_ssr(series_id: str) -> HTMLResponse:
         f'<p class="blog-series-meta"><span>{len(ordered)}편'
         f'{f" · 약 {total_minutes}분" if total_minutes is not None else ""}</span></p>'
         if ordered else ""
-    )
-    resources_label = (
-        "시리즈 소개 · 학습 경로와 논문 비교 · 근거 보기"
-        if comparison else "시리즈 소개 더 보기"
-    )
-    resources = (
-        '<details class="blog-series-resources">'
-        f'<summary>{resources_label}</summary>'
-        '<div class="blog-series-resources-content">'
-        + (
-            '<nav class="blog-series-resource-nav" aria-label="자료 바로가기">'
-            '<a href="#series-guide-title">학습 경로</a>'
-            '<a href="#geo-comparison-title">논문 선택 비교</a>'
-            '<a href="#series-evidence-title">상세 근거와 출처</a></nav>'
-            if comparison else ""
-        )
-        + '<section class="blog-series-about" aria-labelledby="series-about-title">'
-        '<h2 id="series-about-title">시리즈 소개</h2>'
-        f'<p>{html.escape(series["description"])}</p></section>'
-        f'{_series_reading_guide_html(comparison, by_slug)}'
-        f'{_series_comparison_html(comparison, by_slug)}'
-        f'{_series_comparison_html(comparison, by_slug, detailed=True)}'
-        '</div>'
-        '</details>'
     )
     reading_content = reading_list or '<p role="status">아직 공개된 시리즈 글이 없습니다.</p>'
     body = (
@@ -1856,7 +1680,6 @@ async def blog_series_ssr(series_id: str) -> HTMLResponse:
         '<section class="blog-series-reading" aria-labelledby="series-reading-title">'
         '<h2 id="series-reading-title">추천 읽기 순서</h2>'
         f'{reading_content}</section>'
-        f'{resources}'
         "</main></div>"
     )
     lang = _detect_lang(f'{series["title"]} {series["description"]}')

@@ -3,7 +3,6 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter } from 'react-router-dom';
 import SeriesPage from '../components/SeriesPage';
 import { fetchBlogPosts } from '../api/client';
-import { GEO_COMPARISONS } from '../seo/geoComparisons.generated';
 import { BLOG_SERIES } from '../seo/series';
 
 vi.mock('../api/client', async () => ({
@@ -33,8 +32,38 @@ const page = (seriesId: string, hash = '') => <MemoryRouter initialEntries={[`/b
 const mount = (seriesId = 'graphrag', hash = '') => render(page(seriesId, hash));
 const reading = () => screen.getByRole('region', { name: '추천 읽기 순서' });
 const jsonLd = () => Array.from(document.querySelectorAll('script[type="application/ld+json"]')).map((node) => node.textContent).join('');
+const legacyResourceFragments = [
+  '#series-about-title',
+  '#series-guide-title',
+  '#series-stage-1',
+  '#geo-comparison-title',
+  '#series-evidence-title',
+  '#series-evidence-1',
+];
+function expectNoSeriesResources(container: HTMLElement) {
+  expect(container.querySelector([
+    '.blog-series-resources',
+    '.blog-series-path',
+    '.blog-series-stage',
+    '.geo-comparison',
+    '.geo-evidence',
+    '.geo-decision',
+    '.geo-evidence-method',
+    '#series-about-title',
+    '#series-guide-title',
+    '[id^="series-stage-"]',
+    '#geo-comparison-title',
+    '#series-evidence-title',
+    '[id^="series-evidence-"]',
+  ].join(', '))).not.toBeInTheDocument();
+  for (const fragment of legacyResourceFragments) {
+    expect(container.querySelector(`a[href="${fragment}"]`)).not.toBeInTheDocument();
+  }
+  const main = container.querySelector('main#main')!;
+  expect(main.lastElementChild).toHaveClass('blog-series-reading');
+}
 
-describe('SeriesPage reading and comparison', () => {
+describe('SeriesPage reading list', () => {
   beforeEach(() => { vi.resetAllMocks(); });
 
   it('renders the shared header and a main landmark', () => {
@@ -48,22 +77,11 @@ describe('SeriesPage reading and comparison', () => {
     expect(main).toHaveClass('blog-content');
   });
 
-  it('keeps resources available below a flat reading list, collapsed during a deferred request', () => {
+  it('keeps the compact header and service strip above the reading section while loading', () => {
     vi.mocked(fetchBlogPosts).mockReturnValue(deferred().promise);
     const { container } = mount();
-    const comparison = GEO_COMPARISONS.graphrag;
     expect(screen.getByRole('status')).toHaveTextContent('시리즈 글을 불러오는 중입니다.');
-    const resources = container.querySelector('.blog-series-resources') as HTMLDetailsElement;
-    expect(resources).toBeInTheDocument();
-    expect(resources.open).toBe(false);
-    expect(resources.querySelector('summary')).toHaveTextContent('시리즈 소개 · 학습 경로와 논문 비교 · 근거 보기');
-    expect(resources.querySelector('#series-about-title')).toHaveTextContent('시리즈 소개');
-    expect(resources.querySelector('.geo-comparison-question')).toHaveTextContent(comparison.question);
-    for (const step of comparison.reading_guide) {
-      expect(resources.querySelector(`#series-stage-${comparison.reading_guide.indexOf(step) + 1}`)).toHaveTextContent(step.title);
-      expect(resources).toHaveTextContent(step.description);
-    }
-    expect(screen.queryByRole('table')).not.toBeInTheDocument();
+    expectNoSeriesResources(container);
     expect(container.querySelectorAll('.blog-series-kicker')).toHaveLength(1);
     expect(screen.getByText('SERIES')).toBeInTheDocument();
     expect(container.querySelector('.blog-container.blog-series-page')).toBeInTheDocument();
@@ -75,63 +93,18 @@ describe('SeriesPage reading and comparison', () => {
     expect(service).toHaveTextContent('집현전에서 논문 찾기');
     expect(service.nextElementSibling).toBe(reading());
     expect(reading().querySelector('.blog-series-list')).not.toBeInTheDocument();
-    const summary = resources.querySelector('.geo-comparison')!;
-    const evidence = resources.querySelector('.geo-evidence')!;
-    expect(resources.querySelector('#geo-comparison-title')).toHaveTextContent('논문 선택 비교');
-    expect(resources.querySelector('#series-evidence-title')).toHaveTextContent('상세 근거와 출처');
-    expect(reading().compareDocumentPosition(resources) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(summary.compareDocumentPosition(evidence) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    const path = resources.querySelector('.blog-series-path')!;
-    comparison.reading_guide.forEach((step, index) => {
-      expect(path.querySelector(`a[href="#series-stage-${index + 1}"]`)).toHaveTextContent(step.title);
-      expect(path).not.toHaveTextContent(step.description);
-      expect(resources.querySelector(`#series-stage-${index + 1}`)).toHaveTextContent(step.title);
-    });
-    expect(evidence.querySelector('.geo-comparison-limits')).toHaveTextContent(comparison.limits);
-    expect(summary).not.toHaveTextContent(comparison.limits);
-    const cards = resources.querySelectorAll('.geo-evidence-method');
-    const decisions = resources.querySelectorAll('.geo-decision');
-    expect(container.querySelector('.geo-decision-grid')).toHaveAttribute('data-count', String(comparison.entries.length));
-    comparison.entries.forEach((entry, index) => {
-      expect(decisions[index].querySelectorAll('dd')).toHaveLength(3);
-      expect(Array.from(decisions[index].querySelectorAll('dd')).map((cell) => cell.textContent)).toEqual([entry.summary.role, entry.summary.fit, entry.summary.caution]);
-      expect(decisions[index].querySelector(`a[href="#series-evidence-${index + 1}"]`)).toHaveTextContent(`${entry.label} 상세 근거`);
-      expect(cards[index].querySelector('h3')).toHaveTextContent(entry.label);
-      expect(cards[index].querySelectorAll('dt')).toHaveLength(comparison.axes.length);
-      expect(cards[index].querySelector('h3')).toHaveAttribute('id', `series-evidence-${index + 1}`);
-      comparison.axes.forEach((axis, axisIndex) => {
-        const cell = entry.values[axis];
-        const rendered = cards[index].querySelectorAll('dd')[axisIndex];
-        expect(rendered).toHaveAttribute('data-state', cell.state);
-        expect(rendered).toHaveTextContent((cell.state === 'known' ? cell.value : cell.reason)!);
-        if (cell.state === 'unknown') expect(within(rendered).getByText('미확인')).toHaveClass('geo-state');
-        if (cell.state === 'not_applicable') expect(within(rendered).getByText('해당 없음')).toHaveClass('geo-state');
-      });
-    });
   });
 
-  it('hoists identical per-method sources beside the heading and omits per-cell copies', () => {
-    vi.mocked(fetchBlogPosts).mockReturnValue(deferred().promise);
-    const { container } = mount('gnn');
-    const gcn = GEO_COMPARISONS.gnn.entries.find((entry) => entry.label === 'GCN')!;
-    const sharedSource = gcn.values.retrieval_or_representation_unit.sources[0];
-    expect(GEO_COMPARISONS.gnn.axes.every((axis) => gcn.values[axis].sources.length === 1 && gcn.values[axis].sources[0] === sharedSource)).toBe(true);
-    const method = container.querySelector(`#series-evidence-${GEO_COMPARISONS.gnn.entries.indexOf(gcn) + 1}`)!.closest('.geo-evidence-method')!;
-    const hoisted = method.querySelector('.geo-evidence-method-sources')!;
-    expect(hoisted.querySelectorAll('a')).toHaveLength(1);
-    expect(hoisted.querySelector('a')).toHaveAttribute('href', sharedSource);
-    expect(method.querySelectorAll('dd .geo-comparison-sources')).toHaveLength(0);
-  });
-
-  it('preserves comparison on failure and retries the complete request', async () => {
+  it('keeps the removed section absent on failure and after a successful retry', async () => {
     vi.mocked(fetchBlogPosts).mockRejectedValueOnce(new Error('temporary failure'))
       .mockResolvedValueOnce(response([post(BLOG_SERIES.gnn.slugs[0], '재시도 논문')]));
-    mount('gnn');
+    const { container } = mount('gnn');
     expect(await screen.findByRole('alert')).toHaveTextContent('시리즈 글을 불러오지 못했습니다.');
-    expect(screen.getByText(GEO_COMPARISONS.gnn.source_note)).toBeInTheDocument();
+    expectNoSeriesResources(container);
     expect(screen.queryByText('아직 공개된 시리즈 글이 없습니다.')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
     expect(await within(reading()).findByRole('link', { name: '재시도 논문' })).toBeInTheDocument();
+    expectNoSeriesResources(container);
     expect(fetchBlogPosts).toHaveBeenCalledTimes(2);
   });
 
@@ -180,21 +153,12 @@ describe('SeriesPage reading and comparison', () => {
     expect(rows[2].querySelector('img')).not.toBeInTheDocument();
     const firstSentence = `${series.description.split('. ')[0]}.`;
     expect(container.querySelector('.blog-subtitle')).toHaveTextContent(firstSentence);
-    expect(container.querySelector('#series-about-title')?.nextElementSibling).toHaveTextContent(series.description);
     const meta = container.querySelector('.blog-series-meta')!;
     expect(meta.textContent).toContain(`${published.length}편 · 약 6분`);
-    expect(container.querySelector('.blog-series-path ol')).toHaveAttribute('data-count', String(GEO_COMPARISONS.graphrag.reading_guide.length));
-    expect((container.querySelector('.blog-series-resources') as HTMLDetailsElement).open).toBe(false);
-    GEO_COMPARISONS.graphrag.reading_guide.forEach((stage, index) => {
-      const heading = container.querySelector(`#series-stage-${index + 1}`)!;
-      const group = heading.closest('.blog-series-stage')!;
-      expect(group).toHaveAttribute('aria-labelledby', `series-stage-${index + 1}`);
-      expect(group).toHaveTextContent(stage.description);
-      expect(group.querySelector('.blog-series-list')).not.toBeInTheDocument();
-    });
+    expectNoSeriesResources(container);
   });
 
-  it.each(Object.keys(BLOG_SERIES))('keeps %s descriptions consistent with a partially published reading list', async (seriesId) => {
+  it.each(Object.keys(BLOG_SERIES))('keeps %s compact in the hydrated reading-list view', async (seriesId) => {
     const series = BLOG_SERIES[seriesId];
     const published = series.slugs.slice(0, 2);
     vi.mocked(fetchBlogPosts).mockResolvedValue(response(
@@ -208,9 +172,10 @@ describe('SeriesPage reading and comparison', () => {
     const description = document.head.querySelector('meta[name="description"]')?.getAttribute('content');
     expect(description).toBe(series.description);
     expect(description).not.toMatch(/\d+\s*편/);
-    expect(container.querySelector('.blog-subtitle')).toHaveTextContent(`${series.description.split('. ')[0]}.`);
-    expect(container.querySelector('#series-about-title')?.nextElementSibling).toHaveTextContent(series.description);
-    expect((container.querySelector('.blog-series-resources') as HTMLDetailsElement).open).toBe(false);
+    const intro = `${series.description.split('. ')[0]}.`;
+    expect(container.querySelector('.blog-subtitle')).toHaveTextContent(intro);
+    expect(container.querySelector('main#main')).not.toHaveTextContent(series.description.slice(intro.length).trim());
+    expectNoSeriesResources(container);
     const graph = JSON.parse(document.querySelector('script#seo-json-ld')!.textContent!)['@graph'];
     expect(graph).toContainEqual(expect.objectContaining({
       '@type': 'CollectionPage',
@@ -221,10 +186,11 @@ describe('SeriesPage reading and comparison', () => {
 
   it('distinguishes a successful empty reading list', async () => {
     vi.mocked(fetchBlogPosts).mockResolvedValue(response([]));
-    mount();
+    const { container } = mount();
     expect(await screen.findByText('아직 공개된 시리즈 글이 없습니다.')).toHaveAttribute('role', 'status');
     expect(screen.queryByRole('alert')).not.toBeInTheDocument();
     expect(within(reading()).queryByRole('link')).not.toBeInTheDocument();
+    expectNoSeriesResources(container);
   });
 
   it('finds members older than the newest 100 and preserves configured order', async () => {
@@ -245,13 +211,9 @@ describe('SeriesPage reading and comparison', () => {
     const { container } = mount('gnn');
     await within(reading()).findAllByRole('list');
     expect(fetchBlogPosts).toHaveBeenCalledTimes(1);
-    fireEvent.click(container.querySelector('.blog-series-resources summary')!);
-    const summary = screen.getByRole('region', { name: '논문 선택 비교' });
-    for (const entry of GEO_COMPARISONS.gnn.entries) {
-      const link = within(summary).getByRole('link', { name: entry.label });
-      expect(link).toHaveAttribute('href', `/blog/${entry.slug}`);
-      expect(link).toHaveAttribute('title', `정식 제목 ${entry.slug}`);
-    }
+    expect(within(reading()).getAllByRole('link').map((link) => link.getAttribute('href')))
+      .toEqual(BLOG_SERIES.gnn.slugs.map((slug) => `/blog/${slug}`));
+    expectNoSeriesResources(container);
   });
 
   it('does not present a partial list when a later page fails', async () => {
@@ -334,19 +296,20 @@ describe('SeriesPage reading and comparison', () => {
     expect(screen.getByRole('button', { name: '다시 시도' })).toBeInTheDocument();
   });
 
-  it('handles a series without comparison content', async () => {
-    const seriesId = Object.keys(BLOG_SERIES).find((id) => !(id in GEO_COMPARISONS))!;
-    expect(seriesId).toBeDefined();
+  it('handles development-series loading, error, retry, and empty states without resources', async () => {
+    const seriesId = 'jiphyeonjeon-build';
     vi.mocked(fetchBlogPosts).mockRejectedValueOnce(new Error('offline')).mockResolvedValueOnce(response([]));
-    mount(seriesId);
+    const { container } = mount(seriesId);
     expect(screen.getByRole('status')).toHaveTextContent('불러오는 중');
+    expectNoSeriesResources(container);
     await screen.findByRole('alert');
+    expectNoSeriesResources(container);
     fireEvent.click(screen.getByRole('button', { name: '다시 시도' }));
     await screen.findByText('아직 공개된 시리즈 글이 없습니다.');
-    expect(screen.queryByRole('heading', { name: '논문 선택 비교' })).not.toBeInTheDocument();
+    expectNoSeriesResources(container);
   });
 
-  it('keeps a flat reading list and full series introduction without comparison data', async () => {
+  it('keeps the development-series success view compact and linked', async () => {
     const seriesId = 'jiphyeonjeon-build';
     const slug = BLOG_SERIES[seriesId].slugs[0];
     vi.mocked(fetchBlogPosts).mockResolvedValue(response([post(slug, '개발 기록 시작')]));
@@ -354,26 +317,19 @@ describe('SeriesPage reading and comparison', () => {
     expect(await within(reading()).findByRole('link', { name: '개발 기록 시작' })).toHaveAttribute('href', `/blog/${slug}`);
     expect(screen.queryByRole('link', { name: '첫 글 읽기' })).not.toBeInTheDocument();
     expect(within(reading()).getByRole('link', { name: '개발 기록 시작' })).toHaveAttribute('href', `/blog/${slug}`);
-    const resources = container.querySelector('.blog-series-resources') as HTMLDetailsElement;
-    expect(resources).toBeInTheDocument();
-    expect(resources.open).toBe(false);
-    expect(resources.querySelector('summary')).toHaveTextContent('시리즈 소개 더 보기');
-    expect(resources.querySelector('#series-about-title')?.nextElementSibling).toHaveTextContent(BLOG_SERIES[seriesId].description);
-    expect(resources.querySelector('.blog-series-path')).not.toBeInTheDocument();
-    expect(resources.querySelector('.geo-comparison')).not.toBeInTheDocument();
+    expectNoSeriesResources(container);
   });
 
-  it.each(['#series-stage-1', '#geo-comparison-title', '#series-evidence-title'])('opens resources before scrolling to %s', async (hash) => {
-    Element.prototype.scrollIntoView = vi.fn();
-    vi.mocked(fetchBlogPosts).mockResolvedValue(response([post(BLOG_SERIES.gnn.slugs[0])]));
-    const { container } = render(page('gnn', hash));
-    const resources = container.querySelector('.blog-series-resources') as HTMLDetailsElement;
-    await waitFor(() => expect(resources.open).toBe(true));
-    const target = container.querySelector(hash) as HTMLElement;
-    expect(target).toBeInTheDocument();
-    await waitFor(() => expect(target.scrollIntoView).toHaveBeenCalledWith({ block: 'start' }));
-    expect(vi.mocked(target.scrollIntoView).mock.contexts).toContain(target);
-  });
+  it.each(Object.keys(BLOG_SERIES).flatMap((seriesId) => legacyResourceFragments.map((fragment) => ({ seriesId, fragment }))))(
+    'does not restore removed content for old fragment $fragment on $seriesId',
+    async ({ seriesId, fragment }) => {
+      vi.mocked(fetchBlogPosts).mockResolvedValue(response([post(BLOG_SERIES[seriesId].slugs[0])]));
+      const { container } = render(page(seriesId, fragment));
+      await within(reading()).findByRole('list');
+      expectNoSeriesResources(container);
+      expect(container.querySelector(fragment)).not.toBeInTheDocument();
+    },
+  );
 
   it('keeps the existing noindex not-found behavior', async () => {
     mount('invalid-series');
