@@ -837,6 +837,8 @@ def test_removed_urban_spatial_sociology_series_has_no_membership() -> None:
 
 
 def test_series_hub_renders_ordered_list_and_item_list_schema(monkeypatch) -> None:
+    from routers.seo import BLOG_SERIES
+
     monkeypatch.setattr("routers.seo._load_posts", _series_fixture_posts)
     monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
     resp = TestClient(app).get("/blog/series/gnn")
@@ -847,16 +849,28 @@ def test_series_hub_renders_ordered_list_and_item_list_schema(monkeypatch) -> No
     assert '"@type": "CollectionPage"' in html
     assert '"@type": "ItemList"' in html
     assert '"numberOfItems": 2' in html
-    # Ordered: position 1 is the first series slug.
-    assert html.index("Series Post 0") < html.index("Series Post 1")
+    reading = html[html.index('<section class="blog-series-reading"'):html.index('</section>', html.index('<section class="blog-series-reading"'))]
+    assert reading.index("Series Post 0") < reading.index("Series Post 1")
+    assert reading.count('<ol class="blog-series-list">') == 1
+    assert '<span class="blog-series-pos" aria-hidden="true">01</span>' in reading
+    assert '<span class="blog-series-pos" aria-hidden="true">02</span>' in reading
     assert "noindex" not in html
     assert '<main id="main" class="blog-content">' in html
     assert '<span class="blog-row-cat" data-cat="paper-review">Paper Review</span>' in html
     # Count and minutes share one basis: the two published chapters (1 min each).
     assert "<span>2편 · 약 2분</span>" in html
     assert "아티클 11개" not in html
-    assert '<p class="blog-series-kicker">여기서 시작하세요<span class="blog-series-start-time"> · 1분</span></p>' in html
-    assert '<ol data-count="5">' in html
+    assert '<p class="blog-series-kicker">SERIES</p>' in html
+    description = BLOG_SERIES["gnn"]["description"]
+    intro = description.split(". ", 1)[0] + "."
+    assert f'<p class="blog-subtitle">{intro}</p>' in html
+    resources = html.split('<details class="blog-series-resources">', 1)[1]
+    assert 'id="series-about-title"' in resources
+    assert f"<p>{description}</p>" in resources
+    assert '<aside class="blog-series-service" aria-label="집현전 서비스">' in html
+    assert '<span class="blog-series-service-label">SERVICE</span>' in html
+    assert '<ol data-count=' in html
+    assert 'class="blog-series-start-cta"' not in html
     assert "← 블로그로" in html
 
 
@@ -983,14 +997,19 @@ def test_series_hub_renders_safe_accessible_comparison(monkeypatch) -> None:
     assert 'title="Series Post 0"' in html
     assert "개념 &lt;먼저&gt;" in html
     assert "역할을 &lt;구분&gt;하고 읽습니다." in html
-    ordered_ids = ["series-start-title", "series-guide-title", "series-reading-title", "geo-comparison-title", "series-evidence-title", "series-evidence-1"]
-    assert [html.index(f'id="{target}"') for target in ordered_ids] == sorted(html.index(f'id="{target}"') for target in ordered_ids)
+    assert html.index('id="series-reading-title"') < html.index('<details class="blog-series-resources">')
+    resources = html[html.index('<details class="blog-series-resources">'):html.index('</details>')]
+    ordered_ids = ["series-guide-title", "series-stage-1", "geo-comparison-title", "series-evidence-title", "series-evidence-1"]
+    assert [resources.index(f'id="{target}"') for target in ordered_ids] == sorted(resources.index(f'id="{target}"') for target in ordered_ids)
     assert html.index('class="geo-comparison-limits"') < html.index('class="geo-evidence-method"')
     assert html.index('class="geo-comparison-source-note"') < html.index('class="geo-evidence-method"')
-    for target in ("series-stage-1", "series-reading-title", "geo-comparison-title", "series-evidence-title", "series-evidence-1"):
+    for target in ("series-stage-1", "geo-comparison-title", "series-evidence-title", "series-evidence-1"):
         assert f'href="#{target}"' in html
-    assert '<ol class="blog-series-list" start="1">' in html
+        assert f'id="{target}"' in resources
+    assert '<summary>시리즈 소개 · 학습 경로와 논문 비교 · 근거 보기</summary>' in html
+    assert '<ol class="blog-series-list">' in html
     assert '<p class="blog-row-excerpt">' in html
+    assert '<h3 class="blog-row-title">' in html
     assert 'class="geo-decision"' in html
     assert 'class="geo-evidence-method"' in html
     assert html.count("<dt>") == 9
@@ -999,7 +1018,8 @@ def test_series_hub_renders_safe_accessible_comparison(monkeypatch) -> None:
     assert "<dt>주의점</dt><dd>주의할 조건</dd>" in html
     assert '<dt>설명·근거 확인</dt>' in html
     assert '<dd data-state="unknown"><span class="geo-state">미확인</span>직접 비교 자료 없음</dd>' in html
-    assert "<details" not in html
+    assert '<details class="blog-series-resources">' in html
+    assert '<details class="blog-series-resources" open>' not in html
     assert "&lt;script&gt;alert(1)&lt;/script&gt;" in html
     assert "<script>alert(1)</script>" not in html
     assert 'href="https://example.org/traceability" rel="noopener noreferrer"' in html
@@ -1041,16 +1061,18 @@ def test_series_hub_keeps_original_shell_when_comparison_is_unavailable(monkeypa
     assert 'id="series-reading-title"' in html
     assert 'href="#series-guide-title"' not in html
     assert "Series Post 0" in html
-    assert 'class="blog-series-start-cta"' in html
-    assert html.index('id="series-start-title"') < html.index('id="series-reading-title"')
+    assert 'class="blog-series-start-cta"' not in html
+    assert 'id="series-start-title"' not in html
+    assert '<details class="blog-series-resources">' in html
+    assert '<summary>시리즈 소개 더 보기</summary>' in html
+    assert 'id="series-about-title"' in html
     assert '"@type": "ItemList"' in html
     assert '<link rel="canonical" href="https://jiphyeonjeon.kr/blog/series/gnn">' in html
     from routers.seo import BLOG_SERIES
-    first_sentence = BLOG_SERIES["gnn"]["description"].split(". ")[0]
-    # Head metadata legitimately repeats the description; the visible body
-    # must state the opening sentence exactly once (subtitle, not intro).
-    body = html[html.index("<body"):]
-    assert body.count(first_sentence) == 1
+    description = BLOG_SERIES["gnn"]["description"]
+    intro = description.split(". ", 1)[0] + "."
+    assert f'<p class="blog-subtitle">{intro}</p>' in html
+    assert f"<p>{description}</p>" in html.split('<details class="blog-series-resources">', 1)[1]
     assert '<nav class="blog-series-nav"' not in html
 
 
@@ -1096,8 +1118,9 @@ def test_missing_or_malformed_series_manifest_keeps_content_available(tmp_path, 
         manifest.write_text(content)
     monkeypatch.setattr(seo, "_load_posts", _series_fixture_posts)
     markup = TestClient(app).get("/blog/series/gnn").text
-    assert 'class="blog-series-start-cta"' in markup
+    assert 'class="blog-series-start-cta"' not in markup
     assert "Series Post 0" in markup
+    assert '<ol class="blog-series-list">' in markup
     assert seo._series_stylesheets() == ""
     assert "series_stylesheets_invalid_built_manifest" in caplog.text
 
@@ -1137,22 +1160,34 @@ def test_series_manifest_survives_artifact_hidden_file_filter(tmp_path, monkeypa
     assert "series_stylesheets_invalid_built_manifest" in caplog.text
 
 
-def test_series_group_numbers_match_published_positions_across_stages() -> None:
+def test_series_reading_list_is_flat_and_uses_two_digit_positions_and_full_excerpts() -> None:
     from routers.seo import _series_reading_list_html
 
-    ordered = [{"slug": "first", "title": "First"}, {"slug": "third", "title": "Third"}]
-    comparison = {"reading_guide": [
-        {"title": "Foundation", "description": "Start.", "slugs": ["first", "second"]},
-        {"title": "Further", "description": "Continue.", "slugs": ["third"]},
-    ]}
-    markup = _series_reading_list_html(ordered, comparison)
-    assert '<ol class="blog-series-list" start="1">' in markup
-    assert '<ol class="blog-series-list" start="2">' in markup
-    assert '<span class="blog-series-pos" aria-hidden="true">2</span>' in markup
-    assert 'href="/blog/second"' not in markup
+    ordered = [
+        {
+            "slug": f"post-{index}",
+            "title": f"Post {index}",
+            "excerpt": f"Full opening. Additional context {index}.",
+            "category": "engineering",
+            "reading_time_min": index,
+            "thumbnail_url": None,
+        }
+        for index in range(1, 13)
+    ]
+    markup = _series_reading_list_html(ordered)
+    assert markup.count('<ol class="blog-series-list">') == 1
+    assert markup.index('href="/blog/post-1"') < markup.index('href="/blog/post-2"')
+    assert markup.index('href="/blog/post-11"') < markup.index('href="/blog/post-12"')
+    for position in ("01", "02", "10", "12"):
+        assert f'<span class="blog-series-pos" aria-hidden="true">{position}</span>' in markup
+    assert "Full opening. Additional context 1." in markup
+    assert '<div class="blog-series-row-meta">' in markup
+    assert '<span class="blog-row-cat" data-cat="engineering">Engineering</span>' in markup
+    assert '<h3 class="blog-row-title">Post 12</h3>' in markup
+    assert 'class="blog-series-stage"' not in markup
 
 
-def test_series_spotlight_uses_first_published_member_and_stages_keep_all_evidence(monkeypatch) -> None:
+def test_series_publication_gate_and_evidence_remain_in_closed_details(monkeypatch) -> None:
     import html as html_module
 
     from routers.seo import BLOG_SERIES, load_geo_comparisons
@@ -1162,28 +1197,111 @@ def test_series_spotlight_uses_first_published_member_and_stages_keep_all_eviden
     monkeypatch.setattr("routers.seo._load_posts", lambda: posts)
     markup = TestClient(app).get("/blog/series/gnn").text
     first, second = BLOG_SERIES["gnn"]["slugs"][:2]
-    assert f'<a class="blog-series-start-cta" href="/blog/{second}">' in markup
+    assert 'class="blog-series-start-cta"' not in markup
     assert f'href="/blog/{first}"' not in markup
+    reading = markup[markup.index('<section class="blog-series-reading"'):markup.index('</section>', markup.index('<section class="blog-series-reading"'))]
+    assert f'href="/blog/{second}"' in reading
     assert '"numberOfItems": 1' in markup
+    details = markup[markup.index('<details class="blog-series-resources">'):markup.index('</details>')]
+    assert '<summary>시리즈 소개 · 학습 경로와 논문 비교 · 근거 보기</summary>' in details
+    assert ' open' not in details[:80]
+    assert 'class="blog-row"' not in details
+    assert 'class="blog-row-thumb"' not in details
     comparison = load_geo_comparisons()["gnn"]
     for index, stage in enumerate(comparison["reading_guide"], start=1):
-        assert f'href="#series-stage-{index}"' in markup
-        assert f'id="series-stage-{index}"' in markup
-        assert html_module.escape(stage["description"]) in markup
+        assert f'href="#series-stage-{index}"' in details
+        assert f'id="series-stage-{index}"' in details
+        assert html_module.escape(stage["description"]) in details
     for index, entry in enumerate(comparison["entries"], start=1):
-        assert f'href="#series-evidence-{index}"' in markup
-        assert f'id="series-evidence-{index}"' in markup
+        assert f'href="#series-evidence-{index}"' in details
+        assert f'id="series-evidence-{index}"' in details
         for value in entry["summary"].values():
-            assert html_module.escape(value) in markup
+            assert html_module.escape(value) in details
         for axis in comparison["axes"]:
             cell = entry["values"][axis]
             value = cell["value"] if cell["state"] == "known" else cell["reason"]
-            assert html_module.escape(value) in markup
-            assert f'data-state="{cell["state"]}"' in markup
+            assert html_module.escape(value) in details
+            assert f'data-state="{cell["state"]}"' in details
             for source in cell["sources"]:
-                assert f'href="{html_module.escape(source, quote=True)}"' in markup
-    assert html_module.escape(comparison["limits"]) in markup
-    assert html_module.escape(comparison["source_note"]) in markup
+                assert f'href="{html_module.escape(source, quote=True)}"' in details
+    assert html_module.escape(comparison["limits"]) in details
+    assert html_module.escape(comparison["source_note"]) in details
+
+
+def test_series_rows_use_created_dates_only_and_ssr_matches_published_jsonld(monkeypatch) -> None:
+    import json
+    import re
+
+    from routers.seo import BLOG_SERIES
+
+    series_slugs = BLOG_SERIES["gnn"]["slugs"]
+    fixture = _series_fixture_posts()
+    first, second = fixture[-2:]
+    first = {
+        **first,
+        "title": 'First <script>alert("x")</script> & "quoted"',
+        "excerpt": "Full <b>excerpt</b> & context. A second sentence remains visible.",
+        "created_at": "2025-02-03T09:00:00+09:00",
+        "updated_at": "2026-11-30T09:00:00+09:00",
+        "modified_at": "2026-12-01T09:00:00+09:00",
+        "thumbnail_url": "/api/blog/figures/series-first.png",
+    }
+    second = {
+        **second,
+        "created_at": "2025-02-30T09:00:00",
+        "updated_at": "2026-01-01T09:00:00",
+        "thumbnail_url": "/api/blog/figures/series-second.png",
+    }
+    third = {
+        **second,
+        "id": "series-third",
+        "slug": series_slugs[2],
+        "title": "Third published chapter",
+        "created_at": None,
+        "updated_at": "2026-01-02T09:00:00",
+        "thumbnail_url": None,
+    }
+    draft = {
+        **third,
+        "id": "series-draft",
+        "slug": series_slugs[3],
+        "title": "Draft chapter must not appear",
+        "published": False,
+    }
+    # Deliberately reverse source order: configured series order must win.
+    monkeypatch.setattr("routers.seo._load_posts", lambda: [*fixture[:-2], second, first, third, draft])
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    page = TestClient(app).get("/blog/series/gnn").text
+    reading = page[page.index('<section class="blog-series-reading"'):page.index('</section>', page.index('<section class="blog-series-reading"'))]
+    assert reading.count('<ol class="blog-series-list">') == 1
+    assert reading.index(f'href="/blog/{series_slugs[0]}"') < reading.index(f'href="/blog/{series_slugs[1]}"')
+    assert reading.index(f'href="/blog/{series_slugs[1]}"') < reading.index(f'href="/blog/{series_slugs[2]}"')
+    assert '<span class="blog-series-pos" aria-hidden="true">01</span>' in reading
+    assert '<span class="blog-series-pos" aria-hidden="true">03</span>' in reading
+    assert 'datetime="2025-02-03">2025.02.03</time>' in reading
+    assert 'datetime="2026-11-30"' not in reading
+    assert 'datetime="2025-02-30"' not in reading
+    assert 'datetime="2026-01-01"' not in reading
+    assert 'datetime="2026-01-02"' not in reading
+    assert 'First &lt;script&gt;alert(&quot;x&quot;)&lt;/script&gt; &amp; &quot;quoted&quot;' in reading
+    assert "<script>alert(\"x\")</script>" not in reading
+    assert 'Full &lt;b&gt;excerpt&lt;/b&gt; &amp; context. A second sentence remains visible.' in reading
+    assert "Draft chapter must not appear" not in page
+    assert 'loading="eager" decoding="async"' in reading
+    assert 'loading="lazy" decoding="async"' in reading
+    assert 'width="228" height="128"' in reading
+
+    script = re.search(
+        r'<script type="application/ld\+json" id="seo-json-ld">(.*?)</script>',
+        page,
+        re.DOTALL,
+    )
+    assert script is not None
+    graph = json.loads(script.group(1))["@graph"]
+    collection = next(node for node in graph if node.get("@type") == "CollectionPage")
+    item_list = collection["mainEntity"]
+    assert item_list["numberOfItems"] == 3
+    assert [item["url"].rsplit("/", 1)[-1] for item in item_list["itemListElement"]] == series_slugs[:3]
 
 
 def test_series_member_post_has_banner_and_is_part_of(monkeypatch) -> None:
@@ -1249,6 +1367,8 @@ def test_empty_series_hub_is_noindex(client: TestClient) -> None:
     assert '<p role="status">아직 공개된 시리즈 글이 없습니다.</p>' in resp.text
     assert '<html lang="ko">' in resp.text
     assert 'class="blog-series-start-cta"' not in resp.text
+    assert 'class="blog-series-meta"' not in resp.text
+    assert '<ol class="blog-series-list">' not in resp.text
 
 
 def test_unknown_series_returns_404(client: TestClient) -> None:
