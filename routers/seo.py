@@ -1034,9 +1034,10 @@ def _series_reading_guide_html(comparison: dict, by_slug: dict[str, dict]) -> st
     if not comparison:
         return ""
     items = []
+    stages = []
     for index, step in enumerate(comparison["reading_guide"], start=1):
-        members = [slug for slug in step["slugs"] if slug in by_slug]
-        minutes = _series_total_minutes([by_slug[slug] for slug in members])
+        members = [by_slug[slug] for slug in step["slugs"] if slug in by_slug]
+        minutes = _series_total_minutes(members)
         meta = (
             f'<span class="blog-series-path-meta">{len(members)}편'
             f'{f" · {minutes}분" if minutes is not None else ""}</span>'
@@ -1047,10 +1048,23 @@ def _series_reading_guide_html(comparison: dict, by_slug: dict[str, dict]) -> st
             f'<span class="blog-series-path-title">{html.escape(step["title"])}</span>'
             f"{meta}</a></li>"
         )
+        stage_meta = (
+            f'<span class="blog-series-stage-meta">{len(members)}편'
+            f'{f" · {minutes}분" if minutes is not None else ""}</span>'
+            if members else ""
+        )
+        empty_message = '<p>이 단계에는 아직 공개된 글이 없습니다.</p>' if not members else ""
+        stages.append(
+            f'<section class="blog-series-stage" aria-labelledby="series-stage-{index}">'
+            '<div class="blog-series-stage-heading">'
+            f'<h3 id="series-stage-{index}">{html.escape(step["title"])}</h3>{stage_meta}</div>'
+            f'<p class="blog-series-stage-description">{html.escape(step["description"])}</p>'
+            f'{empty_message}</section>'
+        )
     return (
         '<nav class="blog-series-path" aria-labelledby="series-guide-title">'
         '<h2 id="series-guide-title">한눈에 보는 학습 경로</h2>'
-        f'<ol data-count="{len(items)}">{"".join(items)}</ol></nav>'
+        f'<ol data-count="{len(items)}">{"".join(items)}</ol></nav>{"".join(stages)}'
     )
 
 
@@ -1124,56 +1138,82 @@ def _series_comparison_html(
     )
 
 
-def _series_reading_list_html(ordered: list[dict], comparison: dict) -> str:
-    positions = {post["slug"]: index for index, post in enumerate(ordered, start=1)}
+def _series_created_date(post: dict) -> str | None:
+    """Return a valid created-at calendar date for series-row metadata."""
+    raw = post.get("created_at")
+    if not isinstance(raw, str):
+        return None
+    match = re.fullmatch(
+        r"([0-9]{4})-([0-9]{2})-([0-9]{2})(?:T([0-9]{2}):([0-9]{2})"
+        r"(?::([0-9]{2})(?:\.[0-9]+)?)?(Z|[+-][0-9]{2}:[0-9]{2})?)?",
+        raw,
+    )
+    if not match:
+        return None
 
-    def post_list(members: list[dict]) -> str:
-        if not members:
-            return ""
-        items = []
-        for p in members:
-            thumb_url = _effective_thumbnail(p)
-            thumb = (
-                f'<div class="blog-row-thumb"><img src="{html.escape(thumb_url, quote=True)}" '
-                'alt="" width="228" height="128" loading="lazy" decoding="async"></div>'
-                if thumb_url else ""
-            )
-            minutes = p.get("reading_time_min")
-            time_html = (
-                f'<span class="blog-series-time">{minutes}분</span>'
-                if isinstance(minutes, (int, float)) else ""
-            )
-            items.append(
-                f'<li><span class="blog-series-pos" aria-hidden="true">{positions[p["slug"]]}</span>'
-                f'<a class="blog-row" href="/blog/{html.escape(p["slug"], quote=True)}" '
-                f'aria-label="{html.escape(p.get("title", ""), quote=True)}">'
-                '<div class="blog-row-text">'
-                f'<h4 class="blog-row-title">{html.escape(p.get("title", ""))}</h4>'
-                f'<p class="blog-row-excerpt">{html.escape(_first_sentence(p.get("excerpt", "")))}</p>'
-                f'{time_html}</div>{thumb}</a></li>'
-            )
-        return f'<ol class="blog-series-list" start="{positions[members[0]["slug"]]}">{"".join(items)}</ol>'
+    year_text, month_text, day_text, hour_text, minute_text, second_text, zone = match.groups()
+    year, month, day = int(year_text), int(month_text), int(day_text)
+    try:
+        datetime(year, month, day)
+    except ValueError:
+        return None
+    if hour_text is not None:
+        if int(hour_text) > 23 or int(minute_text) > 59 or int(second_text or 0) > 59:
+            return None
+        if zone and zone != "Z":
+            offset_hour, offset_minute = map(int, zone[1:].split(":"))
+            if offset_hour > 23 or offset_minute > 59:
+                return None
+    return f"{year_text}-{month_text}-{day_text}"
 
-    if not comparison:
-        return post_list(ordered)
-    stages = []
-    for index, step in enumerate(comparison["reading_guide"], start=1):
-        members = [post for post in ordered if post["slug"] in step["slugs"]]
-        minutes = _series_total_minutes(members)
-        meta = (
-            f'<span class="blog-series-stage-meta">{len(members)}편'
-            f'{f" · {minutes}분" if minutes is not None else ""}</span>'
-            if members else ""
+
+def _series_reading_list_html(ordered: list[dict]) -> str:
+    if not ordered:
+        return ""
+    items = []
+    for index, post in enumerate(ordered, start=1):
+        thumb_url = _effective_thumbnail(post)
+        thumb = (
+            f'<div class="blog-row-thumb"><img src="{html.escape(thumb_url, quote=True)}" '
+            'alt="" width="228" height="128" '
+            f'loading="{"eager" if index == 1 else "lazy"}" decoding="async"></div>'
+            if thumb_url else ""
         )
-        listing = post_list(members) or "<p>이 단계에는 아직 공개된 글이 없습니다.</p>"
-        stages.append(
-            f'<section class="blog-series-stage" aria-labelledby="series-stage-{index}">'
-            '<div class="blog-series-stage-heading">'
-            f'<h3 id="series-stage-{index}">{html.escape(step["title"])}</h3>{meta}</div>'
-            f'<p class="blog-series-stage-description">{html.escape(step["description"])}</p>'
-            f"{listing}</section>"
+        category = post.get("category")
+        if category == "paper-review":
+            category_label = "Paper Review"
+        elif category == "engineering":
+            category_label = "Engineering"
+        else:
+            category = None
+            category_label = None
+        category_html = (
+            f'<span class="blog-row-cat" data-cat="{category}">{category_label}</span>'
+            if category_label else ""
         )
-    return "".join(stages)
+        date = _series_created_date(post)
+        date_html = (
+            f'<time datetime="{date}">{date.replace("-", ".")}</time>'
+            if date else ""
+        )
+        minutes = post.get("reading_time_min")
+        time_html = (
+            f'<span class="blog-series-time">{minutes}분</span>'
+            if isinstance(minutes, (int, float)) else ""
+        )
+        items.append(
+            f'<li><span class="blog-series-pos" aria-hidden="true">{index:02}</span>'
+            f'<a class="blog-row" href="/blog/{html.escape(post["slug"], quote=True)}" '
+            f'aria-label="{html.escape(post.get("title", ""), quote=True)}">'
+            '<div class="blog-row-text">'
+            '<div class="blog-series-row-meta">'
+            f'{category_html}'
+            f'{date_html}{time_html}</div>'
+            f'<h3 class="blog-row-title">{html.escape(post.get("title", ""))}</h3>'
+            f'<p class="blog-row-excerpt">{html.escape(post.get("excerpt") or "")}</p>'
+            f'</div>{thumb}</a></li>'
+        )
+    return f'<ol class="blog-series-list">{"".join(items)}</ol>'
 # ── HTML document builder ─────────────────────────────────────────────
 
 
@@ -1766,80 +1806,57 @@ async def blog_series_ssr(series_id: str) -> HTMLResponse:
     ordered = [by_slug[s] for s in series["slugs"] if s in by_slug]
     comparison = load_geo_comparisons().get(series_id, {})
 
-    reading_list = _series_reading_list_html(ordered, comparison)
+    reading_list = _series_reading_list_html(ordered)
     total_minutes = _series_total_minutes(ordered)
-    cat = _category_of(ordered[0]) if ordered else None
-    cat_label = "Engineering" if cat == "engineering" else "Paper Review" if cat else ""
-    cat_html = f'<span class="blog-row-cat" data-cat="{cat}">{cat_label}</span>' if cat else ""
     # Count and minutes share one basis: published chapters.
     meta_html = (
-        f'<p class="blog-series-meta">{cat_html}<span>{len(ordered)}편'
+        f'<p class="blog-series-meta"><span>{len(ordered)}편'
         f'{f" · 약 {total_minutes}분" if total_minutes is not None else ""}</span></p>'
         if ordered else ""
     )
-    time_html = ""
-    if ordered:
-        first = ordered[0]
-        first_url = f'/blog/{html.escape(first["slug"], quote=True)}'
-        first_minutes = first.get("reading_time_min")
-        time_html = (
-            f'<span class="blog-series-start-time"> · {first_minutes}분</span>'
-            if isinstance(first_minutes, (int, float)) else ""
-        )
-        first_excerpt = _first_sentence(first.get("excerpt") or "")
-        thumb_url = _effective_thumbnail(first)
-        # First-fold cover: never lazy, it is the page's LCP candidate.
-        media_html = (
-            f'<div class="blog-series-start-media"><img src="{html.escape(thumb_url, quote=True)}" '
-            'alt="" decoding="async"></div>'
-            if thumb_url else ""
-        )
-        spotlight = (
-            f'<h2 id="series-start-title"><a href="{first_url}">{html.escape(first["title"])}</a></h2>'
-            f'<p class="blog-series-start-excerpt">{html.escape(first_excerpt)}</p>'
-            f'<a class="blog-series-start-cta" href="{first_url}">첫 글 읽기 '
-            '<span aria-hidden="true">→</span></a>'
-        )
-    else:
-        media_html = ""
-        spotlight = (
-            '<h2 id="series-start-title">첫 글부터 차근차근</h2>'
-            '<p role="status">아직 공개된 시리즈 글이 없습니다.</p>'
-        )
-    nav_targets = [
-        '<a href="#series-reading-title">추천 읽기 순서</a>',
-        '<a href="#geo-comparison-title">논문 선택 비교</a>' if comparison else "",
-        '<a href="#series-evidence-title">상세 근거와 출처</a>' if comparison else "",
-    ]
-    nav_targets = [t for t in nav_targets if t]
-    series_nav = (
-        f'<nav class="blog-series-nav" aria-label="시리즈 바로가기">{"".join(nav_targets)}</nav>'
-        if len(nav_targets) >= 2 else ""
+    resources_label = (
+        "시리즈 소개 · 학습 경로와 논문 비교 · 근거 보기"
+        if comparison else "시리즈 소개 더 보기"
     )
-    intro = _first_sentence(series["description"])
-    reading_intro = (
-        f'<p class="blog-series-reading-intro">'
-        f'{html.escape(series["description"].split(". ", 1)[1]) if ". " in series["description"] else ""}</p>'
-        if not comparison else ""
+    resources = (
+        '<details class="blog-series-resources">'
+        f'<summary>{resources_label}</summary>'
+        '<div class="blog-series-resources-content">'
+        + (
+            '<nav class="blog-series-resource-nav" aria-label="자료 바로가기">'
+            '<a href="#series-guide-title">학습 경로</a>'
+            '<a href="#geo-comparison-title">논문 선택 비교</a>'
+            '<a href="#series-evidence-title">상세 근거와 출처</a></nav>'
+            if comparison else ""
+        )
+        + '<section class="blog-series-about" aria-labelledby="series-about-title">'
+        '<h2 id="series-about-title">시리즈 소개</h2>'
+        f'<p>{html.escape(series["description"])}</p></section>'
+        f'{_series_reading_guide_html(comparison, by_slug)}'
+        f'{_series_comparison_html(comparison, by_slug)}'
+        f'{_series_comparison_html(comparison, by_slug, detailed=True)}'
+        '</div>'
+        '</details>'
     )
+    reading_content = reading_list or '<p role="status">아직 공개된 시리즈 글이 없습니다.</p>'
     body = (
         '<div class="blog-container blog-series-page"><main id="main" class="blog-content">'
         '<header class="blog-header">'
         '<nav aria-label="breadcrumb"><a href="/blog">← 블로그로</a></nav>'
-        f"{meta_html}"
+        '<p class="blog-series-kicker">SERIES</p>'
         f'<h1 class="blog-title">{html.escape(series["title"], quote=True)}</h1>'
-        f'<p class="blog-subtitle">{html.escape(intro)}</p></header>'
-        '<section class="blog-series-start" aria-labelledby="series-start-title">'
-        '<div class="blog-series-start-text">'
-        f'<p class="blog-series-kicker">여기서 시작하세요{time_html}</p>{spotlight}</div>{media_html}</section>'
-        f"{_series_reading_guide_html(comparison, by_slug)}"
-        f"{series_nav}"
+        f'<p class="blog-subtitle">{html.escape(_first_sentence(series["description"]))}</p>'
+        f"{meta_html}"
+        '</header>'
+        '<aside class="blog-series-service" aria-label="집현전 서비스">'
+        '<span class="blog-series-service-label">SERVICE</span>'
+        '<p>논문 검색과 근거 확인을 집현전에서 이어 가세요.</p>'
+        '<a href="/">집현전에서 논문 찾기 <span aria-hidden="true">→</span></a>'
+        '</aside>'
         '<section class="blog-series-reading" aria-labelledby="series-reading-title">'
         '<h2 id="series-reading-title">추천 읽기 순서</h2>'
-        f'{reading_intro}'
-        f'{reading_list}</section>'
-        f"{_series_comparison_html(comparison, by_slug)}"
-        f"{_series_comparison_html(comparison, by_slug, detailed=True)}"
+        f'{reading_content}</section>'
+        f'{resources}'
         "</main></div>"
     )
     lang = _detect_lang(f'{series["title"]} {series["description"]}')

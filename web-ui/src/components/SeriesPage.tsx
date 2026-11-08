@@ -19,6 +19,7 @@ interface SeriesPost {
   reading_time_min: number;
   thumbnail_url?: string | null;
   category?: string;
+  created_at?: string | null;
 }
 
 interface SeriesPageProps {
@@ -47,12 +48,33 @@ function figureSrc(url: string, width: number): string {
   return `${url}${url.includes('?') ? '&' : '?'}w=${width}`;
 }
 
-/** The opening sentence of a description/excerpt: the claim without its hedge.
- *  A half-clamped caveat reads as a broken claim, so lists show sentence one. */
 function firstSentence(text: string): string {
-  const trimmed = text.trim();
-  const cut = trimmed.indexOf('. ');
-  return cut === -1 ? trimmed : trimmed.slice(0, cut + 1);
+  const end = text.search(/[.!?](?=\s|$)/);
+  return end === -1 ? text : text.slice(0, end + 1);
+}
+
+function publishedDate(createdAt?: string | null): { isoDate: string; label: string } | null {
+  if (!createdAt) return null;
+  const match = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?(Z|[+-]\d{2}:\d{2})?)?$/.exec(createdAt);
+  if (!match) return null;
+
+  const [, yearText, monthText, dayText, hourText, minuteText, secondText, zone] = match;
+  const year = Number(yearText);
+  const month = Number(monthText);
+  const day = Number(dayText);
+  const leapYear = year % 4 === 0 && (year % 100 !== 0 || year % 400 === 0);
+  const daysInMonth = [31, leapYear ? 29 : 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31];
+  if (month < 1 || month > 12 || day < 1 || day > daysInMonth[month - 1]) return null;
+  if (hourText !== undefined) {
+    if (Number(hourText) > 23 || Number(minuteText) > 59 || Number(secondText ?? 0) > 59) return null;
+    if (zone && zone !== 'Z') {
+      const [offsetHour, offsetMinute] = zone.slice(1).split(':').map(Number);
+      if (offsetHour > 23 || offsetMinute > 59) return null;
+    }
+  }
+
+  const isoDate = `${yearText}-${monthText}-${dayText}`;
+  return { isoDate, label: `${yearText}.${monthText}.${dayText}` };
 }
 
 function totalMinutes(posts: SeriesPost[]): number | null {
@@ -168,40 +190,7 @@ function SeriesPageContent({ seriesId }: SeriesPageProps) {
   const [attempt, setAttempt] = useState(0);
   const current: Pick<SeriesRequest, 'status' | 'posts'> = request.seriesId === seriesId ? request : { status: 'loading', posts: [] };
   const posts = current.posts;
-  const first = posts[0];
-  const catMeta = first ? (first.category === 'paper-review' ? 'paper-review' : 'engineering') : undefined;
   const total = totalMinutes(posts);
-  const readingList = (members: SeriesPost[]) => (
-    <ol className="blog-series-list" start={posts.indexOf(members[0]) + 1}>
-      {members.map((post) => (
-        <li key={post.slug}>
-          <span className="blog-series-pos" aria-hidden="true">{posts.indexOf(post) + 1}</span>
-          <a className="blog-row" href={`/blog/${post.slug}`} aria-label={post.title}>
-            <div className="blog-row-text">
-              <h4 className="blog-row-title">{post.title}</h4>
-              <p className="blog-row-excerpt">{firstSentence(post.excerpt)}</p>
-              {Number.isFinite(post.reading_time_min) && (
-                <span className="blog-series-time">{post.reading_time_min}분</span>
-              )}
-            </div>
-            {post.thumbnail_url && (
-              <div className="blog-row-thumb">
-                <img
-                  src={figureSrc(post.thumbnail_url, 456)}
-                  alt=""
-                  width={228}
-                  height={128}
-                  loading="lazy"
-                  decoding="async"
-                  onError={(e) => { e.currentTarget.parentElement!.style.display = 'none'; }}
-                />
-              </div>
-            )}
-          </a>
-        </li>
-      ))}
-    </ol>
-  );
 
   useEffect(() => {
     if (!series) return;
@@ -234,12 +223,18 @@ function SeriesPageContent({ seriesId }: SeriesPageProps) {
     return () => { cancelled = true; };
   }, [series, seriesId, attempt]);
 
-  // React Router does not act on a URL fragment, so anchors like
-  // #geo-comparison-title land at the top until the target exists.
+  // React Router does not act on a URL fragment. Open the resources disclosure
+  // before scrolling so guide, comparison and evidence targets can be reached.
   useEffect(() => {
     let id = hash.slice(1);
     try { id = decodeURIComponent(id); } catch { /* Preserve a malformed fragment verbatim. */ }
-    if (id) document.getElementById(id)?.scrollIntoView?.({ block: 'start' });
+    if (id) {
+      const target = document.getElementById(id);
+      if (!target) return;
+      const resources = target.closest<HTMLDetailsElement>('.blog-series-resources');
+      if (resources) resources.open = true;
+      target.scrollIntoView?.({ block: 'start' });
+    }
   }, [hash, current.status]);
 
   if (!series) {
@@ -251,12 +246,6 @@ function SeriesPageContent({ seriesId }: SeriesPageProps) {
       </div>
     );
   }
-
-  const navTargets = [
-    ['#series-reading-title', '추천 읽기 순서'] as const,
-    comparison && ['#geo-comparison-title', '논문 선택 비교'] as const,
-    comparison && ['#series-evidence-title', '상세 근거와 출처'] as const,
-  ].filter(Boolean) as Array<readonly [string, string]>;
 
   return (
     <div className="blog-container blog-series-page">
@@ -272,87 +261,118 @@ function SeriesPageContent({ seriesId }: SeriesPageProps) {
       <main id="main" className="blog-content">
         <header className="blog-header">
           <nav aria-label="breadcrumb"><a href="/blog">← 블로그로</a></nav>
+          <p className="blog-series-kicker">SERIES</p>
+          <h1 className="blog-title">{series.title}</h1>
+          <p className="blog-subtitle">{firstSentence(series.description)}</p>
           {posts.length > 0 && (
             <p className="blog-series-meta">
-              {catMeta && <span className="blog-row-cat" data-cat={catMeta}>{catMeta === 'engineering' ? 'Engineering' : 'Paper Review'}</span>}
               <span>{posts.length}편{total !== null ? ` · 약 ${total}분` : ''}</span>
             </p>
           )}
-          <h1 className="blog-title">{series.title}</h1>
-          <p className="blog-subtitle">{firstSentence(series.description)}</p>
         </header>
-        <section className="blog-series-start" aria-labelledby="series-start-title">
-          <div className="blog-series-start-text">
-            <p className="blog-series-kicker">
-              여기서 시작하세요
-              {first && Number.isFinite(first.reading_time_min) && (
-                <span className="blog-series-start-time"> · {first.reading_time_min}분</span>
-              )}
-            </p>
-            {first ? <>
-              <h2 id="series-start-title"><a href={`/blog/${first.slug}`}>{first.title}</a></h2>
-              <p className="blog-series-start-excerpt">{firstSentence(first.excerpt)}</p>
-              <a className="blog-series-start-cta" href={`/blog/${first.slug}`}>첫 글 읽기 <span aria-hidden="true">→</span></a>
-            </> : <>
-              <h2 id="series-start-title">첫 글부터 차근차근</h2>
-              {current.status === 'loading' && <p role="status">시리즈 글을 불러오는 중입니다.</p>}
-              {current.status === 'error' && <div className="blog-series-error">
-                <p role="alert">시리즈 글을 불러오지 못했습니다. 다시 시도해 주세요.</p>
-                <button type="button" onClick={() => { setRequest({ seriesId, status: 'loading', posts: [] }); setAttempt((value) => value + 1); }}>다시 시도</button>
-              </div>}
-              {current.status === 'success' && <p role="status">아직 공개된 시리즈 글이 없습니다.</p>}
-            </>}
-          </div>
-          {first?.thumbnail_url && (
-            <div className="blog-series-start-media">
-              <img src={figureSrc(first.thumbnail_url, 456)} alt="" decoding="async" onError={(e) => { e.currentTarget.parentElement!.style.display = 'none'; }} />
-            </div>
-          )}
-        </section>
-        {comparison && (
-          <nav className="blog-series-path" aria-labelledby="series-guide-title">
-            <h2 id="series-guide-title">한눈에 보는 학습 경로</h2>
-            <ol data-count={comparison.reading_guide.length}>{comparison.reading_guide.map((step, index) => {
-              const members = step.slugs.filter((slug) => posts.some((post) => post.slug === slug));
-              const minutes = totalMinutes(posts.filter((post) => members.includes(post.slug)));
-              return <li key={step.title}>
-                <a href={`#series-stage-${index + 1}`}>
-                  <span className="blog-series-path-title">{step.title}</span>
-                  {members.length > 0 && (
-                    <span className="blog-series-path-meta">{members.length}편{minutes !== null ? ` · ${minutes}분` : ''}</span>
-                  )}
-                </a>
-              </li>;
-            })}</ol>
-          </nav>
-        )}
-        {navTargets.length >= 2 && (
-          <nav className="blog-series-nav" aria-label="시리즈 바로가기">
-            {navTargets.map(([href, label]) => <a key={href} href={href}>{label}</a>)}
-          </nav>
-        )}
+        <aside className="blog-series-service" aria-label="집현전 서비스">
+          <span className="blog-series-service-label">SERVICE</span>
+          <p>논문 검색과 근거 확인을 집현전에서 이어 가세요.</p>
+          <a href="/">집현전에서 논문 찾기 <span aria-hidden="true">→</span></a>
+        </aside>
         <section className="blog-series-reading" aria-labelledby="series-reading-title">
           <h2 id="series-reading-title">추천 읽기 순서</h2>
-          {!comparison && (
-            <p className="blog-series-reading-intro">
-              {series.description.includes('. ') ? series.description.split('. ').slice(1).join('. ') : ''}
-            </p>
+          {current.status === 'loading' && <p role="status">시리즈 글을 불러오는 중입니다.</p>}
+          {current.status === 'error' && <div className="blog-series-error">
+            <p role="alert">시리즈 글을 불러오지 못했습니다. 다시 시도해 주세요.</p>
+            <button type="button" onClick={() => { setRequest({ seriesId, status: 'loading', posts: [] }); setAttempt((value) => value + 1); }}>다시 시도</button>
+          </div>}
+          {current.status === 'success' && posts.length === 0 && <p role="status">아직 공개된 시리즈 글이 없습니다.</p>}
+          {posts.length > 0 && (
+            <ol className="blog-series-list">
+              {posts.map((post, index) => {
+                const category = post.category === 'paper-review' || post.category === 'engineering'
+                  ? post.category
+                  : null;
+                const categoryLabel = category === 'paper-review' ? 'Paper Review' : category === 'engineering' ? 'Engineering' : null;
+                const date = publishedDate(post.created_at);
+                return (
+                  <li key={post.slug}>
+                    <span className="blog-series-pos" aria-hidden="true">{String(index + 1).padStart(2, '0')}</span>
+                    <a className="blog-row" href={`/blog/${post.slug}`} aria-label={post.title}>
+                      <div className="blog-row-text">
+                        <div className="blog-series-row-meta">
+                          {categoryLabel && <span className="blog-row-cat" data-cat={category}>{categoryLabel}</span>}
+                          {date && <time dateTime={date.isoDate}>{date.label}</time>}
+                          {Number.isFinite(post.reading_time_min) && (
+                            <span className="blog-series-time">{post.reading_time_min}분</span>
+                          )}
+                        </div>
+                        <h3 className="blog-row-title">{post.title}</h3>
+                        <p className="blog-row-excerpt">{post.excerpt}</p>
+                      </div>
+                      {post.thumbnail_url && (
+                        <div className="blog-row-thumb">
+                          <img
+                            src={figureSrc(post.thumbnail_url, 456)}
+                            alt=""
+                            width={228}
+                            height={128}
+                            loading={index === 0 ? 'eager' : 'lazy'}
+                            decoding="async"
+                            onError={(e) => { e.currentTarget.parentElement!.style.display = 'none'; }}
+                          />
+                        </div>
+                      )}
+                    </a>
+                  </li>
+                );
+              })}
+            </ol>
           )}
-          {comparison ? comparison.reading_guide.map((step, index) => {
-            const members = posts.filter((post) => step.slugs.includes(post.slug));
-            const minutes = totalMinutes(members);
-            return <section className="blog-series-stage" key={step.title} aria-labelledby={`series-stage-${index + 1}`}>
-              <div className="blog-series-stage-heading">
-                <h3 id={`series-stage-${index + 1}`}>{step.title}</h3>
-                {members.length > 0 && <span className="blog-series-stage-meta">{members.length}편{minutes !== null ? ` · ${minutes}분` : ''}</span>}
-              </div>
-              <p className="blog-series-stage-description">{step.description}</p>
-              {members.length > 0 ? readingList(members) : current.status === 'success' && <p>이 단계에는 아직 공개된 글이 없습니다.</p>}
-            </section>;
-          }) : posts.length > 0 && readingList(posts)}
         </section>
-        {comparison && <SeriesComparison comparison={comparison} posts={posts} />}
-        {comparison && <SeriesComparison comparison={comparison} posts={posts} detailed />}
+        <details className="blog-series-resources">
+          <summary>{comparison ? '시리즈 소개 · 학습 경로와 논문 비교 · 근거 보기' : '시리즈 소개 더 보기'}</summary>
+          <div className="blog-series-resources-content">
+            {comparison && (
+              <nav className="blog-series-resource-nav" aria-label="자료 바로가기">
+                <a href="#series-guide-title">학습 경로</a>
+                <a href="#geo-comparison-title">논문 선택 비교</a>
+                <a href="#series-evidence-title">상세 근거와 출처</a>
+              </nav>
+            )}
+            <section className="blog-series-about" aria-labelledby="series-about-title">
+              <h2 id="series-about-title">시리즈 소개</h2>
+              <p>{series.description}</p>
+            </section>
+            {comparison && <>
+              <nav className="blog-series-path" aria-labelledby="series-guide-title">
+                <h2 id="series-guide-title">한눈에 보는 학습 경로</h2>
+                <ol data-count={comparison.reading_guide.length}>{comparison.reading_guide.map((step, index) => {
+                  const members = step.slugs.filter((slug) => posts.some((post) => post.slug === slug));
+                  const minutes = totalMinutes(posts.filter((post) => members.includes(post.slug)));
+                  return <li key={step.title}>
+                    <a href={`#series-stage-${index + 1}`}>
+                      <span className="blog-series-path-title">{step.title}</span>
+                      {members.length > 0 && (
+                        <span className="blog-series-path-meta">{members.length}편{minutes !== null ? ` · ${minutes}분` : ''}</span>
+                      )}
+                    </a>
+                  </li>;
+                })}</ol>
+              </nav>
+              {comparison.reading_guide.map((step, index) => {
+                const members = posts.filter((post) => step.slugs.includes(post.slug));
+                const minutes = totalMinutes(members);
+                return <section className="blog-series-stage" key={step.title} aria-labelledby={`series-stage-${index + 1}`}>
+                  <div className="blog-series-stage-heading">
+                    <h3 id={`series-stage-${index + 1}`}>{step.title}</h3>
+                    {members.length > 0 && <span className="blog-series-stage-meta">{members.length}편{minutes !== null ? ` · ${minutes}분` : ''}</span>}
+                  </div>
+                  <p className="blog-series-stage-description">{step.description}</p>
+                  {members.length === 0 && current.status === 'success' && <p>이 단계에는 아직 공개된 글이 없습니다.</p>}
+                </section>;
+              })}
+              <SeriesComparison comparison={comparison} posts={posts} />
+              <SeriesComparison comparison={comparison} posts={posts} detailed />
+            </>}
+          </div>
+        </details>
       </main>
     </div>
   );

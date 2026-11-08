@@ -2215,65 +2215,97 @@
   text-decoration: underline;
 }
 
-.blog-series-list {
+.blog-series-page .blog-series-list {
   list-style: none;
-  margin: 1.5rem 0 0;
+  margin: 0;
   padding: 0;
   display: flex;
   flex-direction: column;
   gap: 0;
 }
 
-.blog-series-list li {
+.blog-series-page .blog-series-list > li {
   display: flex;
   align-items: flex-start;
-  gap: 12px;
+  gap: 1.25rem;
   padding: 1.5rem 0;
   border-top: 1px solid var(--wov-12);
-}
-
-.blog-series-list .blog-row {
-  flex: 1 1 auto;
-  min-width: 0;
-  gap: 20px;
-}
-
-/* Text column takes the width; the measure is capped on the excerpt itself so
-   every cover sits on the same right edge instead of trailing the text. */
-.blog-series-list .blog-row-text {
-  flex: 1 1 auto;
   min-width: 0;
 }
 
-.blog-series-list .blog-row-excerpt {
-  max-width: 72ch;
+.blog-series-page .blog-series-list .blog-row {
+  flex-direction: row;
+  align-items: flex-start;
+  flex: 1 1 auto;
+  min-width: 0;
+  gap: 2rem;
+  min-height: 0;
 }
 
-.blog-series-list .blog-row-title {
-  margin-top: 0;
+.blog-series-page .blog-series-list .blog-row-text {
+  flex: 1 1 auto;
+  min-width: 0;
 }
 
-/* The index drops row excerpts to 15px on phones; the hub is a reading
-   surface, so its Korean body copy never goes below 16px. */
+.blog-series-page .blog-series-list .blog-row-title {
+  margin: 0.5rem 0 0;
+  font-size: clamp(1.125rem, 2vw, 1.375rem);
+  line-height: 1.4;
+  color: var(--text-hi);
+}
+
 .blog-series-page .blog-series-list .blog-row-excerpt {
+  max-width: 72ch;
+  display: block;
+  overflow: visible;
+  -webkit-line-clamp: unset;
+  -webkit-box-orient: initial;
+  margin: 0.5rem 0 0;
   font-size: 1rem;
   line-height: 1.65;
+  color: var(--text-soft);
 }
 
-.blog-series-pos {
-  flex: none;
-  padding-top: 2px;
-  font-size: 1rem;
-  font-weight: 700;
-  color: var(--indigo);
+.blog-series-page .blog-series-list .blog-row-thumb {
+  order: 0;
+  flex: 0 0 min(340px, 38%);
+  width: min(340px, 38%);
+  height: 146px;
+  aspect-ratio: auto;
+  border-radius: 10px;
 }
 
-.blog-series-time {
-  display: block;
-  margin-top: 6px;
-  font-size: 13px;
+.blog-series-page .blog-series-list .blog-row-thumb img {
+  object-fit: contain;
+  padding: 6px;
+}
+
+.blog-series-page .blog-series-pos {
+  flex: 0 0 2.5rem;
+  padding-top: 0.25rem;
+  text-align: right;
+  font-size: 0.875rem;
   font-weight: 600;
   color: var(--text-faint);
+}
+
+.blog-series-page .blog-series-row-meta {
+  display: flex;
+  align-items: baseline;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+.blog-series-page .blog-series-row-meta time,
+.blog-series-page .blog-series-time {
+  color: var(--text-faint);
+}
+
+.blog-series-page .blog-series-time {
+  font-size: inherit;
 }
 
 .geo-comparison {
@@ -2350,7 +2382,7 @@ dd[data-state='not_applicable'] {
 
 .blog-series-page .blog-content {
   min-width: 0;
-  max-width: 1080px;
+  max-width: 1028px;
   box-sizing: border-box;
   font-size: 17px;
   line-height: 1.7;
@@ -2359,12 +2391,12 @@ dd[data-state='not_applicable'] {
 }
 
 .blog-series-page .blog-header {
-  margin-bottom: 1.25rem;
+  margin-bottom: 2rem;
 }
 
 .blog-series-page .blog-title {
-  margin: 0.75rem 0;
-  font-size: clamp(2.125rem, 4vw, 3.25rem);
+  margin: 0.5rem 0 0.75rem;
+  font-size: clamp(2.125rem, 4vw, 2.5rem);
   line-height: 1.18;
   letter-spacing: -0.045em;
   text-wrap: balance;
@@ -2372,7 +2404,7 @@ dd[data-state='not_applicable'] {
 }
 
 .blog-series-page .blog-subtitle {
-  max-width: 64ch;
+  max-width: 70ch;
   margin: 0;
   font-size: clamp(1.0625rem, 1.5vw, 1.1875rem);
   line-height: 1.7;
@@ -2380,14 +2412,12 @@ dd[data-state='not_applicable'] {
   text-wrap: pretty;
 }
 
-/* Post-page meta row (13px, above the title): category eyebrow, published
-   chapter count, total minutes. Mirrors .blog-detail-meta on the article. */
-.blog-series-meta {
+.blog-series-page .blog-series-meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
   gap: 10px 12px;
-  margin: 0.25rem 0 0.75rem;
+  margin: 1rem 0 0;
   font-size: 13px;
   font-weight: 600;
   color: var(--text-muted);
@@ -2411,79 +2441,117 @@ dd[data-state='not_applicable'] {
   color: var(--indigo);
   font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0.02em;
-  margin: 0 0 0.5rem;
+  letter-spacing: 0.08em;
+  margin: 0.75rem 0 0;
 }
 
-/* Same soft panel as the index's rail card (--wov-04, 24px) — no borders or
-   accent bars anywhere on the service; indigo stays a text accent. */
-.blog-series-start {
-  display: flex;
+.blog-series-page .blog-series-service {
+  display: grid;
+  grid-template-columns: 6rem minmax(0, 1fr) auto;
   align-items: center;
-  gap: 2rem;
-  padding: 28px 32px;
-  background: var(--wov-04);
-  border-radius: 24px;
-  margin-bottom: 3rem;
+  gap: 1.25rem;
+  margin: 2rem 0 2.5rem;
+  padding: 0.875rem 0;
+  border-top: 1px solid var(--wov-12);
+  border-bottom: 1px solid var(--wov-12);
 }
 
-.blog-series-start-text {
-  flex: 1 1 auto;
-  min-width: 0;
+.blog-series-page .blog-series-service-label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
 }
 
-.blog-series-start-media {
-  display: none;
-}
-
-.blog-series-page .blog-series-start h2 {
-  max-width: 36ch;
-  font-size: clamp(1.375rem, 2.8vw, 2rem);
-  margin-bottom: 0.5rem;
-}
-
-.blog-series-start-time {
+.blog-series-page .blog-series-service p {
+  margin: 0;
   color: var(--text-soft);
-  font-weight: 600;
+  font-size: 0.9375rem;
 }
 
-.blog-series-start-excerpt {
-  margin: 0 0 1rem;
-  max-width: 60ch;
+.blog-series-page .blog-series-service a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.375rem;
+  min-height: 44px;
+  color: var(--indigo);
+  font-size: 0.875rem;
+  font-weight: 650;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.blog-series-page .blog-series-service a:hover {
+  color: var(--indigo-strong);
+  text-decoration: underline;
+}
+
+.blog-series-page .blog-series-reading {
+  margin-top: 0;
+}
+
+.blog-series-page .blog-series-reading > h2 {
+  margin: 0 0 0.5rem;
+  color: var(--text-muted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+
+.blog-series-page .blog-series-resources {
+  min-width: 0;
+  margin-top: 2.5rem;
+  border-top: 1px solid var(--wov-12);
+  border-bottom: 1px solid var(--wov-12);
+}
+
+.blog-series-page .blog-series-resources > summary {
+  min-height: 44px;
+  padding: 0.75rem 0;
+  color: var(--text-soft);
+  font-size: 0.9375rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.blog-series-page .blog-series-resources > summary::marker {
+  color: var(--indigo);
+}
+
+.blog-series-page .blog-series-resources-content {
+  min-width: 0;
+  padding: 0.5rem 0 2rem;
+}
+
+.blog-series-page .blog-series-resource-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.25rem;
+  margin-bottom: 1.5rem;
+}
+
+.blog-series-page .blog-series-resource-nav a {
+  padding: 0.75rem 0;
+  color: var(--indigo);
+}
+
+.blog-series-page .blog-series-about {
+  margin: 0 0 2.5rem;
+}
+
+.blog-series-page .blog-series-about h2 {
+  margin: 0 0 0.5rem;
+  font-size: 1.25rem;
+}
+
+.blog-series-page .blog-series-about p {
+  max-width: 72ch;
+  margin: 0;
   color: var(--text-soft);
   text-wrap: pretty;
 }
 
-.blog-series-start h2 a {
-  color: var(--text-hi);
-  text-decoration: none;
-}
-
-/* The post page's tinted outline pill (상세 읽기 / PDF 보기): the service has no
-   solid-filled primary button, so the hero action uses the same recipe. */
-.blog-series-start-cta {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 44px;
-  padding: 0.625rem 1.125rem;
-  border: 1px solid var(--indigo-bd-22);
-  border-radius: 999px;
-  background: var(--indigo-bd-08);
-  color: var(--indigo);
-  font-size: 15px;
-  font-weight: 700;
-  text-decoration: none;
-  transition: background 0.15s, border-color 0.15s, transform 0.15s;
-}
-
-.blog-series-start-cta:hover {
-  background: var(--indigo-bd-20);
-  border-color: var(--indigo-bd-40);
-  transform: translateY(-1px);
-}
-
-.blog-series-path ol {
+.blog-series-page .blog-series-path ol {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 10.5rem), 1fr));
   list-style: none;
@@ -2492,21 +2560,21 @@ dd[data-state='not_applicable'] {
   gap: 1rem;
 }
 
-.blog-series-path li {
+.blog-series-page .blog-series-path li {
   background: var(--wov-04);
   border: 1px solid transparent;
   border-radius: 14px;
   transition: border-color 0.15s, background-color 0.15s;
 }
 
-.blog-series-path li:hover,
-.blog-series-path li:focus-within {
+.blog-series-page .blog-series-path li:hover,
+.blog-series-page .blog-series-path li:focus-within {
   background: var(--indigo-bd-08);
 }
 
 /* The card is the affordance (surface, chapter count, hover/focus lift);
    no glyph, so nothing spurious lands in the accessible name. */
-.blog-series-path a {
+.blog-series-page .blog-series-path a {
   display: flex;
   flex-direction: column;
   gap: 0.375rem;
@@ -2518,16 +2586,15 @@ dd[data-state='not_applicable'] {
   border-radius: 14px;
 }
 
-.blog-series-path-title {
+.blog-series-page .blog-series-path-title {
   text-wrap: balance;
 }
 
-.blog-series-path a:hover,
-.blog-series-start h2 a:hover {
+.blog-series-page .blog-series-path a:hover {
   color: var(--indigo-strong);
 }
 
-.blog-series-path-meta {
+.blog-series-page .blog-series-path-meta {
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-soft);
@@ -2536,42 +2603,16 @@ dd[data-state='not_applicable'] {
 
 /* A five-stage path is 3+2 on tablets and 2-up on phones; never 4+1. */
 @media (min-width: 640px) and (max-width: 1023px) {
-  .blog-series-path ol[data-count='5'] {
+  .blog-series-page .blog-series-path ol[data-count='5'] {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
 }
 
 @media (max-width: 639px) {
-  .blog-series-path ol {
+  .blog-series-page .blog-series-path ol {
     grid-template-columns: repeat(2, minmax(0, 1fr));
     gap: 0.75rem;
   }
-}
-
-.blog-series-nav {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-  margin: 1.25rem 0 3.5rem;
-}
-
-.blog-series-nav a {
-  display: inline-flex;
-  align-items: center;
-  min-height: 44px;
-  padding: 6px 12px;
-  border-radius: 100px;
-  background: var(--wov-06);
-  color: var(--text-soft);
-  font-size: 0.8125rem;
-  font-weight: 500;
-  text-decoration: none;
-  transition: background 0.16s, color 0.16s;
-}
-
-.blog-series-nav a:hover {
-  background: var(--wov-10);
-  color: var(--indigo);
 }
 
 /* Link language: arrows mark in-page jumps; outbound links underline on hover. */
@@ -2603,6 +2644,7 @@ dd[data-state='not_applicable'] {
 
 .blog-series-page a:focus-visible,
 .blog-series-page button:focus-visible,
+.blog-series-page summary:focus-visible,
 .blog-logo:focus-visible,
 .blog-nav-btn:focus-visible,
 .blog-series-next a:focus-visible {
@@ -2643,8 +2685,7 @@ dd[data-state='not_applicable'] {
   min-width: 0;
 }
 
-.blog-series-reading-intro,
-.blog-series-stage-description,
+.blog-series-page .blog-series-stage-description,
 .geo-comparison-source-note {
   max-width: 72ch;
   color: var(--text-soft);
@@ -2726,17 +2767,15 @@ dd[data-state='not_applicable'] {
   text-wrap: pretty;
 }
 
-.blog-series-stage {
+.blog-series-page .blog-series-stage {
   margin-top: 3rem;
 }
 
-/* Without the old intro paragraph the section heading sits directly on its
-   first stage; keep them together instead of leaving a 64px hole. */
-.blog-series-reading > h2 + .blog-series-stage {
-  margin-top: 0;
+.blog-series-page .blog-series-resources-content > .blog-series-stage {
+  margin-top: 2rem;
 }
 
-.blog-series-stage-heading {
+.blog-series-page .blog-series-stage-heading {
   display: flex;
   align-items: baseline;
   gap: 0.75rem;
@@ -2744,12 +2783,12 @@ dd[data-state='not_applicable'] {
 }
 
 /* Stage headings must outrank the 20px row titles they group. */
-.blog-series-stage-heading h3 {
+.blog-series-page .blog-series-stage-heading h3 {
   margin: 0;
   font-size: clamp(1.375rem, 2vw, 1.625rem);
 }
 
-.blog-series-stage-meta {
+.blog-series-page .blog-series-stage-meta {
   font-size: 0.8125rem;
   font-weight: 600;
   color: var(--text-muted);
@@ -2784,74 +2823,66 @@ dd[data-state='not_applicable'] {
   padding: 1.25rem 0;
 }
 
-@media (min-width: 1024px) {
-  /* Index hero media recipe at a smaller size; the page ground shows through
-     the letterbox so the panel reads inside the --wov-04 card. */
-  .blog-series-start-media {
-    display: block;
-    flex: 0 0 280px;
-    width: 280px;
-    height: 160px;
-    border-radius: 16px;
-    overflow: hidden;
-    background: var(--bg);
-  }
-
-  .blog-series-start-media img {
-    width: 100%;
-    height: 100%;
-    object-fit: contain;
-    padding: 10px;
-    display: block;
+@media (max-width: 800px) and (min-width: 641px) {
+  .blog-series-page .blog-series-list .blog-row-thumb {
+    flex-basis: 32%;
+    width: 32%;
+    height: auto;
+    aspect-ratio: 340 / 146;
   }
 }
 
-/* Shares the index's 768px boundary so iPad portrait never gets the stacked
-   photo feed: eleven 16:9 covers would turn the scan list into a gallery. The
-   hub keeps a small, uncropped figure beside the text (paper figures are
-   never cropped anywhere on the blog). */
-@media (max-width: 768px) {
-  .blog-series-list .blog-row {
-    flex-direction: row;
-    align-items: flex-start;
-    gap: 14px;
+@media (max-width: 640px) {
+  .blog-series-page .blog-content {
+    padding-top: 24px;
   }
 
-  .blog-series-list .blog-row-thumb {
-    order: 0;
-    flex: 0 0 96px;
-    width: 96px;
-    height: 60px;
-    aspect-ratio: auto;
-    border-radius: 8px;
-    margin-top: 2px;
+  .blog-series-page .blog-header {
+    margin-bottom: 1rem;
   }
 
-  .blog-series-list .blog-row-thumb img {
-    object-fit: contain;
-    padding: 4px;
+  .blog-series-page .blog-series-kicker {
+    margin-top: 0.375rem;
   }
 
-  .blog-series-list .blog-row-excerpt {
-    -webkit-line-clamp: 3;
+  .blog-series-page .blog-series-service {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 0.125rem;
+    margin: 1.5rem 0 2rem;
+    padding: 0.75rem 0;
+  }
+
+  .blog-series-page .blog-series-service a {
+    white-space: normal;
+  }
+
+  .blog-series-page .blog-series-list > li {
+    gap: 0.75rem;
+    padding: 1.25rem 0;
+  }
+
+  .blog-series-page .blog-series-list .blog-row {
+    gap: 0;
+  }
+
+  .blog-series-page .blog-series-list .blog-row-thumb {
+    display: none;
+  }
+
+  .blog-series-page .blog-series-pos {
+    flex-basis: 1.75rem;
+    font-size: 0.8125rem;
   }
 }
 
 @media (max-width: 767px) {
-  .blog-series-start {
-    padding: 1rem;
-    flex-direction: column;
-    align-items: stretch;
-  }
-
-
-  .geo-decision-grid,
-  .geo-decision-grid[data-count='3'] {
+  .blog-series-page .geo-decision-grid,
+  .blog-series-page .geo-decision-grid[data-count='3'] {
     grid-template-columns: minmax(0, 1fr);
     gap: 1rem;
   }
 
-  .geo-evidence-method dl > div {
+  .blog-series-page .geo-evidence-method dl > div {
     grid-template-columns: minmax(0, 1fr);
     gap: 0.5rem;
   }
