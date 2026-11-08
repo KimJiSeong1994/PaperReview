@@ -419,6 +419,10 @@ describe('BlogPage series index', () => {
       '/blog/series/dwe',
       '/blog/series/graphrag',
       '/blog/series/graph-causality',
+      '/blog/series/agent-skills',
+      '/blog/series/agent-harness',
+      '/blog/series/agent-memory',
+      '/blog/series/efficient-attention',
     ]);
 
     const [sid, series] = entries[0];
