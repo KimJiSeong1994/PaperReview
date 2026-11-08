@@ -252,6 +252,33 @@ def test_blog_index_lists_published_only(client: TestClient) -> None:
     assert UNPUBLISHED_SLUG not in body
 
 
+def test_blog_index_series_anchor_is_crawlable_and_published_only(monkeypatch) -> None:
+    from routers.seo import BLOG_SERIES
+
+    posts = _series_fixture_posts()
+    posts.append(
+        {
+            **posts[-1],
+            "id": "draft-series-member",
+            "slug": BLOG_SERIES["jiphyeonjeon-build"]["slugs"][0],
+            "title": "Draft-only series member",
+            "published": False,
+        }
+    )
+    monkeypatch.setattr("routers.seo._load_posts", lambda: posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+
+    body = TestClient(app).get("/blog").text
+    assert 'href="/blog#series-index"' in body
+    assert '<nav id="series-index" aria-label="Series">' in body
+    series_nav = body.split('<nav id="series-index" aria-label="Series">', 1)[1].split(
+        "</nav>", 1
+    )[0]
+    assert 'href="/blog/series/gnn"' in series_nav
+    assert 'href="/blog/series/jiphyeonjeon-build"' not in series_nav
+    assert series_nav.count('<li><a href="/blog/series/') == 1
+
+
 def test_sitemap_valid_xml_published_only(client: TestClient) -> None:
     resp = client.get("/sitemap.xml")
     assert resp.status_code == 200
@@ -739,13 +766,22 @@ def test_blog_index_pins_development_series_first(monkeypatch) -> None:
     )
 
 
+def test_development_series_description_avoids_fixed_chapter_total() -> None:
+    from routers.seo import BLOG_SERIES
+
+    assert (
+        "집현전을 만들며 남긴 개발 기록을 시간순으로 읽습니다."
+        in BLOG_SERIES["jiphyeonjeon-build"]["description"]
+    )
+
+
 def test_dwe_series_ends_with_systematic_contextualized_embedding_comparison() -> None:
     from routers.seo import BLOG_SERIES
 
     slug = "a-systematic-comparison-contextualized-word-embeddings-lexical-semantic-change"
     assert len(BLOG_SERIES["dwe"]["slugs"]) == 12
     assert BLOG_SERIES["dwe"]["slugs"][-1] == slug
-    assert "핵심 논문 12편" in BLOG_SERIES["dwe"]["description"]
+    assert "동적 단어 임베딩의 핵심 논문을 읽습니다." in BLOG_SERIES["dwe"]["description"]
 
 
 def test_graphrag_series_follows_foundational_publication_order() -> None:
@@ -765,7 +801,9 @@ def test_graphrag_series_follows_foundational_publication_order() -> None:
         "causalrag2-hugrag-hierarchical-causal-gating",
         "ragu",
     ]
-    assert "핵심 논문 11편" in BLOG_SERIES["graphrag"]["description"]
+    assert "GraphRAG 계열의 핵심 논문을 기초 연구부터 최초 공개 순서로 읽습니다." in (
+        BLOG_SERIES["graphrag"]["description"]
+    )
     assert "기초 연구부터 최초 공개 순서" in BLOG_SERIES["graphrag"]["description"]
 
 
@@ -779,7 +817,9 @@ def test_graph_causality_series_follows_foundational_order() -> None:
         "cic-dynamical-causality-under-invisible-confounders",
         "ic2-interventional-dynamical-causality-under-latent-confounders",
     ]
-    assert "핵심 논문 3편" in series["description"]
+    assert "인과 구조를 복원하려는 핵심 논문을 공개·기초 흐름 순서로 읽습니다." in (
+        series["description"]
+    )
     assert "공개·기초 흐름 순서" in series["description"]
 
 
@@ -818,6 +858,63 @@ def test_series_hub_renders_ordered_list_and_item_list_schema(monkeypatch) -> No
     assert '<p class="blog-series-kicker">여기서 시작하세요<span class="blog-series-start-time"> · 1분</span></p>' in html
     assert '<ol data-count="5">' in html
     assert "← 블로그로" in html
+
+
+def test_partial_series_membership_count_and_description_match_ssr_jsonld_and_llms(
+    monkeypatch,
+) -> None:
+    import json
+    import re
+
+    from routers.seo import BLOG_SERIES
+
+    series = BLOG_SERIES["gnn"]
+    posts = _series_fixture_posts()
+    posts.append(
+        {
+            **posts[-1],
+            "id": "draft-gnn-member",
+            "slug": series["slugs"][2],
+            "title": "Draft GNN chapter that must stay private",
+            "published": False,
+            "created_at": "2026-12-31T00:00:00",
+        }
+    )
+    monkeypatch.setattr("routers.seo._load_posts", lambda: posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+    client = TestClient(app)
+
+    page = client.get("/blog/series/gnn").text
+    description = series["description"]
+    assert description.startswith(
+        "그래프 표현 학습과 그래프 신경망(GNN)의 핵심 논문을 읽는 시리즈입니다."
+    )
+    assert '<meta name="description" content="' + description + '">' in page
+    assert "<span>2편 · 약 2분</span>" in page
+    script = re.search(
+        r'<script type="application/ld\+json" id="seo-json-ld">(.*?)</script>',
+        page,
+        re.DOTALL,
+    )
+    assert script is not None
+    graph = json.loads(script.group(1))["@graph"]
+    collection = next(node for node in graph if node.get("@type") == "CollectionPage")
+    assert collection["description"] == description
+    item_list = collection["mainEntity"]
+    assert item_list["numberOfItems"] == 2
+    assert [item["url"].rsplit("/", 1)[-1] for item in item_list["itemListElement"]] == (
+        series["slugs"][:2]
+    )
+
+    llms = client.get("/llms.txt").text
+    expected_series_line = (
+        f"- [{series['title']}](https://jiphyeonjeon.kr/blog/series/gnn) "
+        f"(2 posts, in recommended reading order): {description}"
+    )
+    assert expected_series_line in llms
+    for rendered in (page, llms):
+        assert "Draft GNN chapter that must stay private" not in rendered
+    assert series["slugs"][2] not in llms
 
 
 def _comparison_fixture(slug: str) -> dict:
@@ -1165,6 +1262,60 @@ def test_sitemap_lists_nonempty_series_hub_only(monkeypatch, client: TestClient)
     monkeypatch.setattr("routers.seo._load_posts", _series_fixture_posts)
     monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
     assert "/blog/series/gnn" in TestClient(app).get("/sitemap.xml").text
+
+
+def test_sitemap_series_hub_omits_lastmod_but_published_posts_keep_dates(monkeypatch) -> None:
+    from routers.seo import BLOG_SERIES
+
+    series_slug, draft_series_slug = BLOG_SERIES["gnn"]["slugs"][:2]
+    series_post = {
+        **_FIXED_POSTS[0],
+        "slug": series_slug,
+        "created_at": "2026-01-01T00:00:00",
+        "updated_at": None,
+        "published": True,
+    }
+    unrelated_post = {
+        **_FIXED_POSTS[0],
+        "slug": "newer-unrelated-post",
+        "created_at": "2026-08-01T00:00:00",
+        "updated_at": None,
+        "published": True,
+    }
+    draft_post = {
+        **_FIXED_POSTS[1],
+        "slug": draft_series_slug,
+        "created_at": "2026-12-31T00:00:00",
+        "published": False,
+    }
+    monkeypatch.setattr(
+        "routers.seo._load_posts", lambda: [series_post, unrelated_post, draft_post]
+    )
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+
+    root = ET.fromstring(TestClient(app).get("/sitemap.xml").text)
+    namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    entries = {
+        entry.findtext("s:loc", namespaces=namespace): entry
+        for entry in root.findall("s:url", namespace)
+    }
+    series_url = "https://jiphyeonjeon.kr/blog/series/gnn"
+    series_entry = entries[series_url]
+    assert series_entry.find("s:lastmod", namespace) is None
+    assert entries[f"https://jiphyeonjeon.kr/blog/{series_slug}"].findtext(
+        "s:lastmod", namespaces=namespace
+    ) == "2026-01-01"
+    assert entries["https://jiphyeonjeon.kr/blog/newer-unrelated-post"].findtext(
+        "s:lastmod", namespaces=namespace
+    ) == "2026-08-01"
+    assert entries["https://jiphyeonjeon.kr/"].findtext(
+        "s:lastmod", namespaces=namespace
+    ) == "2026-08-01"
+    assert f"https://jiphyeonjeon.kr/blog/{draft_series_slug}" not in entries
+    assert all(
+        "2026-12-31" not in (entry.findtext("s:lastmod", namespaces=namespace) or "")
+        for entry in entries.values()
+    )
 
 
 def test_blog_index_omits_empty_category(client: TestClient) -> None:

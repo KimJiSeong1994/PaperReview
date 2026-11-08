@@ -156,6 +156,28 @@ describe('SeriesPage reading and comparison', () => {
     });
   });
 
+  it.each(Object.keys(BLOG_SERIES))('keeps %s descriptions consistent with a partially published reading list', async (seriesId) => {
+    const series = BLOG_SERIES[seriesId];
+    const published = series.slugs.slice(0, 2);
+    vi.mocked(fetchBlogPosts).mockResolvedValue(response(
+      [...published].reverse().map((slug) => post(slug)),
+    ));
+    const { container } = mount(seriesId);
+    await within(reading()).findByRole('list');
+    expect(within(reading()).getAllByRole('link').map((link) => link.getAttribute('href')))
+      .toEqual(published.map((slug) => `/blog/${slug}`));
+    expect(container.querySelector('.blog-series-meta')).toHaveTextContent('2편 · 약 4분');
+    const description = document.head.querySelector('meta[name="description"]')?.getAttribute('content');
+    expect(description).toBe(series.description);
+    expect(description).not.toMatch(/\d+\s*편/);
+    const graph = JSON.parse(document.querySelector('script#seo-json-ld')!.textContent!)['@graph'];
+    expect(graph).toContainEqual(expect.objectContaining({
+      '@type': 'CollectionPage',
+      description,
+      mainEntity: expect.objectContaining({ numberOfItems: published.length }),
+    }));
+  });
+
   it('distinguishes a successful empty reading list', async () => {
     vi.mocked(fetchBlogPosts).mockResolvedValue(response([]));
     mount();
