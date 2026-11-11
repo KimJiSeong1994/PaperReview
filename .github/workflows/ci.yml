@@ -137,7 +137,8 @@ jobs:
           retention-days: 1
 
   poster-browser:
-    runs-on: ubuntu-latest
+    # Keep the browser package baseline stable during ubuntu-latest migrations.
+    runs-on: ubuntu-24.04
     timeout-minutes: 12
     steps:
       - uses: actions/checkout@v4
@@ -179,7 +180,7 @@ jobs:
       - name: Install Chromium for Playwright
         run: playwright install --with-deps chromium
 
-      # ubuntu-latest is 24.04, which blocks Chromium's unprivileged-user-
+      # Ubuntu 24.04 blocks Chromium's unprivileged-user-
       # namespace sandbox via AppArmor. Arming the SUID helper rather than
       # relaxing that sysctl keeps CI on the *same* sandbox mechanism the
       # container uses, so a green run is evidence the production setup works
