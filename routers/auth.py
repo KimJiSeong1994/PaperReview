@@ -211,10 +211,10 @@ def _require_google_client_id() -> str:
 
 
 def _require_google_origin(request: Request) -> None:
+    origins = os.getenv("CORS_ORIGINS", "").strip() or "https://jiphyeonjeon.kr,https://www.jiphyeonjeon.kr"
     allowed = {
-        origin.strip() for origin in os.getenv(
-            "CORS_ORIGINS", "https://jiphyeonjeon.kr,https://www.jiphyeonjeon.kr"
-        ).split(",") if origin.strip() and origin.strip() != "*"
+        origin.strip() for origin in origins.split(",")
+        if origin.strip() and origin.strip() != "*"
     }
     if request.headers.get("origin") not in allowed:
         raise HTTPException(status_code=403, detail="google_origin_not_allowed")

@@ -104,6 +104,18 @@ async def test_cross_origin_and_missing_browser_binding_rejected(client, monkeyp
     assert (await exchange(client)).status_code == 401
 
 
+@pytest.mark.parametrize('origins', [None, '', '   '])
+async def test_empty_optional_origin_setting_uses_canonical_site(client, monkeypatch, origins):
+    if origins is None:
+        monkeypatch.delenv('CORS_ORIGINS', raising=False)
+    else:
+        monkeypatch.setenv('CORS_ORIGINS', origins)
+    valid = await client.post('/api/auth/google/challenge', json={}, headers=ORIGIN)
+    assert valid.status_code == 200
+    invalid = await client.post('/api/auth/google/challenge', json={}, headers={'Origin': 'https://evil.example'})
+    assert invalid.status_code == 403
+
+
 async def test_mismatched_nonce_and_expiry(client, monkeypatch):
     ch = await challenge(client, monkeypatch)
     monkeypatch.setattr(auth, '_verify_google_credential', lambda *_: {'sub': 's', 'nonce': 'wrong'})
