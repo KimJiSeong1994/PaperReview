@@ -116,6 +116,12 @@ async def test_mismatched_nonce_and_expiry(client, monkeypatch):
     assert (await exchange(client)).status_code == 401
 
 
+async def test_non_ascii_nonce_is_rejected_without_server_error(client, monkeypatch):
+    await challenge(client, monkeypatch)
+    monkeypatch.setattr(auth, '_verify_google_credential', lambda *_: {'sub': 's', 'nonce': '다른-확인값'})
+    assert (await exchange(client)).status_code == 401
+
+
 async def test_link_target_deleted_and_recreated_cannot_be_taken_over(client, monkeypatch):
     old = legacy_account()
     await challenge(client, monkeypatch, {'username': 'existing', 'password': 'existing-password'})

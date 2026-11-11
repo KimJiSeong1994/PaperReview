@@ -313,7 +313,7 @@ async def google_login(request: Request, response: Response, body: GoogleLoginRe
         raise HTTPException(status_code=401, detail="google_challenge_invalid")
     claims = await asyncio.to_thread(_verify_google_credential, body.credential, client_id)
     token_nonce = claims.get("nonce")
-    if not isinstance(token_nonce, str) or not secrets.compare_digest(nonce, token_nonce):
+    if not isinstance(token_nonce, str) or not secrets.compare_digest(nonce.encode(), token_nonce.encode()):
         raise HTTPException(status_code=401, detail="google_challenge_invalid")
     try:
         result = await asyncio.to_thread(
