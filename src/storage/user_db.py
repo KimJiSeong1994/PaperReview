@@ -2,7 +2,9 @@
 
 import json
 import hashlib
+import math
 import sqlite3
+import time
 import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
@@ -153,6 +155,10 @@ class _UserTransaction:
         self.conn.execute("DELETE FROM users WHERE username=?", (username,))
         if cleanup_succeeded:
             self.conn.execute(
+                "DELETE FROM external_identities WHERE username=? AND account_incarnation=?",
+                (username, incarnation),
+            )
+            self.conn.execute(
                 "DELETE FROM account_lifecycles WHERE username=?", (username,)
             )
         else:
@@ -229,6 +235,25 @@ class UserDB:
             )
             tx.conn.execute(
                 "CREATE TABLE IF NOT EXISTS account_store_meta (key TEXT PRIMARY KEY, value TEXT NOT NULL)"
+            )
+            tx.conn.execute(
+                """CREATE TABLE IF NOT EXISTS external_identities (
+                    provider TEXT NOT NULL, subject TEXT NOT NULL,
+                    username TEXT NOT NULL, account_incarnation TEXT NOT NULL,
+                    PRIMARY KEY(provider, subject),
+                    UNIQUE(provider, username, account_incarnation)
+                )"""
+            )
+            tx.conn.execute(
+                """CREATE TABLE IF NOT EXISTS google_auth_challenges (
+                    nonce_hash TEXT PRIMARY KEY, expires_at REAL NOT NULL,
+                    target_username TEXT, target_incarnation TEXT,
+                    CHECK ((target_username IS NULL AND target_incarnation IS NULL)
+                        OR (target_username IS NOT NULL AND target_incarnation IS NOT NULL))
+                )"""
+            )
+            tx.conn.execute(
+                "CREATE INDEX IF NOT EXISTS google_auth_challenges_expiry ON google_auth_challenges(expires_at)"
             )
             initialized = tx.conn.execute(
                 "SELECT 1 FROM account_store_meta WHERE key='lifecycle_initialized'"
@@ -314,6 +339,125 @@ class UserDB:
     def create_account(self, username, data, *, only_if_pristine=False):
         with self.transaction() as tx:
             return tx.create_account(username, data, only_if_pristine=only_if_pristine)
+
+    def create_google_challenge(
+        self, nonce_hash, *, expires_at, target_username=None, target_incarnation=None
+    ):
+        """Persist a short-lived nonce after any legacy credential verification.
+
+        Only the SHA-256 digest belongs here; the browser-bound raw nonce and
+        Google token verification remain the HTTP layer's responsibility.
+        """
+        now = time.time()
+        if (
+            not isinstance(nonce_hash, str)
+            or len(nonce_hash) != 64
+            or any(char not in "0123456789abcdef" for char in nonce_hash)
+            or not isinstance(expires_at, (int, float))
+            or not math.isfinite(expires_at)
+            or expires_at <= now
+        ):
+            raise AccountLifecycleError("google_challenge_invalid")
+        if (target_username is None) != (target_incarnation is None):
+            raise AccountLifecycleError("invalid_principal")
+        with self.transaction() as tx:
+            if target_username is not None:
+                tx.validate_principal(target_username, target_incarnation)
+            tx.conn.execute("DELETE FROM google_auth_challenges WHERE expires_at <= ?", (now,))
+            tx.conn.execute(
+                "INSERT INTO google_auth_challenges VALUES (?, ?, ?, ?)",
+                (nonce_hash, expires_at, target_username, target_incarnation),
+            )
+
+    @staticmethod
+    def _complete_google_identity(tx, challenge, subject, *, now, profile):
+        identity = tx.conn.execute(
+            "SELECT username, account_incarnation FROM external_identities WHERE provider='google' AND subject=?",
+            (subject,),
+        ).fetchone()
+        target_username = challenge["target_username"]
+        is_new_user = False
+        if target_username is not None:
+            user = tx.validate_principal(target_username, challenge["target_incarnation"])
+            if identity and (
+                identity["username"] != target_username
+                or identity["account_incarnation"] != user["account_incarnation"]
+            ):
+                raise AccountLifecycleError("google_identity_conflict")
+            linked = tx.conn.execute(
+                "SELECT subject FROM external_identities WHERE provider='google' AND username=? AND account_incarnation=?",
+                (target_username, user["account_incarnation"]),
+            ).fetchone()
+            if linked and linked["subject"] != subject:
+                raise AccountLifecycleError("google_account_already_linked")
+            username = target_username
+        elif identity:
+            username = identity["username"]
+            user = tx.validate_principal(username, identity["account_incarnation"])
+        else:
+            # Handles are unrelated to an email/name and never auto-link an
+            # existing account. History also prevents reusing a deleted handle.
+            for _ in range(5):
+                username = "google_" + uuid.uuid4().hex[:16]
+                if not tx.conn.execute(
+                    "SELECT 1 FROM account_history WHERE username=?", (username,)
+                ).fetchone():
+                    break
+            else:
+                raise AccountLifecycleError("google_username_unavailable")
+            data = {
+                "role": "user", "password_hash": None,
+                "created_at": datetime.fromtimestamp(now, timezone.utc).isoformat(),
+            }
+            # Never accept credential/role fields from provider profile data.
+            for key, limit in (("display_name", 200), ("email", 320)):
+                value = (profile or {}).get(key)
+                if isinstance(value, str) and value:
+                    data[key] = value[:limit]
+            user = tx.create_account(username, data)
+            is_new_user = True
+        if identity is None:
+            tx.conn.execute(
+                "INSERT INTO external_identities VALUES ('google', ?, ?, ?)",
+                (subject, username, user["account_incarnation"]),
+            )
+        return {"username": username, "user": user, "is_new_user": is_new_user}
+
+    def complete_google_login(self, nonce_hash, subject, *, now, profile=None):
+        """Consume one verified browser challenge and atomically bind/sign in.
+
+        Signature, audience, issuer and raw nonce must already be verified by
+        the caller. Expected account/link failures still consume the nonce;
+        their savepoint rolls back any identity writes while retaining that
+        consumption. Unexpected storage failures roll back the whole operation.
+        """
+        if not isinstance(subject, str) or not subject.strip() or len(subject) > 255:
+            raise AccountLifecycleError("google_identity_invalid")
+        if not isinstance(now, (int, float)) or not math.isfinite(now):
+            raise AccountLifecycleError("google_challenge_invalid")
+        failure = None
+        result = None
+        with self.transaction() as tx:
+            challenge = tx.conn.execute(
+                "SELECT * FROM google_auth_challenges WHERE nonce_hash=?", (nonce_hash,)
+            ).fetchone()
+            tx.conn.execute("DELETE FROM google_auth_challenges WHERE nonce_hash=?", (nonce_hash,))
+            if challenge is None or challenge["expires_at"] <= now:
+                failure = AccountLifecycleError("google_challenge_invalid")
+            else:
+                tx.conn.execute("SAVEPOINT google_identity")
+                try:
+                    result = self._complete_google_identity(
+                        tx, challenge, subject, now=now, profile=profile
+                    )
+                except AccountLifecycleError as exc:
+                    tx.conn.execute("ROLLBACK TO google_identity")
+                    failure = exc
+                finally:
+                    tx.conn.execute("RELEASE google_identity")
+        if failure is not None:
+            raise failure
+        return result
 
     def upsert(self, username, data, *, expected_incarnation):
         with self.transaction() as tx:

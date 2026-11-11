@@ -472,6 +472,16 @@ jobs:
           pip install -r requirements.txt --quiet
           SCRIPT
 
+      - name: Configure Google sign-in when a client ID is supplied
+        if: steps.stale.outputs.skip != 'true'
+        env:
+          GOOGLE_CLIENT_ID: ${{ vars.GOOGLE_CLIENT_ID || '' }}
+        run: |
+          if [ -n "$GOOGLE_CLIENT_ID" ]; then
+            printf '%s' "$GOOGLE_CLIENT_ID" | ssh -i ~/.ssh/deploy_key ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }} \
+              'APP_ROOT="$HOME/PaperReviewAgent" "$HOME/PaperReviewAgent/venv/bin/python" -c "import os, re, sys; from pathlib import Path; from dotenv import set_key; client_id = sys.stdin.read(); assert re.fullmatch(r\"[a-zA-Z0-9_-]+[.]apps[.]googleusercontent[.]com\", client_id), \"invalid GOOGLE_CLIENT_ID\"; env_file = Path(os.environ[\"APP_ROOT\"]) / \".env\"; assert env_file.is_file(), \"server .env is missing\"; env_file.chmod(0o600); set_key(str(env_file), \"GOOGLE_CLIENT_ID\", client_id, quote_mode=\"always\"); env_file.chmod(0o600)"'
+          fi
+
       - name: Update JEV server API key
         if: steps.stale.outputs.skip != 'true'
         env:

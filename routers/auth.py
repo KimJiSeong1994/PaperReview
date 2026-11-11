@@ -1,16 +1,22 @@
 """Authentication router – JWT-based login, registration & token verification."""
 
+import asyncio
 import hashlib
 import logging
 import os
 import secrets
 import sqlite3
+import time
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import bcrypt
 import jwt
-from fastapi import APIRouter, HTTPException
+import requests
+from google.auth import exceptions as google_errors
+from google.auth.transport.requests import Request as GoogleRequest
+from google.oauth2 import id_token as google_id_token
+from fastapi import APIRouter, HTTPException, Response
 from pydantic import BaseModel, Field
 from starlette.requests import Request
 
@@ -47,10 +53,15 @@ def _hash_password(password: str) -> str:
     return bcrypt.hashpw(password.encode("utf-8"), bcrypt.gensalt()).decode("utf-8")
 
 
-def _verify_password(password: str, stored_hash: str) -> bool:
+def _verify_password(password: str, stored_hash: str | None) -> bool:
     """Verify password. Supports bcrypt and legacy SHA-256 hashes."""
+    if not isinstance(stored_hash, str) or not stored_hash:
+        return False  # Google-only accounts have no local password.
     if stored_hash.startswith(("$2b$", "$2a$")):
-        return bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8"))
+        try:
+            return bcrypt.checkpw(password.encode("utf-8"), stored_hash.encode("utf-8"))
+        except ValueError:
+            return False
     # Legacy SHA-256: requires dedicated salt (decoupled from JWT_SECRET)
     if not _LEGACY_PASSWORD_SALT:
         return False
@@ -122,6 +133,18 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
     username: str
     role: str = "user"
+    is_new_user: bool = False
+
+
+class GoogleChallengeRequest(BaseModel):
+    username: str | None = Field(None, min_length=1, max_length=100)
+    password: str | None = Field(None, min_length=1, max_length=256)
+    model_config = {"extra": "forbid"}
+
+
+class GoogleLoginRequest(BaseModel):
+    credential: str = Field(..., min_length=1, max_length=16384)
+    model_config = {"extra": "forbid"}
 
 
 class MessageResponse(BaseModel):
@@ -171,11 +194,154 @@ def _decode_token(token: str) -> dict:
 
 # ── Endpoints ────────────────────────────────────────────────────────
 
+_GOOGLE_NONCE_COOKIE = "google_login_nonce"
+_GOOGLE_COOKIE_PATH = "/api/auth/google"
+_GOOGLE_CHALLENGE_SECONDS = 300
+
+
+def _google_client_id() -> str:
+    return os.getenv("GOOGLE_CLIENT_ID", "").strip()
+
+
+def _require_google_client_id() -> str:
+    client_id = _google_client_id()
+    if not client_id:
+        raise HTTPException(status_code=503, detail="google_sign_in_not_configured")
+    return client_id
+
+
+def _require_google_origin(request: Request) -> None:
+    allowed = {
+        origin.strip() for origin in os.getenv(
+            "CORS_ORIGINS", "https://jiphyeonjeon.kr,https://www.jiphyeonjeon.kr"
+        ).split(",") if origin.strip() and origin.strip() != "*"
+    }
+    if request.headers.get("origin") not in allowed:
+        raise HTTPException(status_code=403, detail="google_origin_not_allowed")
+
+
+def _verify_google_credential(credential: str, client_id: str) -> dict:
+    if not client_id:
+        raise HTTPException(status_code=503, detail="google_sign_in_not_configured")
+    try:
+        # The existing Google SDK dependencies provide google-auth. Bound the
+        # provider I/O and call this helper outside FastAPI's event loop.
+        with requests.Session() as session:
+            transport = GoogleRequest(session=session)
+
+            def bounded_request(url, method="GET", **kwargs):
+                kwargs["timeout"] = 10
+                return transport(url, method=method, **kwargs)
+
+            claims = google_id_token.verify_oauth2_token(
+                credential, bounded_request, audience=client_id
+            )
+    except (google_errors.TransportError, requests.RequestException):
+        raise HTTPException(status_code=503, detail="google_verification_unavailable") from None
+    except (ValueError, google_errors.GoogleAuthError):
+        raise HTTPException(status_code=401, detail="invalid_google_credential") from None
+    if (
+        claims.get("iss") not in {"accounts.google.com", "https://accounts.google.com"}
+        or not isinstance(claims.get("sub"), str)
+        or not 1 <= len(claims["sub"]) <= 255
+        or claims.get("email_verified") is not True
+    ):
+        raise HTTPException(status_code=401, detail="invalid_google_credential")
+    return claims
+
+
+@router.get("/config")
+async def auth_config(response: Response):
+    client_id = _google_client_id()
+    response.headers["Cache-Control"] = "no-store"
+    return {
+        "google_enabled": bool(client_id),
+        "google_client_id": client_id or None,
+        "password_login_enabled": not bool(client_id),
+        "registration_enabled": not bool(client_id),
+    }
+
+
+@router.post("/google/challenge")
+@limiter.limit("5/minute")
+async def google_challenge(request: Request, response: Response, body: GoogleChallengeRequest):
+    client_id = _require_google_client_id()
+    _require_google_origin(request)
+    if (body.username is None) != (body.password is None):
+        raise HTTPException(status_code=422, detail="both_existing_credentials_required")
+    try:
+        # Preserve the pristine-store administrator bootstrap; Google never
+        # grants admin privileges based on email or first-signup order.
+        users = await asyncio.to_thread(_load_users)
+        target_incarnation = None
+        if body.username is not None:
+            user = users.get(body.username)
+            valid = user and await asyncio.to_thread(
+                _verify_password, body.password, user.get("password_hash")
+            )
+            if not valid:
+                raise HTTPException(status_code=401, detail="Invalid credentials")
+            target_incarnation = user["account_incarnation"]
+        nonce = secrets.token_urlsafe(32)
+        await asyncio.to_thread(
+            _get_user_db().create_google_challenge,
+            hashlib.sha256(nonce.encode()).hexdigest(),
+            expires_at=time.time() + _GOOGLE_CHALLENGE_SECONDS,
+            target_username=body.username,
+            target_incarnation=target_incarnation,
+        )
+    except AccountLifecycleError:
+        raise HTTPException(status_code=401, detail="Account deleted or disabled") from None
+    except sqlite3.Error:
+        raise HTTPException(status_code=503, detail="Account authority unavailable") from None
+    response.set_cookie(
+        _GOOGLE_NONCE_COOKIE, nonce, max_age=_GOOGLE_CHALLENGE_SECONDS,
+        httponly=True, secure=request.url.scheme == "https" or os.getenv("ENVIRONMENT") == "production",
+        samesite="strict", path=_GOOGLE_COOKIE_PATH,
+    )
+    response.headers["Cache-Control"] = "no-store"
+    return {"client_id": client_id, "nonce": nonce}
+
+
+@router.post("/google", response_model=TokenResponse)
+@limiter.limit("10/minute")
+async def google_login(request: Request, response: Response, body: GoogleLoginRequest):
+    client_id = _require_google_client_id()
+    _require_google_origin(request)
+    nonce = request.cookies.get(_GOOGLE_NONCE_COOKIE, "")
+    if not nonce or len(nonce) > 256:
+        raise HTTPException(status_code=401, detail="google_challenge_invalid")
+    claims = await asyncio.to_thread(_verify_google_credential, body.credential, client_id)
+    token_nonce = claims.get("nonce")
+    if not isinstance(token_nonce, str) or not secrets.compare_digest(nonce, token_nonce):
+        raise HTTPException(status_code=401, detail="google_challenge_invalid")
+    try:
+        result = await asyncio.to_thread(
+            _get_user_db().complete_google_login,
+            hashlib.sha256(nonce.encode()).hexdigest(), claims["sub"], now=time.time(),
+            profile={"display_name": claims.get("name"), "email": claims.get("email")},
+        )
+        token = _create_token(
+            result["username"], account_incarnation=result["user"]["account_incarnation"]
+        )
+        role = _decode_token(token).get("role", "user")
+    except AccountLifecycleError as exc:
+        status = 409 if exc.reason in {"google_identity_conflict", "google_account_already_linked"} else 401
+        raise HTTPException(status_code=status, detail=exc.reason) from None
+    except sqlite3.Error:
+        raise HTTPException(status_code=503, detail="Account authority unavailable") from None
+    response.delete_cookie(_GOOGLE_NONCE_COOKIE, path=_GOOGLE_COOKIE_PATH)
+    response.headers["Cache-Control"] = "no-store"
+    return TokenResponse(access_token=token, username=result["username"], role=role,
+                         is_new_user=result["is_new_user"])
+
 
 @router.post("/register", response_model=MessageResponse)
 @limiter.limit("3/minute")
 async def register(request: Request, reg_request: RegisterRequest):
     """Register a new user account."""
+    if _google_client_id():
+        raise HTTPException(status_code=403, detail="google_sign_in_required")
     try:
         _get_user_db().create_account(
             reg_request.username,
@@ -199,6 +365,8 @@ async def register(request: Request, reg_request: RegisterRequest):
 @limiter.limit("5/minute")
 async def login(request: Request, login_request: LoginRequest):
     """Authenticate with username/password and receive a JWT token."""
+    if _google_client_id():
+        raise HTTPException(status_code=403, detail="google_sign_in_required")
     try:
         users = _load_users()
     except (sqlite3.Error, AccountLifecycleError):
