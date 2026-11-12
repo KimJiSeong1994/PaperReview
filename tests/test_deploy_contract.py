@@ -101,6 +101,7 @@ def test_backend_retains_full_suite_and_coverage_gate() -> None:
         assert "--torch-backend=cpu" in job
         assert f"name: {shard}" in backend
         if shard == "poster-browser":
+            assert "runs-on: ubuntu-24.04" in job
             assert "playwright install --with-deps chromium" in job
             assert "CHROME_DEVEL_SANDBOX" in job
         else:

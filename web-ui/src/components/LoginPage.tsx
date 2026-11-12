@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, type FormEvent } from 'react';
 import axios from 'axios';
-import { login, register } from '../api/client';
+import { getAuthConfig, login, register, type AuthConfig } from '../api/client';
+import GoogleSignIn from './GoogleSignIn';
 import { trackLoginEvent, trackSignUpEvent } from '../analytics/events';
 import './LoginPage.css';
 
@@ -12,6 +13,9 @@ interface LoginModalProps {
 type Mode = 'signin' | 'signup';
 
 export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps) {
+  const [config, setConfig] = useState<AuthConfig | null>(null);
+  const [configError, setConfigError] = useState(false);
+  const [configAttempt, setConfigAttempt] = useState(0);
   const [mode, setMode] = useState<Mode>('signin');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
@@ -35,30 +39,24 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
     return () => { document.body.style.overflow = ''; };
   }, []);
 
-  // Keep Tab inside the dialog, and hand focus back to whatever opened it.
-  //
-  // Initial focus is already handled: both forms autoFocus their first field.
-  // What was missing is the other half — Tab walked straight out of the card
-  // into the page behind it, and closing dropped focus on <body>, so a keyboard
-  // user landed at the top of the document with no idea where they were.
   const cardRef = useRef<HTMLDivElement>(null);
-
-  // Captured during the first render, not in the effect below: effects run
-  // after the DOM commit, by which point autoFocus has already moved focus
-  // into this dialog and document.activeElement is the ID field, not whatever
-  // the user was on. Lazy ref init is the standard shape for this and is
-  // idempotent, so it is safe during render.
-  const openerRef = useRef<HTMLElement | null>(null);
-  if (openerRef.current === null) {
-    openerRef.current = document.activeElement as HTMLElement | null;
-  }
+  // Capture before asynchronous provider loading moves focus into the dialog.
+  const [opener] = useState(() => document.activeElement as HTMLElement | null);
+  useEffect(() => { cardRef.current?.focus(); }, []);
 
   useEffect(() => {
-    const opener = openerRef.current;
+    const controller = new AbortController();
+    getAuthConfig(controller.signal)
+      .then((value) => { if (!controller.signal.aborted) setConfig(value); })
+      .catch(() => { if (!controller.signal.aborted) setConfigError(true); });
+    return () => controller.abort();
+  }, [configAttempt]);
+
+  useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.key !== 'Tab' || !cardRef.current) return;
       const items = cardRef.current.querySelectorAll<HTMLElement>(
-        'a[href], button:not([disabled]), input:not([disabled]), select, textarea, [tabindex]:not([tabindex="-1"])',
+        'a[href], button:not([disabled]), input:not([disabled]), select, textarea, iframe, [tabindex]:not([tabindex="-1"])',
       );
       if (items.length === 0) return;
       const first = items[0];
@@ -78,7 +76,7 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
       document.removeEventListener('keydown', onKeyDown);
       opener?.focus?.();
     };
-  }, []);
+  }, [opener]);
 
   const clearForm = () => {
     setError('');
@@ -176,6 +174,7 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
         role="dialog"
         aria-modal="true"
         aria-labelledby="login-dialog-title"
+        tabIndex={-1}
         onClick={(e) => e.stopPropagation()}
       >
         {/* Close button */}
@@ -206,6 +205,14 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
           </div>
         </div>
 
+        {!config && <div className="login-provider-loading">
+          {configError ? <>
+            <p className="login-error" role="alert">로그인 설정을 불러오지 못했습니다. 다시 시도해주세요.</p>
+            <button type="button" className="login-submit-btn" onClick={() => { setConfigError(false); setConfigAttempt((value) => value + 1); }}>다시 시도</button>
+          </> : <p className="login-provider-status" role="status">로그인 방식을 확인하고 있습니다.</p>}
+        </div>}
+        {config?.google_enabled && <GoogleSignIn onLoginSuccess={onLoginSuccess} />}
+        {config && !config.google_enabled && config.password_login_enabled && <>
         {/* Mode tabs */}
         <div className="login-tabs">
           <button
@@ -215,13 +222,13 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
           >
             로그인
           </button>
-          <button
+          {config.registration_enabled && <button
             className={`login-tab ${mode === 'signup' ? 'login-tab--active' : ''}`}
             onClick={() => switchMode('signup')}
             type="button"
           >
             회원가입
-          </button>
+          </button>}
         </div>
 
         {/* Sign In form */}
@@ -270,7 +277,7 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
         )}
 
         {/* Sign Up form */}
-        {mode === 'signup' && (
+        {mode === 'signup' && config.registration_enabled && (
           <form className="login-form" onSubmit={handleSignUp}>
             <div className="login-input-group">
               <label htmlFor="reg-username" className="login-label">아이디</label>
@@ -325,6 +332,8 @@ export default function LoginModal({ onLoginSuccess, onClose }: LoginModalProps)
             </button>
           </form>
         )}
+        </>}
+        {config && !config.google_enabled && !config.password_login_enabled && <p className="login-error" role="alert">로그인 서비스를 준비하고 있습니다. 잠시 후 다시 시도해주세요.</p>}
       </div>
     </div>
   );

@@ -286,3 +286,22 @@
 :root[data-theme='light'] .login-card {
   color-scheme: light;
 }
+
+.login-card {
+  max-height: calc(100dvh - 32px);
+  overflow-y: auto;
+  box-sizing: border-box;
+}
+
+.login-card:focus { outline: none; }
+.login-provider-loading { margin-top: 24px; }
+.login-provider-status { margin: 12px 0; color: var(--text-muted); font-size: 13px; line-height: 1.6; }
+.google-signin { display: grid; gap: 16px; margin-top: 24px; }
+.google-signin-intro h3 { margin: 0 0 8px; color: var(--text-hi); font-size: 16px; }
+.google-signin-intro p { margin: 0; color: var(--text-muted); font-size: 13px; line-height: 1.7; word-break: keep-all; }
+.google-signin-attempt { min-width: 0; }
+.google-signin-button { justify-content: center; min-height: 44px; }
+.google-link-switch { padding: 10px 4px; border: 0; background: transparent; color: var(--text-muted); font: inherit; font-size: 13px; text-decoration: underline; text-underline-offset: 3px; cursor: pointer; }
+.google-link-switch:focus-visible { outline: 2px solid var(--indigo); outline-offset: 2px; border-radius: 4px; }
+.google-signin .login-success,
+.google-signin .login-error { line-height: 1.6; word-break: keep-all; }

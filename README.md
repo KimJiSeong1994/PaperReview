@@ -148,9 +148,39 @@ cd web-ui && npm install && npm run dev   # → http://localhost:5173
 | `JWT_SECRET` | Yes | JWT signing secret (min 32 chars) |
 | `S2_API_KEY` | No | Semantic Scholar API key (relaxes rate limits) |
 | `GOOGLE_API_KEY` | No | Google Gemini API key (poster/diagram generation) |
+| `GOOGLE_CLIENT_ID` | For Google sign-in | Google **Web application** OAuth client ID; separate from the Gemini API key |
 | `CORS_ORIGINS` | No | Allowed origins, comma-separated |
 | `API_AUTH_KEY` | No | Optional API-level auth key |
 | `REQUEST_TIMEOUT` | No | Slow-log threshold in seconds (default: `120`) |
+
+### Google sign-in
+
+Create a Web application OAuth client in Google Auth Platform and register the
+actual JavaScript origins: `https://jiphyeonjeon.kr` (and the `www` origin if used).
+For local testing, register the exact frontend origin, such as
+`http://localhost:5173`, and include it in `CORS_ORIGINS`. Google authentication
+uses same-origin `/api/auth` requests through Vite's existing development proxy
+or production Nginx, so its HttpOnly challenge cookie does not require enabling
+cross-origin credentials for the rest of the API.
+Configure the consent screen's branding, authorized domain, privacy-policy URL,
+and testing/publishing audience before enabling real users. This popup ID-token
+flow does not require a client secret, redirect callback URL, or Google API scopes.
+See [Google's client setup guide](https://developers.google.com/identity/gsi/web/guides/get-google-api-clientid).
+
+Set `GOOGLE_CLIENT_ID` on the server to enable the Google button. The frontend
+reads the public setting from `/api/auth/config`; it needs no build-time key.
+The production workflow also accepts a repository variable `GOOGLE_CLIENT_ID`
+and writes it to the existing server `.env` before restart. If the variable is
+absent, the workflow preserves the server's current value.
+
+Existing users must choose **기존 계정 연결** and verify their old username/password
+once before selecting their Google account. This preserves their data, account
+identity and administrator role. Google email addresses never automatically
+merge accounts; an unlinked Google sign-in creates a new ordinary user. A Google
+account already used for a new account cannot be silently merged into another.
+Once enabled, standalone password login and password registration return 403;
+existing app JWTs remain valid under the usual account-lifecycle checks. Without
+a client ID, legacy login stays available until configuration is ready.
 
 ---
 
@@ -161,7 +191,7 @@ Interactive docs: [`jiphyeonjeon.kr/docs`](https://jiphyeonjeon.kr/docs) (Swagge
 
 | Group | Key Endpoints | Description |
 |-------|--------------|-------------|
-| **Auth** | `POST /register`, `/login` | JWT authentication |
+| **Auth** | `GET /auth/config`, `POST /auth/google/challenge`, `/auth/google`, `GET /auth/verify` | Google sign-in / explicit existing-account linking → app JWT; legacy `/auth/login` and `/auth/register` only before Google is enabled |
 | **Conversations** | `POST /conversations`, `POST /conversations/{id}/turns` (SSE), `GET /me/conversations` | Server-saved conversations with streamed turns |
 | **Samples** | `GET /samples/conversations`, `/samples/conversations/{slug}` | Public sample conversations (no auth) |
 | **Profile** | `GET /me/research-profile`, `GET /me/soul` | Derived research profile and memory |
