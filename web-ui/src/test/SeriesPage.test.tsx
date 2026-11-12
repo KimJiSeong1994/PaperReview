@@ -202,7 +202,7 @@ describe('SeriesPage reading list', () => {
     await within(reading()).findByRole('list');
     expect(within(reading()).getAllByRole('link').map((link) => link.getAttribute('aria-label'))).toEqual(['첫 번째', '두 번째']);
     expect(fetchBlogPosts).toHaveBeenNthCalledWith(2, undefined, undefined, 2, 100);
-    expect(jsonLd()).toContain(first);
+    await waitFor(() => expect(jsonLd()).toContain(first));
     expect(jsonLd()).not.toContain('unrelated-');
   });
 
