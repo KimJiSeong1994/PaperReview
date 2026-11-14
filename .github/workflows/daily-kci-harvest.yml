@@ -1,0 +1,77 @@
+name: Daily KCI Harvest
+
+on:
+  schedule:
+    # 매일 05:10 KST (20:10 UTC). 마지막 수집 지점 이후 KCI 에서 갱신된 논문만 받는다.
+    - cron: "10 20 * * *"
+  workflow_dispatch:
+
+concurrency:
+  group: daily-kci-harvest-production
+  cancel-in-progress: false
+
+jobs:
+  harvest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 130
+    environment: production
+    steps:
+      - name: Harvest KCI updates into the production index
+        env:
+          DEPLOY_KEY: ${{ secrets.EC2_SSH_KEY }}
+          DEPLOY_KNOWN_HOSTS: ${{ secrets.EC2_KNOWN_HOSTS }}
+          DEPLOY_TARGET: ${{ secrets.EC2_USER }}@${{ secrets.EC2_HOST }}
+        run: |
+          set -euo pipefail
+          umask 077
+          mkdir -p ~/.ssh
+          printf '%s\n' "$DEPLOY_KEY" > ~/.ssh/deploy_key
+          printf '%s\n' "$DEPLOY_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          ssh -i ~/.ssh/deploy_key -o BatchMode=yes -o StrictHostKeyChecking=yes \
+            -o ConnectTimeout=15 -o ServerAliveInterval=30 "$DEPLOY_TARGET" 'bash -s' <<'SCRIPT'
+          set -euo pipefail
+          cd ~/PaperReviewAgent
+          # 배포된 코드를 그대로 쓴다(여기서 git 을 건드리지 않는다).
+          # 색인이 없으면 2013년부터 전수 수집이 시작되므로 여기서는 돌리지 않는다.
+          test -s data/kci.db || { echo "data/kci.db 없음: 초기 적재 후 실행" >&2; exit 1; }
+          exec 9> data/kci_harvest.lock
+          flock -n 9 || { echo "이미 수집이 실행 중" >&2; exit 1; }
+
+          # 디스크가 가득 차면 운영 서비스 전체가 멈춘다. 여유가 MIN_FREE_MB 아래면
+          # 시작하지 않고, 수집 중에 내려가면 수집을 멈춘다(다음 실행이 이어받는다).
+          MIN_FREE_MB=400
+          free_mb() { df --output=avail -m data | tail -n 1 | tr -d ' '; }
+          [ "$(free_mb)" -ge "$MIN_FREE_MB" ] || { echo "디스크 여유 $(free_mb)MB < ${MIN_FREE_MB}MB: 수집 안 함" >&2; exit 1; }
+
+          # 색인은 읽기 전용 릴리스로 게시돼 있다. 제자리 갱신을 위해 쓰기를 연다.
+          db="$(readlink -f data/kci.db)"
+          doi="$(readlink -f data/kci.db.doi.db)"
+          chmod u+w "$db"
+
+          # --workers: 중단된 기간별 작업을 이어받고, 끝나면 수집 지점을 오늘로 옮긴다.
+          timeout 110m venv/bin/python -m src.collector.paper.kci_searcher --workers 2 \
+            >> data/kci_harvest.log 2>&1 &
+          pid=$!
+          while kill -0 "$pid" 2>/dev/null; do
+            if [ "$(free_mb)" -lt "$MIN_FREE_MB" ]; then
+              echo "디스크 여유 $(free_mb)MB: 수집 중단" >&2
+              kill "$pid"
+            fi
+            sleep 20
+          done
+          status=0
+          wait "$pid" || status=$?
+          tail -n 3 data/kci_harvest.log
+          echo "디스크 여유: $(free_mb)MB"
+
+          # 새로 받은 논문의 DOI 조회용 보조 색인을 다시 만든다(없어도 검색은 동작).
+          if [ "$status" -eq 0 ] && [ "$(free_mb)" -ge "$MIN_FREE_MB" ]; then
+            chmod u+w "$doi" 2>/dev/null || true
+            venv/bin/python scripts/build_kci_doi_lookup.py --db data/kci.db --output "$doi"
+          fi
+          exit "$status"
+          SCRIPT
+
+      - name: Cleanup credentials
+        if: always()
+        run: rm -f ~/.ssh/deploy_key
