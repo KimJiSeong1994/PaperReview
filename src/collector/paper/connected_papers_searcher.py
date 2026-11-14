@@ -5,9 +5,12 @@ Connected Papers는 JavaScript 기반 SPA이므로 대안적 접근 방식 사�
 
 import logging
 import requests
+import threading
+import time
 from typing import List, Dict, Any, Optional
 from src.utils.logger import log_search_operation
 from src.collector.paper.semantic_scholar_client import SemanticScholarClient
+from src.collector.paper.provider_access import ProviderAccessError, access_details
 
 logger = logging.getLogger(__name__)
 
@@ -19,12 +22,46 @@ class ConnectedPapersSearcher:
         # Shared Semantic Scholar session: S2_API_KEY header + process-wide throttle.
         self._s2 = SemanticScholarClient()
         self.session = self._s2.session
+        self._access_lock = threading.Lock()
+        self._cooldown_until = 0.0
+        self._access_issue = None
 
-    def _get(self, url: str, params: Dict[str, Any], timeout: float = 10) -> requests.Response:
+    @staticmethod
+    def _check_budget(deadline=None, stop_event=None):
+        if stop_event is not None and stop_event.is_set():
+            raise TimeoutError("Connected Papers search cancelled")
+        if deadline is not None and time.monotonic() >= deadline:
+            raise TimeoutError("Connected Papers search budget expired")
+
+    def _check_access(self):
+        with self._access_lock:
+            remaining = self._cooldown_until - time.monotonic()
+            if remaining > 0 and self._access_issue:
+                raise ProviderAccessError('connected_papers', self._access_issue['reason'],
+                                          http_status=self._access_issue['http_status'], retry_after=remaining)
+
+    def _get(self, url: str, params: Dict[str, Any], timeout: float = 10, *, deadline=None, stop_event=None) -> requests.Response:
         """Throttled GET. No retry sleeps: the search deadline owns the budget."""
-        SemanticScholarClient._rate_limiter.wait()
+        self._check_budget(deadline, stop_event)
+        self._check_access()
+        SemanticScholarClient._rate_limiter.wait(deadline=deadline, stop_event=stop_event)
+        self._check_budget(deadline, stop_event)
+        self._check_access()
+        if deadline is not None:
+            timeout = min(timeout, deadline - time.monotonic())
         response = self.session.get(url, params=params, timeout=timeout)
-        response.raise_for_status()
+        self._check_budget(deadline, stop_event)
+        try:
+            response.raise_for_status()
+        except requests.HTTPError as error:
+            details = access_details(error)
+            if details:
+                with self._access_lock:
+                    self._access_issue = details
+                    self._cooldown_until = time.monotonic() + details['retry_after_seconds']
+                raise ProviderAccessError('connected_papers', details['reason'],
+                                          http_status=details['http_status'], retry_after=details['retry_after_seconds']) from error
+            raise
         return response
 
     def close(self):
@@ -35,7 +72,7 @@ class ConnectedPapersSearcher:
         self.session.close()
 
     @log_search_operation("Connected Papers")
-    def search(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
+    def search(self, query: str, max_results: int = 10, *, deadline=None, stop_event=None) -> List[Dict[str, Any]]:
         """
         Connected Papers 대안 검색 (Semantic Scholar API 사용)
         Connected Papers는 SPA 구조로 직접 스크래핑이 어려움
@@ -49,7 +86,8 @@ class ConnectedPapersSearcher:
         """
         try:
             # Semantic Scholar API 사용
-            papers = self._search_semantic_scholar(query, max_results)
+            self._check_budget(deadline, stop_event)
+            papers = self._search_semantic_scholar(query, max_results, deadline=deadline, stop_event=stop_event)
             return papers
 
         except Exception as e:
@@ -145,7 +183,7 @@ class ConnectedPapersSearcher:
             logger.warning("get_related_papers failed for %s: %s", paper_id, e)
             return []
 
-    def _search_semantic_scholar(self, query: str, max_results: int) -> List[Dict[str, Any]]:
+    def _search_semantic_scholar(self, query: str, max_results: int, *, deadline=None, stop_event=None) -> List[Dict[str, Any]]:
         """Semantic Scholar API를 통한 논문 검색"""
         try:
             # Semantic Scholar API 사용
@@ -156,12 +194,14 @@ class ConnectedPapersSearcher:
                 'fields': 'title,authors,year,citationCount,abstract,url,externalIds'
             }
 
-            response = self._get(api_url, params)
+            response = self._get(api_url, params, deadline=deadline, stop_event=stop_event)
 
             data = response.json()
+            self._check_budget(deadline, stop_event)
             papers = []
 
             for paper_data in data.get('data', []):
+                self._check_budget(deadline, stop_event)
                 paper_info = {
                     "title": paper_data.get('title', ''),
                     "authors": [author.get('name', '') for author in paper_data.get('authors', [])],
