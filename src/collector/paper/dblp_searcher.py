@@ -224,7 +224,18 @@ class DBLPSearcher:
             terms = list(dict.fromkeys(word for word in re.findall(r"[^\W_]+", value.casefold()) if (len(word) > 1 or word.isdigit()) and word not in stopwords))[:8]
             if not terms:
                 return []
-            condition = "FILTER(" + " && ".join(f"CONTAINS(LCASE(STR(?title)), {json.dumps(term, ensure_ascii=False)})" for term in terms) + ")"
+            # DBLP has titles, not abstracts. Requiring every synonym introduced
+            # by the query planner can force a corpus scan with no matches.
+            # Seed on a named model (GraphRAG/BERT) or three topic terms; the
+            # complete query still scores the returned candidates below.
+            seeds = terms[:3]
+            if len(terms) > 3:
+                named = [word.casefold() for word in re.findall(r"[^\W_]+", value)
+                         if len(word) >= 3 and sum(c.isupper() for c in word) >= 2
+                         and word.casefold() in terms]
+                if named:
+                    seeds = named[:1]
+            condition = "FILTER(" + " && ".join(f"CONTAINS(LCASE(STR(?title)), {json.dumps(term, ensure_ascii=False)})" for term in seeds) + ")"
         candidate_limit = limit if doi or exact_title else min(limit * 3, 100)
         sparql = f'''PREFIX dblp: <https://dblp.org/rdf/schema#>
 PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
