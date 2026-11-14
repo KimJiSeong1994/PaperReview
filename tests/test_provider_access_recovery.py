@@ -72,6 +72,20 @@ def test_sparql_config_skips_rest_and_has_safe_literal_queries(dblp):
     dblp.session.get.assert_not_called()
 
 
+@pytest.mark.parametrize('query,seeds', [
+    ('GraphRAG graph retrieval augmented generation knowledge graphs', ['graphrag']),
+    ('graph neural networks graph representation learning', ['graph', 'neural', 'networks']),
+    ('GraphRAG hallucination', ['graphrag', 'hallucination']),
+])
+def test_sparql_bounds_expanded_title_predicates(dblp, query, seeds):
+    dblp.backend = 'sparql'
+    assert dblp.search(query, 3)
+    sparql = dblp.session.post.call_args.kwargs['data'].decode()
+    assert sparql.count('CONTAINS(LCASE(STR(?title))') == len(seeds)
+    for term in seeds:
+        assert f'CONTAINS(LCASE(STR(?title)), "{term}")' in sparql
+
+
 def test_sparql_valid_empty_and_malformed_response_differ(dblp):
     dblp.backend = 'sparql'
     dblp.session.post.return_value.iter_content.return_value = [b'{"results":{"bindings":[]}}']
