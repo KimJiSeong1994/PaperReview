@@ -365,6 +365,7 @@ def _graphrag_expand(
     query: str,
     initial_papers: List[Dict[str, Any]],
     max_expand: int = 15,
+    *, deadline=None, stop_event=None,
 ) -> List[Dict[str, Any]]:
     """검색 결과의 논문들을 기반으로 GraphRAG hybrid_deep 확장.
 
@@ -373,12 +374,21 @@ def _graphrag_expand(
     그래프에서 이웃 논문을 추가로 가져온다.
     실패 시 빈 리스트 반환 (graceful degradation).
     """
+    from src.graph_rag.search_engine import _expired
+
+    if _expired(deadline, stop_event):
+        return []
     graph = _load_graph_cached()
+    if _expired(deadline, stop_event):
+        return []
     if graph is None:
         logger.debug("[GraphRAG] Graph file not found: %s", _GRAPH_PATH)
         return []
 
     from src.graph_rag.search_engine import SearchEngine
+    from src.graph_rag.spectral_retriever import MAX_CANDIDATES, configured_mode, expand_graph_candidates, retrieve
+
+    spectral_mode = configured_mode()
 
     # GraphRAG expansion and keyword fallback only traverse ``graph``.  Keep
     # the vector index paths out of this graph-only caller so constructing the
@@ -398,7 +408,7 @@ def _graphrag_expand(
 
     if not seed_ids:
         # 시드가 없으면 키워드 fallback 시도
-        fallback_ids = engine._keyword_fallback(query, top_k=max_expand)
+        fallback_ids = engine._keyword_fallback(query, top_k=max_expand, deadline=deadline, stop_event=stop_event)
         fallback_ids = [
             pid for pid in dict.fromkeys(fallback_ids) if pid not in existing_ids
         ]
@@ -407,16 +417,20 @@ def _graphrag_expand(
         neighbor_ids = fallback_ids[:max_expand]
     else:
         # hybrid_deep 확장: 1-hop (SIMILAR_TO + CITES) + 2-hop (CITES만)
-        expanded_ids = engine.expand_graph(
-            seed_ids[:10],
-            expansion_strategy="hybrid_deep",
-            max_expanded=max_expand + len(seed_ids),
-        )
+        if spectral_mode != "baseline":
+            expanded_ids = expand_graph_candidates(graph, seed_ids[:10], deadline=min(deadline or float("inf"), time.monotonic() + 0.25), stop_event=stop_event)
+        else:
+            expanded_ids = engine.expand_graph(
+                seed_ids[:10],
+                expansion_strategy="hybrid_deep",
+                max_expanded=max_expand + len(seed_ids),
+                deadline=deadline, stop_event=stop_event,
+            )
 
         # 기존 검색 결과와 겹치는 논문 제외
         neighbor_ids = [
             pid for pid in dict.fromkeys(expanded_ids) if pid not in existing_ids
-        ][:max_expand]
+        ][:MAX_CANDIDATES if spectral_mode != "baseline" else max_expand]
 
     if not neighbor_ids:
         return []
@@ -424,6 +438,8 @@ def _graphrag_expand(
     # 그래프 노드 데이터를 검색 결과 형식으로 변환
     expanded: List[Dict[str, Any]] = []
     for nid in neighbor_ids:
+        if _expired(deadline, stop_event):
+            return []
         if nid not in graph:
             continue
         node_data = graph.nodes[nid]
@@ -446,6 +462,17 @@ def _graphrag_expand(
         }
         expanded.append(paper)
 
+    if spectral_mode != "baseline" and expanded:
+        pool = [*initial_papers[:10], *expanded][:MAX_CANDIDATES]
+        by_node = {generate_paper_id(p): generate_result_key(p) for p in pool}
+        edges = []
+        for left, right, data in graph.subgraph(by_node).edges(data=True):
+            edges.append((by_node[left], by_node[right], data.get("weight", 1.0)))
+        result = retrieve(query, pool, min(100, max_expand + min(10, len(initial_papers))),
+                          mode=spectral_mode, edges=edges, deadline=min(deadline or float("inf"), time.monotonic() + 0.5), stop_event=stop_event)
+        if _expired(deadline, stop_event):
+            return []
+        return [p for p in result.papers if generate_paper_id(p) not in existing_ids][:max_expand]
     return expanded
 
 
@@ -757,7 +784,12 @@ def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) 
     ``_CACHE_SCHEMA_VERSION`` 을 key_data에 포함시켜, 랭킹 알고리즘/결과
     스키마가 변경될 때 상수를 bump하면 기존 캐시 항목이 자동으로 무효화된다.
     """
+    from src.collector.paper.kci_searcher import index_cache_signature
+    from src.graph_rag.spectral_retriever import VERSION, configured_mode
+
     key_data = {
+        "retrieval_variant": f"{VERSION}:{configured_mode()}",
+        "kci_index": index_cache_signature() if "openalex_korean" in sources else None,
         "schema_version": _CACHE_SCHEMA_VERSION,
         "search_model": DEFAULT_SEARCH_MODEL,
         "query": _normalize_query_for_cache(query),
@@ -1646,7 +1678,8 @@ async def deep_search(
                 graphrag_papers = await _run_owned(
                     "search_graph",
                     partial(
-                        _graphrag_expand, request.query, copy.deepcopy(react_papers), 15
+                        _graphrag_expand, request.query, copy.deepcopy(react_papers), 15,
+                        deadline=deadline, stop_event=stop,
                     ),
                     min(_GRAPHRAG_TIMEOUT, max(0, deadline - time.monotonic())),
                     stop,
@@ -2021,6 +2054,8 @@ async def search_papers(
                                     ]
                                 ),
                                 15,
+                                deadline=deadline,
+                                stop_event=stop,
                             ),
                             _GRAPHRAG_TIMEOUT,
                         )

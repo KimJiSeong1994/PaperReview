@@ -627,7 +627,7 @@ function SearchPage() {
             title,
             authors: paper.authors || [],
             year: paper.year || paper.published,
-            journal: paper.journal || paper.publication || '',
+            journal: paper.journal || paper.publication || paper.venue || '',
             abstract: paper.abstract || '',
             url: paper.url || paper.paper_url,
             pdf_url: paper.pdf_url,

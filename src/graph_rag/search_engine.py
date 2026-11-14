@@ -5,6 +5,7 @@ logger = logging.getLogger(__name__)
 Graph RAG 검색 엔진
 """
 import json
+import time
 import numpy as np
 from typing import Dict, List, Any, Optional
 import importlib
@@ -19,6 +20,10 @@ else:
 
 from src.utils.logger import log_data_processing
 from src.utils.model_defaults import DEFAULT_EMBEDDING_MODEL
+
+
+def _expired(deadline=None, stop_event=None):
+    return (stop_event is not None and stop_event.is_set()) or (deadline is not None and time.monotonic() >= deadline)
 
 class SearchEngine:
     """Graph RAG 검색 엔진"""
@@ -96,13 +101,15 @@ class SearchEngine:
 
         return results
 
-    def get_neighbors(self, paper_id: str, edge_type: str = None) -> List[str]:
+    def get_neighbors(self, paper_id: str, edge_type: str = None, *, deadline=None, stop_event=None) -> List[str]:
         """그래프에서 인접 노드 가져오기"""
         if paper_id not in self.graph:
             return []
 
         neighbors = []
         for neighbor in self.graph.neighbors(paper_id):
+            if _expired(deadline, stop_event):
+                return []
             if edge_type:
                 # 특정 엣지 타입만 필터링
                 edge_data = self.graph.get_edge_data(paper_id, neighbor)
@@ -111,32 +118,36 @@ class SearchEngine:
             else:
                 neighbors.append(neighbor)
 
-        return neighbors
+        return [] if _expired(deadline, stop_event) else neighbors
 
-    def get_cited_papers(self, paper_id: str) -> List[str]:
+    def get_cited_papers(self, paper_id: str, **budget) -> List[str]:
         """인용한 논문들 가져오기"""
-        return self.get_neighbors(paper_id, edge_type='CITES')
+        return self.get_neighbors(paper_id, edge_type='CITES', **budget)
 
-    def get_citing_papers(self, paper_id: str) -> List[str]:
+    def get_citing_papers(self, paper_id: str, *, deadline=None, stop_event=None) -> List[str]:
         """인용당한 논문들 가져오기"""
         if paper_id not in self.graph:
             return []
 
         citing = []
         for predecessor in self.graph.predecessors(paper_id):
+            if _expired(deadline, stop_event):
+                return []
             edge_data = self.graph.get_edge_data(predecessor, paper_id)
             if edge_data and any(data.get('edge_type') == 'CITES' for data in edge_data.values()):
                 citing.append(predecessor)
 
-        return citing
+        return [] if _expired(deadline, stop_event) else citing
 
-    def get_similar_papers(self, paper_id: str, top_k: int = 5) -> List[str]:
+    def get_similar_papers(self, paper_id: str, top_k: int = 5, *, deadline=None, stop_event=None) -> List[str]:
         """유사한 논문들 가져오기"""
-        neighbors = self.get_neighbors(paper_id, edge_type='SIMILAR_TO')
+        neighbors = self.get_neighbors(paper_id, edge_type='SIMILAR_TO', deadline=deadline, stop_event=stop_event)
 
         # 가중치로 정렬
         similar_with_weights = []
         for neighbor in neighbors:
+            if _expired(deadline, stop_event):
+                return []
             edge_data = self.graph.get_edge_data(paper_id, neighbor)
             if edge_data:
                 max_weight = max(data.get('weight', 0.0) for data in edge_data.values())
@@ -152,6 +163,7 @@ class SearchEngine:
         expansion_strategy: str = "hybrid",
         max_depth: int = 1,
         max_expanded: int = 50,
+        *, deadline=None, stop_event=None,
     ) -> List[str]:
         """그래프 확장 — 엣지 타입별 depth 제어.
 
@@ -161,34 +173,47 @@ class SearchEngine:
             hybrid     — 1-hop: SIMILAR_TO + CITES
             hybrid_deep — 1-hop: SIMILAR_TO + CITES, 2-hop: CITES만 (안전 확장)
         """
+        if _expired(deadline, stop_event):
+            return []
+        budget = {"deadline": deadline, "stop_event": stop_event}
         expanded = set(initial_papers)
 
         if expansion_strategy == "citation":
             for paper_id in initial_papers:
-                expanded.update(self.get_cited_papers(paper_id))
-                expanded.update(self.get_citing_papers(paper_id))
+                if _expired(deadline, stop_event):
+                    return []
+                expanded.update(self.get_cited_papers(paper_id, **budget))
+                expanded.update(self.get_citing_papers(paper_id, **budget))
 
         elif expansion_strategy == "similarity":
             for paper_id in initial_papers:
-                expanded.update(self.get_similar_papers(paper_id, top_k=5))
+                if _expired(deadline, stop_event):
+                    return []
+                expanded.update(self.get_similar_papers(paper_id, top_k=5, **budget))
 
         elif expansion_strategy == "hybrid_deep":
             # 1-hop: SIMILAR_TO + CITES 모두
             for pid in list(initial_papers):
-                expanded.update(self.get_cited_papers(pid))
-                expanded.update(self.get_citing_papers(pid))
-                expanded.update(self.get_similar_papers(pid, top_k=5))
+                if _expired(deadline, stop_event):
+                    return []
+                expanded.update(self.get_cited_papers(pid, **budget))
+                expanded.update(self.get_citing_papers(pid, **budget))
+                expanded.update(self.get_similar_papers(pid, top_k=5, **budget))
 
             # 2-hop: CITES만 (인용 기반 안전 탐색)
             first_hop = expanded - set(initial_papers)
             for pid in first_hop:
                 # outgoing CITES edges
                 for _src, dst, data in self.graph.edges(pid, data=True):
+                    if _expired(deadline, stop_event):
+                        return []
                     if data.get('edge_type') == 'CITES':
                         expanded.add(dst)
                 # incoming CITES edges
                 if hasattr(self.graph, 'in_edges'):
                     for src, _dst, data in self.graph.in_edges(pid, data=True):
+                        if _expired(deadline, stop_event):
+                            return []
                         if data.get('edge_type') == 'CITES':
                             expanded.add(src)
                 if len(expanded) >= max_expanded:
@@ -197,15 +222,19 @@ class SearchEngine:
         elif expansion_strategy == "hybrid":
             # 1-hop: SIMILAR_TO + CITES 모두
             for paper_id in list(initial_papers):
-                expanded.update(self.get_cited_papers(paper_id))
-                expanded.update(self.get_citing_papers(paper_id))
-                expanded.update(self.get_similar_papers(paper_id, top_k=5))
+                if _expired(deadline, stop_event):
+                    return []
+                expanded.update(self.get_cited_papers(paper_id, **budget))
+                expanded.update(self.get_citing_papers(paper_id, **budget))
+                expanded.update(self.get_similar_papers(paper_id, top_k=5, **budget))
 
             # 기존 hybrid 2-hop (선택적, max_depth >= 2)
             if max_depth >= 2:
                 second_hop: set = set()
                 for neighbor in list(expanded):
-                    second_hop.update(self.get_similar_papers(neighbor, top_k=3))
+                    if _expired(deadline, stop_event):
+                        return []
+                    second_hop.update(self.get_similar_papers(neighbor, top_k=3, **budget))
                     if len(second_hop) + len(expanded) >= max_expanded:
                         break
                 expanded.update(second_hop)
@@ -215,9 +244,9 @@ class SearchEngine:
             extra = list(expanded - set(initial_papers))
             expanded = set(initial_papers) | set(extra[:max_expanded - len(initial_papers)])
 
-        return list(expanded)
+        return [] if _expired(deadline, stop_event) else list(expanded)
 
-    def _keyword_fallback(self, query: str, top_k: int = 10) -> List[str]:
+    def _keyword_fallback(self, query: str, top_k: int = 10, *, deadline=None, stop_event=None) -> List[str]:
         """그래프에 없는 논문을 키워드 매칭으로 검색 (Cold Start fallback)"""
         import re
 
@@ -229,6 +258,8 @@ class SearchEngine:
 
         scored: List[tuple] = []
         for node_id in self.graph.nodes():
+            if _expired(deadline, stop_event):
+                return []
             node_data = self.graph.nodes[node_id]
             title = node_data.get('title', '')
             abstract = node_data.get('abstract', '')
@@ -241,7 +272,7 @@ class SearchEngine:
                 scored.append((node_id, score))
 
         scored.sort(key=lambda x: x[1], reverse=True)
-        return [pid for pid, _ in scored[:top_k]]
+        return [] if _expired(deadline, stop_event) else [pid for pid, _ in scored[:top_k]]
 
     def search(
         self,
