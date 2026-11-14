@@ -862,14 +862,17 @@ class SearchAgent:
                 original = filters.get("original_query") or query
                 if route["kind"] == "arxiv":
                     return []
-                korean_q = original if _contains_korean(original) else source_queries.get("openalex_korean", query)
-                kci_papers = search_kci(korean_q, max_results, filters=filters,
+                # KCI indexes both original and English metadata. Preserve the
+                # user's terms in either language instead of broad LLM expansion.
+                kci_papers = search_kci(original, max_results, filters=filters,
                                        route=route, **budget)
                 # Publish local results before admitting any remote fallback.
                 publish = filters.get("_publish_local")
                 if publish is not None and kci_papers:
                     publish(kci_papers)
-                if len(kci_papers) >= max_results or route["kind"] != "topic" or not _contains_korean(korean_q):
+                korean_q = next((text for text in (original, source_queries.get("openalex_korean"), query)
+                                 if text and _contains_korean(text)), None)
+                if len(kci_papers) >= max_results or route["kind"] != "topic" or not korean_q:
                     return kci_papers
                 from src.utils.paper_utils import generate_result_key
                 merged, seen = [], set()
