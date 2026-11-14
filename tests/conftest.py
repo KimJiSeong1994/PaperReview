@@ -69,6 +69,7 @@ def isolate_private_app_storage(tmp_path, monkeypatch, request):
     monkeypatch.setenv("DATA_DIR", str(data_dir))
     monkeypatch.setenv("EVENTS_DB_PATH", str(data_dir / "events.db"))
     monkeypatch.setenv("PROFILE_DB_PATH", str(data_dir / "profile.db"))
+    monkeypatch.setenv("KCI_DB_PATH", str(data_dir / "kci.db"))
     monkeypatch.setenv("FEATURE_FLAGS_DB_PATH", str(data_dir / "feature_flags.db"))
     monkeypatch.setenv(
         "RECOMMENDATIONS_ARTIFACTS_DIR", str(data_dir / "recommendations")

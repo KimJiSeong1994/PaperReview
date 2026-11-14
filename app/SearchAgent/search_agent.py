@@ -16,6 +16,7 @@ import requests
 from src.collector.paper.arxiv_searcher import ArxivSearcher
 from src.collector.paper.connected_papers_searcher import ConnectedPapersSearcher
 from src.collector.paper.google_scholar_searcher import GoogleScholarSearcher
+from src.collector.paper.kci_searcher import index_available as kci_index_available, search_kci
 from src.collector.paper.openalex_searcher import OpenAlexSearcher
 from src.collector.paper.dblp_searcher import DBLPSearcher
 from src.collector.paper.reference_collector import ReferenceCollector
@@ -114,6 +115,11 @@ def apply_search_filters(papers: List[Dict[str, Any]], filters: Dict[str, Any]):
                 date = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
                 return (date if date.tzinfo else date.replace(tzinfo=timezone.utc)).timestamp()
             except (ValueError, TypeError, OverflowError):
+                if sort == "submittedDate" and str(paper.get("year", "")).isdigit():
+                    try:
+                        return datetime(int(paper["year"]), 1, 1, tzinfo=timezone.utc).timestamp()
+                    except (ValueError, OverflowError):
+                        pass
                 return float("-inf")
         kept.sort(key=lambda p: (-date_value(p), generate_result_key(p)))
     return kept, drops
@@ -627,7 +633,7 @@ class SearchAgent:
             metadata.update(arxiv_queries=[source_queries["arxiv"]], scholar_queries=source_queries["scholar_queries"], translated_query=source_queries["default"])
             for source in sources:
                 route = metadata["routing"]
-                if (route["kind"] == "arxiv" and source != "arxiv") or (route["kind"] != "topic" and source == "openalex_korean") or (route["kind"] == "title" and source == "connected_papers"):
+                if (route["kind"] == "arxiv" and source != "arxiv") or (route["kind"] == "title" and source == "connected_papers"):
                     metadata["modes"][source] = "skipped_unsupported_route"
                     continue
                 if not active():
@@ -813,7 +819,7 @@ class SearchAgent:
         matches — and hides a circuit breaker that never issued a request.
         """
         statuses = {a.get("status") for a in (attempts or [])}
-        if "timeout" in statuses:
+        if statuses & {"timeout", "partial_timeout"}:
             return "partial_timeout" if papers else "timeout"
         if statuses & {"error", "circuit_open"}:
             return "partial_error" if papers else ("circuit_open" if statuses == {"circuit_open"} else "error")
@@ -852,6 +858,27 @@ class SearchAgent:
                 attempts.append({"query": query, "status": "timeout"})
                 return []
             route = classify_search_route(filters.get("original_query", query))
+            if source_name == "openalex_korean":
+                original = filters.get("original_query") or query
+                if route["kind"] == "arxiv":
+                    return []
+                korean_q = original if _contains_korean(original) else source_queries.get("openalex_korean", query)
+                kci_papers = search_kci(korean_q, max_results, filters=filters,
+                                       route=route, **budget)
+                # Publish local results before admitting any remote fallback.
+                publish = filters.get("_publish_local")
+                if publish is not None and kci_papers:
+                    publish(kci_papers)
+                if len(kci_papers) >= max_results or route["kind"] != "topic" or not _contains_korean(korean_q):
+                    return kci_papers
+                from src.utils.paper_utils import generate_result_key
+                merged, seen = [], set()
+                for paper in kci_papers + self.openalex_searcher.search_korean(korean_q, max_results, **budget):
+                    key = generate_result_key(paper)
+                    if key not in seen:
+                        seen.add(key)
+                        merged.append(paper)
+                return merged[:max_results]
             if route["kind"] in ("doi", "arxiv", "title"):
                 searcher = getattr(self, self._SOURCE_SEARCHER_ATTRS.get(source_name, ""), None)
                 if source_name == "openalex_korean" or searcher is None:
@@ -968,26 +995,6 @@ class SearchAgent:
             elif source_name == "dblp":
                 dblp_q = source_queries.get("dblp", query)
                 return self.dblp_searcher.search(dblp_q, max_results, deadline=budget["deadline"], stop_event=budget["stop_event"])
-
-            elif source_name == "openalex_korean":
-                original_query = filters.get("original_query")
-                korean_q = source_queries.get("openalex_korean")
-                # Gate here rather than in the async orchestrator alone: every
-                # caller routes through this function, and the sync path (used
-                # by prefetch) previously ran the Korean search for English
-                # queries. search_korean costs up to two OpenAlex requests, and
-                # the daily credit budget is the binding constraint.
-                if not any(
-                    _contains_korean(t)
-                    for t in (query, original_query, korean_q)
-                    if t
-                ):
-                    return []
-                if original_query and _contains_korean(original_query):
-                    korean_q = original_query
-                elif not korean_q:
-                    korean_q = query
-                return self.openalex_searcher.search_korean(korean_q, max_results, **budget)
 
             else:
                 logger.warning("Unknown search source: %s", source_name)
@@ -1133,16 +1140,11 @@ class SearchAgent:
             started_at = time.monotonic()
             source_timeouts[source_name] = False
             source_query = source_queries.get(source_name, query)
-            if (
-                source_name == "openalex_korean"
-                and not _contains_korean(query)
-                and not _contains_korean(original_query)
-                and not _contains_korean(source_query)
-            ):
+            if (source_name == "openalex_korean" and not kci_index_available()
+                    and not any(_contains_korean(t) for t in (query, original_query, source_query))):
                 source_timings[source_name] = 0.0
                 source_modes[source_name] = "skipped_non_korean_query"
                 return source_name, []
-
             if stop.is_set() or time.monotonic() >= deadline:
                 source_modes[source_name] = "timeout"
                 source_timeouts[source_name] = True
@@ -1150,7 +1152,6 @@ class SearchAgent:
             route = metadata["routing"]
             if (
                 (route["kind"] == "arxiv" and source_name != "arxiv")
-                or (route["kind"] != "topic" and source_name == "openalex_korean")
                 or (route["kind"] == "title" and source_name == "connected_papers")
             ):
                 source_modes[source_name] = "skipped_unsupported_route"
@@ -1168,6 +1169,22 @@ class SearchAgent:
             source_modes[source_name] = "dispatched"
             worker_filters = {k: copy.deepcopy(v) for k, v in filters.items() if not k.startswith("_")}
             worker_filters.update(_deadline=min(deadline, started_at + timeout), _stop_event=stop, _attempts=[])
+            loop = asyncio.get_running_loop()
+            publication_closed = False
+
+            def deliver_local(papers):
+                if publication_closed or stop.is_set():
+                    return
+                local, _ = apply_search_filters(papers, filters)
+                partial[source_name] = local
+
+            def publish_local(papers):
+                try:
+                    loop.call_soon_threadsafe(deliver_local, copy.deepcopy(papers))
+                except RuntimeError:
+                    pass  # request loop already closed
+
+            worker_filters["_publish_local"] = publish_local
             underlying = generation.submit(
                 self._search_single_source,
                 source_name, query, worker_filters, copy.deepcopy(source_queries), max_results,
@@ -1195,11 +1212,11 @@ class SearchAgent:
             except (TimeoutError, requests.Timeout):
                 source_timings[source_name] = time.monotonic() - started_at
                 source_timeouts[source_name] = True
-                source_modes[source_name] = "timeout"
+                source_modes[source_name] = "partial_timeout" if partial.get(source_name) else "timeout"
                 if not fut.done():
                     fut.cancel()  # best-effort; ThreadPool 스레드는 중단 불가이나 Future 상태 정리
                 logger.warning("[SearchAgent] source %s timed out after %.3fs", source_name, source_timings[source_name])
-                return source_name, []
+                return source_name, copy.deepcopy(partial.get(source_name, []))
             except SearchCapacityExceeded:
                 raise
             except Exception as error:
@@ -1207,6 +1224,8 @@ class SearchAgent:
                 source_modes[source_name] = "error"
                 logger.warning("[SearchAgent] source %s failed: %s", source_name, error)
                 return source_name, []
+            finally:
+                publication_closed = True
 
         tasks = [asyncio.create_task(_run_source(s)) for s in dict.fromkeys(sources)]
         sources = list(dict.fromkeys(sources))

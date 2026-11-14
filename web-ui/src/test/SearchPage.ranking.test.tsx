@@ -199,6 +199,49 @@ describe('SearchPage result ordering', () => {
     ]);
   });
 
+  it('preserves KCI identity, source and landing link from the Korean source bucket', async () => {
+    const kciUrl = 'https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART000000001';
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: { openalex_korean: [{
+        title: '그래프 신경망 연구', authors: ['홍길동'], year: '2025',
+        abstract: '그래프 신경망을 활용한 추천 시스템', source: 'KCI',
+        venue: '정보과학회논문지', doi: '10.1234/kci.graph', url: kciUrl,
+        pdf_url: '', result_key: 'doi:10.1234/kci.graph', _rank: 0,
+      }] }, total: 1,
+    } as never);
+    const { container } = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('그래프 신경망');
+    await waitFor(() => expect(renderedTitles(container)).toEqual(['그래프 신경망 연구']));
+    fireEvent.click(container.querySelector('.paper-card')!);
+    expect(container.querySelector('.detail-meta')).toHaveTextContent('KCI');
+    expect(container.querySelector('.detail-meta')).toHaveTextContent('홍길동');
+    const open = vi.spyOn(window, 'open').mockReturnValue(null);
+    try {
+      fireEvent.click(screen.getByRole('button', { name: 'View Paper' }));
+      const opened = new URL(String(open.mock.calls[0][0]), 'https://example.test');
+      expect(opened.pathname).toBe('/paper-viewer');
+      expect([...opened.searchParams.values()]).toContain(kciUrl);
+    } finally {
+      open.mockRestore();
+    }
+    expect(trackPaperSelect).toHaveBeenCalledWith('list', expect.objectContaining({ rank: 1 }));
+  });
+
+  it('shows the KCI venue in the selected paper details', async () => {
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: { openalex_korean: [{
+        title: '그래프 신경망 연구', authors: ['홍길동'], year: '2025',
+        abstract: '추천 시스템', source: 'KCI', venue: '정보과학회논문지',
+        doi: '10.1234/kci.graph', result_key: 'doi:10.1234/kci.graph', _rank: 0,
+      }] }, total: 1,
+    } as never);
+    const { container } = render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('그래프 신경망');
+    await waitFor(() => expect(renderedTitles(container)).toHaveLength(1));
+    fireEvent.click(container.querySelector('.paper-card')!);
+    expect(container.querySelector('.detail-meta')).toHaveTextContent('정보과학회논문지');
+  });
+
   it('renders the first list before graph and reference enrichment complete', async () => {
     const graph = deferred<{ nodes: []; edges: [] }>();
     const references = deferred<{ references: [] }>();

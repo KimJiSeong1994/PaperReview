@@ -136,6 +136,17 @@ class ReActSearchAgent:
         all_papers: List[Dict[str, Any]] = []
         turn_history: List[SearchTurn] = []
         current_query = initial_queries[0]
+        from functools import partial
+        from src.collector.paper.kci_searcher import index_available, search_kci
+        from app.SearchAgent.search_agent import classify_search_route
+
+        kci_papers = []
+        if index_available():
+            kci_papers = await self._run_owned(
+                partial(search_kci, route=classify_search_route(query)),
+                query, min(100, max(5, max_results // 3)), provider=True,
+            ) or []
+            all_papers.extend(kci_papers)
 
         for turn_idx in range(1, self._max_turns + 1):
             # 전체 타임아웃 체크
@@ -162,7 +173,9 @@ class ReActSearchAgent:
                 )
 
             turn.tool_calls = tool_calls
-            turn.papers_found = papers
+            if turn_idx == 1 and kci_papers:
+                turn.tool_calls.insert(0, {"tool": "kci_search", "input": query, "output_count": len(kci_papers)})
+            turn.papers_found = [*kci_papers, *papers] if turn_idx == 1 else papers
             all_papers.extend(papers)
             turn_history.append(turn)
 
