@@ -685,7 +685,7 @@ SEARCH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # BUMP THIS STRING when ranking algorithm, result schema, or source list changes.
 # Old cache entries become unreachable (keys differ) and self-resolve within TTL (1h).
-_CACHE_SCHEMA_VERSION = "v5-jev-head-rerank"
+_CACHE_SCHEMA_VERSION = "v6-kci-original-query"
 
 _search_cache: Dict[str, Dict[str, Any]] = {}
 _cache_lock = threading.Lock()

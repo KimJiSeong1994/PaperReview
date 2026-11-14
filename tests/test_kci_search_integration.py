@@ -154,6 +154,18 @@ async def test_translation_keeps_korean_query_for_kci(runtime, client, auth_head
 
 
 @pytest.mark.asyncio
+async def test_english_expansion_keeps_original_query_for_local_kci(runtime, client, auth_headers):
+    rs.query_analyzer.analyze_and_prepare.return_value.update(
+        confidence=0.95, improved_query="unrelated broad terminology",
+        source_queries={"default": "unrelated broad terminology"},
+    )
+    body = await search(client, auth_headers, query="GraphRAG")
+    assert body["total"] == 1
+    assert body["results"]["openalex_korean"][0]["source"] == "KCI"
+    assert body["metadata"]["executed_queries"]["openalex_korean"] == ["GraphRAG"]
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("failure", [requests.HTTPError("503"), requests.Timeout("expired")])
 async def test_prompt_transport_failure_keeps_kci_results(runtime, client, auth_headers, failure):
     runtime.openalex_searcher.session.get.side_effect = failure

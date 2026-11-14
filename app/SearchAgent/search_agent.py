@@ -862,7 +862,9 @@ class SearchAgent:
                 original = filters.get("original_query") or query
                 if route["kind"] == "arxiv":
                     return []
-                korean_q = original if _contains_korean(original) else source_queries.get("openalex_korean", query)
+                # KCI indexes both original and English metadata. Preserve the
+                # user's terms in either language instead of broad LLM expansion.
+                korean_q = original
                 kci_papers = search_kci(korean_q, max_results, filters=filters,
                                        route=route, **budget)
                 # Publish local results before admitting any remote fallback.
