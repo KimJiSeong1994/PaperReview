@@ -22,6 +22,7 @@ import pickle
 import threading
 from pathlib import Path
 from src.utils.logger import log_search_operation, logger
+from src.collector.paper.provider_access import ProviderAccessError, access_details
 
 class ScholarBudgetExhausted(TimeoutError):
     """The caller's local deadline or cancellation stopped Scholar retrieval."""
@@ -75,6 +76,7 @@ class GoogleScholarSearcher:
         self._disabled_until = 0  # Scholar 재활성화 시각 (timestamp)
         self._circuit_breaker_threshold = 8  # 연속 실패 횟수 임계값 (5→8)
         self._circuit_breaker_cooldown = 300  # 비활성화 시간 (2분→5분)
+        self._access_issue = None
 
     def _load_cookies(self):
         """저장된 쿠키 로드"""
@@ -121,6 +123,7 @@ class GoogleScholarSearcher:
                 else:
                     logger.info("Google Scholar circuit breaker reset - retrying")
                     self._consecutive_failures = 0
+                    self._access_issue = None
             return True
 
     def is_circuit_open(self) -> bool:
@@ -139,6 +142,13 @@ class GoogleScholarSearcher:
         """검색 성공 시 실패 카운터 초기화"""
         with self._state_lock:
             self._consecutive_failures = 0
+            self._access_issue = None
+
+    def _access_snapshot(self):
+        with self._state_lock:
+            if not self._access_issue:
+                return {}
+            return {**self._access_issue, 'retry_after_seconds': max(0, int(self._disabled_until - time.time()))}
 
     def _record_failure(self):
         """검색 실패 시 카운터 증가 및 circuit breaker 활성화"""
@@ -163,11 +173,17 @@ class GoogleScholarSearcher:
             check()
             self._rate_limit()
             remaining = check()
+            if self.is_circuit_open():
+                issue = self._access_snapshot()
+                raise ProviderAccessError('google_scholar', issue.get('reason', 'circuit_open'),
+                                          http_status=issue.get('http_status'), retry_after=issue.get('retry_after_seconds'))
             try:
                 response = self.session.get(url, params=params, timeout=min(10, remaining))
                 response.raise_for_status()
                 return response
             except requests.RequestException as error:
+                if access_details(error):
+                    raise  # A denied/rate-limited request must not be retried immediately.
                 if attempt + 1 >= max(1, self.max_retries):
                     raise
                 try:
@@ -337,7 +353,7 @@ class GoogleScholarSearcher:
         deadline = deadline if deadline is not None else time.monotonic() + 30
         if not self._is_available():
             if attempts is not None:
-                attempts.append({'query': query, 'status': 'circuit_open'})
+                attempts.append({'query': query, 'status': 'circuit_open', **self._access_snapshot()})
             return []
         receipt = {'query': query, 'status': 'dispatched'}
         if attempts is not None:
@@ -345,7 +361,8 @@ class GoogleScholarSearcher:
         try:
             response = self._request_with_backoff(self.base_url + '/scholar', {'q': query, 'hl': 'en', 'as_sdt': '0,5', 'num': 20, **({'scisbd': '1'} if sort_by == 'date' else {})}, deadline=deadline, stop_event=stop_event)
             if self._is_captcha_response(response):
-                raise requests.HTTPError('Scholar CAPTCHA requires independent manual recovery')
+                raise ProviderAccessError('google_scholar', 'access_denied',
+                                          http_status=getattr(response, 'status_code', 200), retry_after=self._circuit_breaker_cooldown)
             papers = self._parse_search_results(response.text, max_results)
             self._record_success()
             receipt['status'] = 'searched' if papers else 'searched_empty'
@@ -357,7 +374,15 @@ class GoogleScholarSearcher:
             return []
         except Exception as error:
             receipt['status'] = 'timeout' if isinstance(error, (TimeoutError, requests.Timeout)) else 'error'
-            self._record_failure()
+            issue = access_details(error)
+            if issue:
+                receipt.update(issue)
+                with self._state_lock:
+                    self._access_issue = issue
+                    self._consecutive_failures = max(self._consecutive_failures, self._circuit_breaker_threshold)
+                    self._disabled_until = max(self._disabled_until, time.time() + issue.get('retry_after_seconds', self._circuit_breaker_cooldown))
+            else:
+                self._record_failure()
             if attempts is None:
                 raise
             return []

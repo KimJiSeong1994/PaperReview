@@ -9,6 +9,7 @@ Search-related endpoints:
 import asyncio
 import collections
 import copy
+import os
 import hashlib
 import json
 import logging
@@ -685,7 +686,7 @@ SEARCH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # BUMP THIS STRING when ranking algorithm, result schema, or source list changes.
 # Old cache entries become unreachable (keys differ) and self-resolve within TTL (1h).
-_CACHE_SCHEMA_VERSION = "v6-kci-original-query"
+_CACHE_SCHEMA_VERSION = "v7-provider-access"
 
 _search_cache: Dict[str, Dict[str, Any]] = {}
 _cache_lock = threading.Lock()
@@ -788,6 +789,10 @@ def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) 
     from src.graph_rag.spectral_retriever import VERSION, configured_mode
 
     key_data = {
+        "provider_configuration": {
+            "s2_authenticated": bool(os.getenv("S2_API_KEY")),
+            "dblp_backend": os.getenv("DBLP_SEARCH_BACKEND", "auto"),
+        },
         "retrieval_variant": f"{VERSION}:{configured_mode()}",
         "kci_index": index_cache_signature() if "openalex_korean" in sources else None,
         "schema_version": _CACHE_SCHEMA_VERSION,
@@ -2215,6 +2220,12 @@ async def search_papers(
             "source_timings": dict(source_metadata.get("timings", {})),
             "source_timeouts": dict(source_metadata.get("timeouts", {})),
         }
+        source_errors = copy.deepcopy(cached_metadata.get("source_errors", source_metadata.get("source_errors", {})))
+        for source, receipts in source_metadata.get("provider_attempts", {}).items():
+            for receipt in receipts:
+                if receipt.get("reason"):
+                    source_errors[source] = {key: receipt[key] for key in ('reason', 'http_status', 'retry_after_seconds') if key in receipt}
+        metadata["source_errors"] = source_errors
         degradation = list(_current_degradation_markers() or [])
         for stage_name, mode in modes.items():
             if isinstance(mode, str) and any(
@@ -2243,6 +2254,7 @@ async def search_papers(
             cache_body = copy.deepcopy(results)
             cache_body["_metadata"] = {
                 "partial": partial_cache,
+                "source_errors": source_errors,
                 "executed_query": search_query,
                 "executed_queries": executed_queries,
                 "jev_mode": modes.get("jev_mode", "skipped"),
@@ -2260,7 +2272,7 @@ async def search_papers(
                         cache_key,
                         cache_body,
                         ttl_seconds=(
-                            _PARTIAL_CACHE_TTL_SECONDS
+                            min([_PARTIAL_CACHE_TTL_SECONDS, *[max(1, error['retry_after_seconds']) for error in source_errors.values() if isinstance(error.get('retry_after_seconds'), (int, float))]])
                             if partial_cache
                             else CACHE_TTL_SECONDS
                         ),

@@ -8,10 +8,14 @@ DBLP REST API를 통한 컴퓨터 과학 논문 검색 (무료, API 키 불필�
 
 import requests
 import time
+import json
+import os
+import re
 from typing import List, Dict, Any, Optional
 
 from src.collector.paper.rate_limiter import RateLimiter
 from src.utils.logger import log_search_operation
+from src.collector.paper.provider_access import ProviderAccessError, access_details
 
 
 class DBLPSearcher:
@@ -23,6 +27,13 @@ class DBLPSearcher:
 
     def __init__(self):
         self.base_url = "https://dblp.org/search/publ/api"
+        self.sparql_url = "https://sparql.dblp.org/sparql"
+        self.backend = os.getenv("DBLP_SEARCH_BACKEND", "auto")
+        if self.backend not in {"auto", "rest", "sparql"}:
+            raise ValueError("DBLP_SEARCH_BACKEND must be auto, rest or sparql")
+        self._rest_challenged = False
+        self._access_issue = None
+        self._access_until = 0.0
         self.headers = {
             'User-Agent': 'PaperReviewAgent/1.0',
             'Accept': 'application/json',
@@ -41,6 +52,11 @@ class DBLPSearcher:
     def _rate_limit(self):
         """Rate limiting을 위한 요청 간 딜레이"""
         self._rate_limiter.wait()
+
+    def _check_access(self):
+        if self._access_issue and time.monotonic() < self._access_until:
+            raise ProviderAccessError('dblp', self._access_issue['reason'],
+                                      http_status=self._access_issue.get('http_status'), retry_after=self._access_until-time.monotonic())
 
     def _extract_authors(self, info: Dict) -> List[str]:
         """DBLP authors 필드에서 저자 목록 추출 (다형성 처리)"""
@@ -111,8 +127,12 @@ class DBLPSearcher:
             논문 정보 리스트
         """
         try:
+            original_query = query
             if (stop_event is not None and stop_event.is_set()) or (deadline is not None and time.monotonic() >= deadline):
                 raise TimeoutError("DBLP search budget expired")
+            self._check_access()
+            if self.backend == "sparql" or (self.backend == "auto" and self._rest_challenged):
+                return self._search_sparql(original_query, max_results, deadline=deadline, stop_event=stop_event)
             self._rate_limit()
             if (stop_event is not None and stop_event.is_set()) or (deadline is not None and time.monotonic() >= deadline):
                 raise TimeoutError("DBLP search budget expired during rate limiting")
@@ -143,6 +163,17 @@ class DBLPSearcher:
                 raise TimeoutError("DBLP search budget expired before transport")
             response = self.session.get(self.base_url, params=params, timeout=timeout)
             response.raise_for_status()
+            content_type = response.headers.get("Content-Type", "")
+            if response.status_code == 202 or (isinstance(content_type, str) and "text/html" in content_type.lower()):
+                # The website's challenge is not JSON and must not be solved by
+                # this client. Use DBLP's separately documented public data API.
+                self._rest_challenged = True
+                response.close()
+                if self.backend == "rest":
+                    self._access_issue = {'reason': 'access_denied', 'http_status': 202}
+                    self._access_until = time.monotonic() + 300
+                    raise ProviderAccessError("dblp", "access_denied", http_status=202, retry_after=300)
+                return self._search_sparql(original_query, max_results, deadline=deadline, stop_event=stop_event)
 
             data = response.json()
             hits = data.get("result", {}).get("hits", {}).get("hit", [])
@@ -155,9 +186,120 @@ class DBLPSearcher:
 
             return papers[:max_results]
 
+        except ProviderAccessError:
+            raise
         except Exception as e:
+            details = access_details(e)
+            if details:
+                self._access_issue = details
+                self._access_until = time.monotonic() + details['retry_after_seconds']
             logger.error(f"[DBLP] Search error: {e}")
             raise
+
+    def _search_sparql(self, query, max_results, *, deadline=None, stop_event=None, author=None):
+        """Query DBLP's official public KG API, with a bounded result body.
+
+        https://blog.dblp.org/2024/09/09/introducing-our-public-sparql-query-service/
+        User input is encoded as SPARQL string literals, never executable syntax.
+        """
+        def check():
+            if (stop_event is not None and stop_event.is_set()) or (deadline is not None and time.monotonic() >= deadline):
+                raise TimeoutError("DBLP search budget expired")
+            return min(15.0, deadline - time.monotonic()) if deadline is not None else 15.0
+
+        limit = max(1, min(int(max_results), 100))
+        value = query.strip()
+        exact_title = len(value) >= 2 and value[0] == value[-1] == "$"
+        doi = re.fullmatch(r"(?:https?://(?:dx\.)?doi\.org/|doi:\s*)?(10\.\d{4,9}/\S+)", value, re.I)
+        if author:
+            condition = f'?paper dblp:authoredBy ?person . ?person rdfs:label ?personName . FILTER(CONTAINS(LCASE(STR(?personName)), {json.dumps(author.casefold())}))'
+        elif doi:
+            target = json.dumps("https://doi.org/" + doi[1].casefold())
+            condition = f"?paper dblp:doi ?matchDoi . FILTER(LCASE(STR(?matchDoi)) = {target})"
+        elif exact_title:
+            target = value[1:-1].strip().casefold().rstrip('.')
+            condition = f"FILTER(LCASE(STR(?title)) IN ({json.dumps(target)}, {json.dumps(target + '.')}))"
+        else:
+            stopwords = {'the', 'a', 'an', 'in', 'on', 'for', 'of', 'with', 'by', 'from', 'and', 'or', 'to', 'is', 'are', 'using', 'based', 'via'}
+            terms = list(dict.fromkeys(word for word in re.findall(r"[^\W_]+", value.casefold()) if (len(word) > 1 or word.isdigit()) and word not in stopwords))[:8]
+            if not terms:
+                return []
+            condition = "FILTER(" + " && ".join(f"CONTAINS(LCASE(STR(?title)), {json.dumps(term, ensure_ascii=False)})" for term in terms) + ")"
+        candidate_limit = limit if doi or exact_title else min(limit * 3, 100)
+        sparql = f'''PREFIX dblp: <https://dblp.org/rdf/schema#>
+PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>
+SELECT ?paper ?title ?year ?doi ?venue ?url ?authorName ?ordinal WHERE {{
+  {{ SELECT DISTINCT ?paper ?title WHERE {{
+      ?paper dblp:title ?title . {condition}
+    }} LIMIT {candidate_limit} }}
+  OPTIONAL {{ ?paper dblp:yearOfPublication ?year }}
+  OPTIONAL {{ ?paper dblp:doi ?doi }}
+  OPTIONAL {{ ?paper dblp:publishedInStream/dblp:streamTitle ?venue }}
+  OPTIONAL {{ ?paper dblp:primaryDocumentPage ?url }}
+  OPTIONAL {{ ?paper dblp:hasSignature ?signature .
+    ?signature a dblp:AuthorSignature; dblp:signatureDblpName ?authorName; dblp:signatureOrdinal ?ordinal . }}
+}} ORDER BY ?paper ?ordinal'''
+        check()
+        self._check_access()
+        self._rate_limit()
+        self._check_access()
+        response = self.session.post(self.sparql_url, data=sparql.encode('utf-8'),
+                                     headers={'Content-Type': 'application/sparql-query', 'Accept': 'application/sparql-results+json'},
+                                     timeout=check(), stream=True)
+        try:
+            response.raise_for_status()
+            content_type = response.headers.get('Content-Type', '')
+            if response.status_code == 202 or (isinstance(content_type, str) and 'text/html' in content_type.lower()):
+                raise ProviderAccessError('dblp', 'access_denied', http_status=response.status_code, retry_after=300)
+            payload = bytearray()
+            for part in response.iter_content(65536):
+                check()
+                payload.extend(part)
+                if len(payload) > 2 * 1024 * 1024:
+                    raise ProviderAccessError('dblp', 'response_size_limit')
+            check()
+            data = json.loads(payload)
+        except requests.HTTPError as error:
+            details = access_details(error)
+            if details.get('reason') in ('rate_limited', 'access_denied'):
+                self._access_issue = details
+                self._access_until = time.monotonic() + details.get('retry_after_seconds', 300)
+            raise
+        finally:
+            response.close()
+        bindings = data.get('results', {}).get('bindings')
+        if not isinstance(bindings, list):
+            raise ProviderAccessError('dblp', 'invalid_response')
+        papers = {}
+        for binding in bindings:
+            check()
+            if not isinstance(binding, dict):
+                raise ProviderAccessError('dblp', 'invalid_response')
+            def field(name):
+                entry = binding.get(name, {})
+                return entry.get('value', '') if isinstance(entry, dict) else ''
+            uri = field('paper')
+            if not uri.startswith('https://dblp.org/rec/') or not field('title'):
+                continue
+            if uri not in papers:
+                from src.utils.paper_utils import normalize_doi
+                doi_value = normalize_doi(field('doi'))
+                papers[uri] = {'title': field('title').rstrip('.'), 'authors': [], 'abstract': '',
+                               'url': field('url') or (f'https://doi.org/{doi_value}' if doi_value else uri),
+                               'pdf_url': '', 'source': 'DBLP', 'year': field('year'), 'citations': 0,
+                               'doi': doi_value, 'venue': field('venue'), 'dblp_key': uri.split('/rec/', 1)[1]}
+            author = field('authorName')
+            if author and author not in papers[uri]['authors']:
+                papers[uri]['authors'].append(author)
+        if bindings and not papers:
+            raise ProviderAccessError('dblp', 'invalid_response')
+        query_terms = set(re.findall(r"[^\W_]+", value.casefold()))
+        def relevance(paper):
+            title_terms = set(re.findall(r"[^\W_]+", paper['title'].casefold()))
+            overlap = len(query_terms & title_terms) / max(1, len(title_terms))
+            year = str(paper['year'])[:4]
+            return (-overlap, -int(year) if year.isdigit() else 0, paper['dblp_key'])
+        return sorted(papers.values(), key=relevance)[:limit]
 
     @log_search_operation("DBLP Title")
     def search_by_title(self, title: str, max_results: int = 5, *, deadline=None, stop_event=None) -> List[Dict[str, Any]]:
@@ -188,6 +330,8 @@ class DBLPSearcher:
             논문 정보 리스트
         """
         try:
+            if self.backend == 'sparql' or (self.backend == 'auto' and self._rest_challenged):
+                return self._search_sparql('', max_results, author=author)
             self._rate_limit()
 
             # DBLP author search API
@@ -200,6 +344,13 @@ class DBLPSearcher:
 
             response = self.session.get(author_url, params=params, timeout=15)
             response.raise_for_status()
+            content_type = response.headers.get('Content-Type', '')
+            if response.status_code == 202 or (isinstance(content_type, str) and 'text/html' in content_type.lower()):
+                self._rest_challenged = True
+                response.close()
+                if self.backend == 'rest':
+                    raise ProviderAccessError('dblp', 'access_denied', http_status=202)
+                return self._search_sparql('', max_results, author=author)
 
             data = response.json()
             hits = data.get("result", {}).get("hits", {}).get("hit", [])
@@ -218,6 +369,8 @@ class DBLPSearcher:
 
             return []
 
+        except ProviderAccessError:
+            raise
         except Exception as e:
             logger.error(f"[DBLP] Author search error: {e}")
-            return self.search(author, max_results)
+            raise

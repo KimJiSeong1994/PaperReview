@@ -20,7 +20,7 @@ load_dotenv()
 logger = logging.getLogger(__name__)
 
 _RETRYABLE_STATUS = {429, 500, 502, 503, 504}
-_MIN_REQUEST_INTERVAL = 0.3
+_MIN_REQUEST_INTERVAL = 1.0  # Official introductory API-key allowance: 1 request/s.
 
 
 class SemanticScholarClient:

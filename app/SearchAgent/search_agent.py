@@ -19,6 +19,7 @@ from src.collector.paper.google_scholar_searcher import GoogleScholarSearcher
 from src.collector.paper.kci_searcher import index_available as kci_index_available, search_kci
 from src.collector.paper.openalex_searcher import OpenAlexSearcher
 from src.collector.paper.dblp_searcher import DBLPSearcher
+from src.collector.paper.provider_access import access_details
 from src.collector.paper.reference_collector import ReferenceCollector
 from src.collector.paper.text_extractor import TextExtractor
 from src.collector.paper.similarity_calculator import SimilarityCalculator
@@ -677,6 +678,9 @@ class SearchAgent:
                     logger.warning("[SearchAgent] %s search timed out: %s", source, error)
                 except Exception as error:
                     metadata["modes"][source] = "error"
+                    details = access_details(error)
+                    if details:
+                        metadata.setdefault("source_errors", {})[source] = details
                     logger.warning("[SearchAgent] %s search failed: %s", source, error)
                 publish()
 
@@ -737,9 +741,9 @@ class SearchAgent:
         else:
             return self.arxiv_searcher.search(query, max_results, sort_by)
 
-    def search_connected_papers(self, query: str, max_results: int = 10) -> List[Dict[str, Any]]:
+    def search_connected_papers(self, query: str, max_results: int = 10, *, deadline=None, stop_event=None) -> List[Dict[str, Any]]:
         self._add_to_history(query, "connected_papers")
-        return self.connected_papers_searcher.search(query, max_results)
+        return self.connected_papers_searcher.search(query, max_results, deadline=deadline, stop_event=stop_event)
 
     def search_google_scholar(self, query: str, max_results: int = 10, sort_by: str = "relevance", year_start: int = None, year_end: int = None, author: str = None, *, deadline=None, stop_event=None, attempts=None) -> List[Dict[str, Any]]:
         self._add_to_history(query, "google_scholar")
@@ -903,6 +907,8 @@ class SearchAgent:
                         papers = searcher.search(route["value"], max_results, **budget)
                     elif source_name == "dblp":
                         papers = searcher.search(route["value"], max_results, deadline=budget["deadline"], stop_event=budget["stop_event"])
+                    elif source_name == "connected_papers":
+                        papers = searcher.search(route["value"], max_results, deadline=budget["deadline"], stop_event=budget["stop_event"])
                     else:
                         papers = searcher.search(route["value"], max_results)
                 if route["kind"] in ("doi", "arxiv"):
@@ -922,7 +928,8 @@ class SearchAgent:
                 return results_optimized[:max_results]
 
             elif source_name == "connected_papers":
-                return self.search_connected_papers(source_queries.get("default", query), max_results)
+                return self.search_connected_papers(source_queries.get("default", query), max_results,
+                                                    deadline=budget["deadline"], stop_event=budget["stop_event"])
 
             elif source_name == "google_scholar":
                 year_start = filters.get("year_start")
@@ -1072,6 +1079,9 @@ class SearchAgent:
                     except Exception as e:
                         logger.warning("[SearchAgent] %s search failed: %s", source, e)
                         results[source] = []
+                        details = access_details(e)
+                        if details:
+                            metadata.setdefault("source_errors", {})[source] = details
                         timed_out = isinstance(e, (TimeoutError, requests.Timeout))
                         metadata.setdefault("modes", {})[source] = "timeout" if timed_out else "error"
                         metadata.setdefault("timeouts", {})[source] = timed_out
@@ -1225,6 +1235,9 @@ class SearchAgent:
             except Exception as error:
                 source_timings[source_name] = time.monotonic() - started_at
                 source_modes[source_name] = "error"
+                details = access_details(error)
+                if details:
+                    metadata.setdefault("source_errors", {})[source_name] = details
                 logger.warning("[SearchAgent] source %s failed: %s", source_name, error)
                 return source_name, []
             finally:

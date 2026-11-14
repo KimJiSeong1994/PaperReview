@@ -30,8 +30,32 @@ class RateLimiter:
         # (skipping the throttle) or negative (sleeping far too long).
         self._last_request = float("-inf")
 
-    def wait(self) -> None:
+    def wait(self, *, deadline=None, stop_event=None) -> None:
         """Block until this caller may issue its request."""
+        if deadline is not None or stop_event is not None:
+            def remaining():
+                if stop_event is not None and stop_event.is_set():
+                    raise TimeoutError("Rate limit wait cancelled")
+                budget = deadline - time.monotonic() if deadline is not None else float('inf')
+                if budget <= 0:
+                    raise TimeoutError("Rate limit budget expired")
+                return budget
+            while not self._lock.acquire(timeout=min(0.05, remaining())):
+                pass
+            try:
+                interval = self.min_interval + (random.uniform(*self.jitter) if self.jitter else 0)
+                delay = max(0, interval - (time.monotonic() - self._last_request))
+                if delay:
+                    delay = min(delay, remaining())
+                    if stop_event is not None:
+                        stop_event.wait(delay)
+                    else:
+                        time.sleep(delay)
+                remaining()
+                self._last_request = time.monotonic()
+            finally:
+                self._lock.release()
+            return
         # ponytail: one lock per upstream serialises every caller of that
         # source. If queueing ever eats the per-source timeout budget, swap the
         # body for a token bucket — the call sites do not need to change.
