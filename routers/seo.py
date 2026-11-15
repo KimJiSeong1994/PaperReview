@@ -22,6 +22,7 @@ import re
 from datetime import datetime
 from email.utils import format_datetime
 from pathlib import Path
+from urllib.parse import urlencode
 
 from fastapi import APIRouter
 from fastapi.responses import HTMLResponse, Response
@@ -631,6 +632,19 @@ def _format_date(post: dict) -> str:
             return datetime.fromisoformat(created).strftime("%Y-%m-%d")
         except (ValueError, TypeError):
             return created[:10]
+
+
+def _sitemap_date(post: dict) -> str | None:
+    """Return a validated ISO calendar date for sitemap lastmod, if available."""
+    for field in ("updated_at", "created_at"):
+        raw = post.get(field)
+        if not isinstance(raw, str):
+            continue
+        try:
+            return datetime.fromisoformat(raw).date().isoformat()
+        except ValueError:
+            continue
+    return None
 
 
 def _parse_dt(value: str) -> datetime:
@@ -1504,9 +1518,13 @@ async def blog_tags_ssr() -> HTMLResponse:
         posts = _load_posts()
 
     tags = sorted(_merged_tag_counts(posts), key=lambda tc: tc[0].casefold())
+
+    def _tag_item(tag: str) -> str:
+        href = html.escape(f"/blog?{urlencode({'tag': tag})}", quote=True)
+        return f'<li><a href="{href}">{html.escape(tag, quote=True)}</a></li>'
+
     items = "".join(
-        f'<li><a href="/blog?tag={html.escape(t, quote=True)}">{html.escape(t, quote=True)}</a></li>'
-        for t, _ in tags
+        _tag_item(tag) for tag, _ in tags
     )
     description = "집현전의 모든 글을 태그로 찾아볼 수 있습니다."
     body = (
@@ -1829,16 +1847,18 @@ async def sitemap() -> Response:
 
     published = [p for p in posts if p.get("published")]
 
-    # Site-wide freshness signal for non-post rows (home/blog/category): the
-    # most recent published post date. Series hubs intentionally omit lastmod;
-    # no trustworthy series-hub revision timestamp exists.
-    site_lastmod = max((_format_date(p) for p in published), default="")
+    # Blog index/tag freshness can be derived from published content. Static
+    # pages and series hubs have no trustworthy revision timestamp.
+    site_lastmod = max(
+        (date for post in published if (date := _sitemap_date(post)) is not None),
+        default=None,
+    )
     lm = f"<lastmod>{site_lastmod}</lastmod>" if site_lastmod else ""
 
     rows = [
-        f"  <url><loc>{SITE_URL}/</loc>{lm}<priority>1.0</priority></url>",
-        f"  <url><loc>{SITE_URL}/introduce/</loc>{lm}<priority>0.8</priority></url>",
-        f"  <url><loc>{SITE_URL}/ko/introduce/</loc>{lm}<priority>0.8</priority></url>",
+        f"  <url><loc>{SITE_URL}/</loc><priority>1.0</priority></url>",
+        f"  <url><loc>{SITE_URL}/introduce/</loc><priority>0.8</priority></url>",
+        f"  <url><loc>{SITE_URL}/ko/introduce/</loc><priority>0.8</priority></url>",
         f"  <url><loc>{SITE_URL}/blog</loc>{lm}<priority>0.8</priority></url>",
         # Tag hub: indexable (#220) but invisible to crawlers until listed here.
         f"  <url><loc>{SITE_URL}/blog/tags</loc>{lm}<priority>0.6</priority></url>",
@@ -1850,12 +1870,23 @@ async def sitemap() -> Response:
     # filled Search Console's "discovered, not indexed" bucket, hiding the posts
     # that genuinely were not indexed. Both paths are still served at 200.
     # Category hubs — only list a hub that has at least one published post.
-    cats_present = {_category_of(p) for p in published}
     for cat in BLOG_CATEGORIES:
-        if cat in cats_present:
+        category_posts = [p for p in published if _category_of(p) == cat]
+        if category_posts:
+            category_lastmod = max(
+                (
+                    date
+                    for post in category_posts
+                    if (date := _sitemap_date(post)) is not None
+                ),
+                default=None,
+            )
+            category_lm = (
+                f"<lastmod>{category_lastmod}</lastmod>" if category_lastmod else ""
+            )
             rows.append(
                 f"  <url><loc>{SITE_URL}/blog/category/{cat}</loc>"
-                f"{lm}<priority>0.7</priority></url>"
+                f"{category_lm}<priority>0.7</priority></url>"
             )
     # Series hubs — same nonempty rule as category hubs.
     published_slugs = {p.get("slug", "") for p in published}
@@ -1870,7 +1901,8 @@ async def sitemap() -> Response:
             slug = post.get("slug")
             if not slug:
                 continue
-            lastmod = _format_date(post)
+            lastmod = _sitemap_date(post)
+            lastmod_tag = f"<lastmod>{lastmod}</lastmod>" if lastmod else ""
             # Google image sitemap: surface the post thumbnail for Image search.
             image_abs = _absolute_url(post.get("thumbnail_url"))
             image_tag = (
@@ -1880,12 +1912,12 @@ async def sitemap() -> Response:
             )
             rows.append(
                 f"  <url><loc>{SITE_URL}/blog/{html.escape(slug)}</loc>"
-                f"<lastmod>{lastmod}</lastmod><priority>0.7</priority>{image_tag}</url>"
+                f"{lastmod_tag}<priority>0.7</priority>{image_tag}</url>"
             )
             if post.get("index_deep_view") and (post.get("deep_content") or "").strip():
                 rows.append(
                     f"  <url><loc>{SITE_URL}/blog/{html.escape(slug)}?view=deep</loc>"
-                    f"<lastmod>{lastmod}</lastmod><priority>0.7</priority>{image_tag}</url>"
+                    f"{lastmod_tag}<priority>0.7</priority>{image_tag}</url>"
                 )
         except Exception:  # noqa: BLE001 - one bad post must not 500 the sitemap
             logger.warning("Skipping post in sitemap due to error", exc_info=True)
@@ -2076,7 +2108,10 @@ async def llms_txt() -> Response:
     return Response(
         content=body,
         media_type="text/plain; charset=utf-8",
-        headers={"Cache-Control": "public, max-age=3600"},
+        headers={
+            "Cache-Control": "public, max-age=3600",
+            "X-Robots-Tag": "noindex",
+        },
     )
 
 
@@ -2171,5 +2206,8 @@ async def llms_full_txt() -> Response:
     return Response(
         content=body,
         media_type="text/plain; charset=utf-8",
-        headers={"Cache-Control": "public, max-age=3600"},
+        headers={
+            "Cache-Control": "public, max-age=3600",
+            "X-Robots-Tag": "noindex",
+        },
     )

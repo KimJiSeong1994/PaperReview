@@ -5,7 +5,9 @@ network access and no real data files are read or written.
 """
 
 import xml.etree.ElementTree as ET
+from html.parser import HTMLParser
 from pathlib import Path
+from urllib.parse import parse_qs, quote, urlsplit
 
 import pytest
 from fastapi.testclient import TestClient
@@ -388,6 +390,20 @@ def test_llms_txt_lists_published_posts(client: TestClient) -> None:
     assert PUBLISHED_SLUG in body
     assert UNPUBLISHED_SLUG not in body
     assert "/llms-full.txt" in body
+
+
+@pytest.mark.parametrize("path", ["/llms.txt", "/llms-full.txt"])
+@pytest.mark.parametrize("method", ["get", "head"])
+def test_llms_text_routes_send_noindex_header(
+    client: TestClient, path: str, method: str
+) -> None:
+    response = getattr(client, method)(path)
+    assert response.status_code == 200
+    assert response.headers["x-robots-tag"] == "noindex"
+    assert response.headers["cache-control"] == "public, max-age=3600"
+    assert response.headers["content-type"].startswith("text/plain")
+    if method == "head":
+        assert response.text == ""
 
 
 def test_llms_full_txt_contains_all_published_post_bodies(client: TestClient) -> None:
@@ -1415,14 +1431,141 @@ def test_sitemap_series_hub_omits_lastmod_but_published_posts_keep_dates(monkeyp
     assert entries["https://jiphyeonjeon.kr/blog/newer-unrelated-post"].findtext(
         "s:lastmod", namespaces=namespace
     ) == "2026-08-01"
-    assert entries["https://jiphyeonjeon.kr/"].findtext(
-        "s:lastmod", namespaces=namespace
-    ) == "2026-08-01"
+    for static_url in (
+        "https://jiphyeonjeon.kr/",
+        "https://jiphyeonjeon.kr/introduce/",
+        "https://jiphyeonjeon.kr/ko/introduce/",
+    ):
+        assert entries[static_url].find("s:lastmod", namespace) is None
+    for content_hub_url in (
+        "https://jiphyeonjeon.kr/blog",
+        "https://jiphyeonjeon.kr/blog/tags",
+    ):
+        assert entries[content_hub_url].findtext(
+            "s:lastmod", namespaces=namespace
+        ) == "2026-08-01"
     assert f"https://jiphyeonjeon.kr/blog/{draft_series_slug}" not in entries
     assert all(
         "2026-12-31" not in (entry.findtext("s:lastmod", namespaces=namespace) or "")
         for entry in entries.values()
     )
+
+
+def test_sitemap_category_lastmod_uses_only_published_category_posts(monkeypatch) -> None:
+    posts = [
+        {
+            **_FIXED_POSTS[0],
+            "slug": "engineering-post",
+            "category": "engineering",
+            "created_at": "2026-01-01T00:00:00",
+        },
+        {
+            **_FIXED_POSTS[0],
+            "slug": "review-post",
+            "category": "paper-review",
+            "created_at": "2026-03-01T00:00:00",
+        },
+        {
+            **_FIXED_POSTS[0],
+            "slug": "newer-engineering-post",
+            "category": "engineering",
+            "created_at": "2026-02-01T00:00:00",
+        },
+        {
+            **_FIXED_POSTS[1],
+            "slug": "draft-review-post",
+            "category": "paper-review",
+            "created_at": "2026-12-31T00:00:00",
+        },
+    ]
+    monkeypatch.setattr("routers.seo._load_posts", lambda: posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+
+    root = ET.fromstring(TestClient(app).get("/sitemap.xml").text)
+    namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    entries = {
+        entry.findtext("s:loc", namespaces=namespace): entry
+        for entry in root.findall("s:url", namespace)
+    }
+    assert entries["https://jiphyeonjeon.kr/blog/category/engineering"].findtext(
+        "s:lastmod", namespaces=namespace
+    ) == "2026-02-01"
+    assert entries["https://jiphyeonjeon.kr/blog/category/paper-review"].findtext(
+        "s:lastmod", namespaces=namespace
+    ) == "2026-03-01"
+    assert "https://jiphyeonjeon.kr/blog/draft-review-post" not in entries
+    assert "https://jiphyeonjeon.kr/blog/category/engineering" in entries
+    assert "https://jiphyeonjeon.kr/blog/category/paper-review" in entries
+
+
+def test_sitemap_uses_valid_post_dates_for_easy_and_deep_views(monkeypatch) -> None:
+    posts = [
+        {
+            **_FIXED_POSTS[0],
+            "slug": "valid-updated-post",
+            "created_at": "2026-01-01T00:00:00",
+            "updated_at": "2026-04-05T12:00:00",
+            "index_deep_view": True,
+            "deep_content": "Deep version",
+        },
+        {
+            **_FIXED_POSTS[0],
+            "slug": "invalid-updated-post",
+            "created_at": "2026-05-06T00:00:00",
+            "updated_at": "not-a-date",
+            "index_deep_view": True,
+            "deep_content": "Deep version",
+        },
+        {
+            **_FIXED_POSTS[0],
+            "slug": "invalid-dates-post",
+            "created_at": "2026-02-30T00:00:00",
+            "updated_at": "2026-13-01T00:00:00",
+            "index_deep_view": True,
+            "deep_content": "Deep version",
+        },
+        {
+            **_FIXED_POSTS[0],
+            "slug": "missing-dates-post",
+            "created_at": None,
+            "updated_at": None,
+            "index_deep_view": True,
+            "deep_content": "Deep version",
+        },
+    ]
+    monkeypatch.setattr("routers.seo._load_posts", lambda: posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+
+    root = ET.fromstring(TestClient(app).get("/sitemap.xml").text)
+    namespace = {"s": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+    entries = {
+        entry.findtext("s:loc", namespaces=namespace): entry
+        for entry in root.findall("s:url", namespace)
+    }
+    for slug, expected_date in (
+        ("valid-updated-post", "2026-04-05"),
+        ("invalid-updated-post", "2026-05-06"),
+    ):
+        for suffix in ("", "?view=deep"):
+            entry = entries[f"https://jiphyeonjeon.kr/blog/{slug}{suffix}"]
+            assert entry.findtext("s:lastmod", namespaces=namespace) == expected_date
+    for slug in ("invalid-dates-post", "missing-dates-post"):
+        for suffix in ("", "?view=deep"):
+            entry = entries[f"https://jiphyeonjeon.kr/blog/{slug}{suffix}"]
+            assert entry.find("s:lastmod", namespace) is None
+    for hub_url in (
+        "https://jiphyeonjeon.kr/blog",
+        "https://jiphyeonjeon.kr/blog/tags",
+        "https://jiphyeonjeon.kr/blog/category/engineering",
+    ):
+        assert entries[hub_url].findtext(
+            "s:lastmod", namespaces=namespace
+        ) == "2026-05-06"
+
+    # With only invalid/missing dates, neither posts nor hubs invent a date.
+    monkeypatch.setattr("routers.seo._load_posts", lambda: posts[2:])
+    undated_root = ET.fromstring(TestClient(app).get("/sitemap.xml").text)
+    assert undated_root.findall(".//s:lastmod", namespace) == []
 
 
 def test_blog_index_omits_empty_category(client: TestClient) -> None:
@@ -1487,7 +1630,7 @@ def test_tags_hub_is_ssr_200_and_indexable(client: TestClient) -> None:
     assert "noindex" not in html
     # Published tags are linked to the filtered list; unpublished ones are not.
     assert 'href="/blog?tag=rag"' in html
-    assert 'href="/blog?tag=리뷰"' in html
+    assert f'href="/blog?tag={quote("리뷰")}"' in html
     assert "draft" not in html
 
 
@@ -1502,6 +1645,70 @@ def test_tags_hub_merges_case_variants(monkeypatch) -> None:
     monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
     html = TestClient(app).get("/blog/tags").text
     assert html.count("?tag=") == 1, "case variants must collapse to one link"
+
+
+def test_tags_hub_url_encodes_published_tag_values(monkeypatch) -> None:
+    posts = [
+        {
+            "slug": "first",
+            "title": "First",
+            "excerpt": "",
+            "content": "",
+            "tags": ["GraphRAG", "R&D", "C++", "C#", "한국어&검색"],
+            "published": True,
+        },
+        {
+            "slug": "second",
+            "title": "Second",
+            "excerpt": "",
+            "content": "",
+            "tags": ["GraphRAG", "graphrag"],
+            "published": True,
+        },
+        {
+            "slug": "draft",
+            "title": "Draft",
+            "excerpt": "",
+            "content": "",
+            "tags": ["Draft Only", "Draft & Secret"],
+            "published": False,
+        },
+    ]
+    monkeypatch.setattr("routers.seo._load_posts", lambda: posts)
+    monkeypatch.setattr("routers.seo._load_deleted", lambda: set())
+
+    class _Anchors(HTMLParser):
+        def __init__(self) -> None:
+            super().__init__()
+            self.links: list[tuple[str, str]] = []
+            self._href: str | None = None
+            self._text: list[str] = []
+
+        def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+            if tag == "a":
+                self._href = dict(attrs).get("href")
+                self._text = []
+
+        def handle_data(self, data: str) -> None:
+            if self._href is not None:
+                self._text.append(data)
+
+        def handle_endtag(self, tag: str) -> None:
+            if tag == "a" and self._href is not None:
+                self.links.append((self._href, "".join(self._text)))
+                self._href = None
+
+    parser = _Anchors()
+    parser.feed(TestClient(app).get("/blog/tags").text)
+    tag_links = {
+        label: href
+        for href, label in parser.links
+        if urlsplit(href).path == "/blog" and "tag" in parse_qs(urlsplit(href).query)
+    }
+    expected_tags = {"GraphRAG", "R&D", "C++", "C#", "한국어&검색"}
+    assert set(tag_links) == expected_tags
+    for tag, href in tag_links.items():
+        assert parse_qs(urlsplit(href).query) == {"tag": [tag]}
 
 
 def test_tags_hub_head_request(client: TestClient) -> None:
