@@ -130,6 +130,16 @@ describe('blog reading levels', () => {
     expect(screen.queryByRole('link', { name: /상세 읽기/ })).not.toBeInTheDocument();
   });
 
+  it('renders single-tilde numeric ranges as text and only double tildes as strikethrough', async () => {
+    mockPost({ content: `${PAPER}\n\nRANGES 깊이 8~48, 코사인 0.98~0.99 구간. ~~OLD~~ 값.` });
+    mount();
+    const paragraph = await screen.findByText(/RANGES/);
+    expect(paragraph).toHaveTextContent('RANGES 깊이 8~48, 코사인 0.98~0.99 구간. OLD 값.');
+    const deletions = paragraph.querySelectorAll('del');
+    expect(deletions).toHaveLength(1);
+    expect(deletions[0]).toHaveTextContent('OLD');
+  });
+
   it('keeps source collections free of a fabricated PDF link in both views', async () => {
     const user = userEvent.setup();
     mockPost({ content: '**Sources:** [Program](https://example.com/program)\n\nEASY_COLLECTION',

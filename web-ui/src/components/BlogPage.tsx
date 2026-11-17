@@ -1,6 +1,6 @@
 import { useState, useEffect, useLayoutEffect, useCallback, useMemo, useRef } from 'react';
 import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
-import ReactMarkdown from 'react-markdown';
+import ReactMarkdown, { type Options as MarkdownOptions } from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import remarkMath from 'remark-math';
 import rehypeRaw from 'rehype-raw';
@@ -184,6 +184,13 @@ function normalizeLatexDelimiters(content: string): string {
     .replace(/\\\(([^\n]*?)\\\)/g, (_match, expr: string) => `$${expr.trim()}$`);
 }
 
+
+/**
+ * Korean reviews write numeric ranges as `8~48` or `0.98~0.99`. remark-gfm's
+ * default single-tilde strikethrough pairs those tildes and strikes out the
+ * text between them, so only `~~double~~` tildes may mark a deletion.
+ */
+const BLOG_REMARK_PLUGINS = [[remarkGfm, { singleTilde: false }], remarkMath] satisfies NonNullable<MarkdownOptions['remarkPlugins']>;
 
 function normalizeBlogMarkdown(content: string): string {
   return normalizeDisplayMathFences(normalizeLatexDelimiters(stripLeadingH1(repairCorruptedLatexEscapes(content))));
@@ -1724,7 +1731,7 @@ function BlogPage({ isAdmin, slug, initialCategory }: BlogPageProps) {
 
         <div className="blog-detail-content">
           <ReactMarkdown
-            remarkPlugins={[remarkGfm, remarkMath]}
+            remarkPlugins={BLOG_REMARK_PLUGINS}
             rehypePlugins={[rehypeRaw, rehypeSlug, rehypeKatex]}
           >
             {normalizeBlogMarkdown(displayedPost.content)}
