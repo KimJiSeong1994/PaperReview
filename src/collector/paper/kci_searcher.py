@@ -430,37 +430,8 @@ def _norm(text: str) -> str:
     return re.sub(r"[\W_]+", "", text or "").lower()
 
 
-def kci_citing(paper: Dict[str, Any], max_results: int = 20, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
-    """이 논문을 참고문헌에 올린 KCI 논문 (KCI Open API referenceSearch, `KCI_API_KEY` 필요).
-
-    referenceSearch 는 참고문헌 원문을 제목으로 검색하고 그 참고문헌을 가진 논문 ID 를 준다.
-    부분 일치 결과라 제목 전체와 발행연도가 참고문헌 원문에 들어 있는 것만 인용으로 본다.
-    키가 없거나 호출이 실패하면 빈 목록(호출 측이 다른 출처로 넘어간다).
-    """
-    key = os.getenv("KCI_API_KEY", "").strip()
-    titles = {t for t in (_norm(paper.get("title")), _norm(paper.get("title_en"))) if len(t) >= 6}
-    if not key or not titles:
-        return []
-    year = str(paper.get("year") or "")
-    try:
-        # ponytail: 첫 페이지(100건)만 본다. 그보다 많이 인용된 논문은 page 를 넘겨 받으면 된다.
-        response = requests.get(KCI_API_URL, timeout=30, params={
-            "apiCode": "referenceSearch", "key": key, "title": paper.get("title") or paper.get("title_en"),
-            "displayCount": 100,
-        })
-        response.raise_for_status()
-        root = ET.fromstring(response.content)
-    except (requests.RequestException, ET.ParseError) as error:
-        logger.warning("KCI 참고문헌 조회 실패: %s", error)
-        return []
-    own = re.fullmatch(r"ART0*(\d+)", paper.get("kci_id") or "")
-    ids = []
-    for record in root.iterfind(".//record"):
-        text = record.text or ""
-        match = re.fullmatch(r"ART0*(\d+)", record.get("article-id", ""))
-        if match and year in text and any(t in _norm(text) for t in titles):
-            ids.append(int(match.group(1)))
-    ids = [i for i in dict.fromkeys(ids) if not own or i != int(own.group(1))][:max_results]
+def _papers_by_rowid(ids: List[int], source: str, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """KCI 색인 rowid 목록 → 논문 dict (순서 유지, 색인에 없는 건 뺀다)."""
     db_path = db_path or _default_db_path()
     if not ids or not db_path.exists():
         return []
@@ -483,11 +454,63 @@ def kci_citing(paper: Dict[str, Any], max_results: int = 20, db_path: Optional[P
             "url": url,
             "doi": doi,
             "venue": venue,
-            "source": "Citation (via KCI)",
+            "source": source,
         }
         for rowid, title, title_en, abstract, abstract_en, authors, venue, year, doi, url, citations
         in (rows[i] for i in ids if i in rows)
     ]
+
+
+def _own_rowid(paper: Dict[str, Any]) -> Optional[int]:
+    match = re.fullmatch(r"ART0*(\d+)", paper.get("kci_id") or "")
+    return int(match.group(1)) if match else None
+
+
+def kci_references(paper: Dict[str, Any], max_results: int = 20, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """이 논문이 참고문헌에 올린 KCI 논문 (Crossref 로 만든 로컬 인용 그래프)."""
+    from src.collector.paper.kci_citation_graph import edges_for
+    own = _own_rowid(paper)
+    cited = edges_for(own, db_path)[0] if own else []
+    return _papers_by_rowid(cited[:max_results], "Reference (via KCI)", db_path)
+
+
+def kci_citing(paper: Dict[str, Any], max_results: int = 20, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """이 논문을 참고문헌에 올린 KCI 논문.
+
+    로컬 인용 그래프(Crossref, `kci_citation_graph`)를 먼저 보고, 없으면 KCI Open API
+    referenceSearch(`KCI_API_KEY` 필요)를 쓴다. referenceSearch 는 참고문헌 원문을 제목으로
+    검색하고 그 참고문헌을 가진 논문 ID 를 준다. 부분 일치 결과라 제목 전체와 발행연도가
+    참고문헌 원문에 들어 있는 것만 인용으로 본다. 둘 다 없으면 빈 목록.
+    """
+    from src.collector.paper.kci_citation_graph import edges_for
+    own = _own_rowid(paper)
+    citing = edges_for(own, db_path)[1] if own else []
+    if citing:
+        return _papers_by_rowid(citing[:max_results], "Citation (via KCI)", db_path)
+    key = os.getenv("KCI_API_KEY", "").strip()
+    titles = {t for t in (_norm(paper.get("title")), _norm(paper.get("title_en"))) if len(t) >= 6}
+    if not key or not titles:
+        return []
+    year = str(paper.get("year") or "")
+    try:
+        # ponytail: 첫 페이지(100건)만 본다. 그보다 많이 인용된 논문은 page 를 넘겨 받으면 된다.
+        response = requests.get(KCI_API_URL, timeout=30, params={
+            "apiCode": "referenceSearch", "key": key, "title": paper.get("title") or paper.get("title_en"),
+            "displayCount": 100,
+        })
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+    except (requests.RequestException, ET.ParseError) as error:
+        logger.warning("KCI 참고문헌 조회 실패: %s", error)
+        return []
+    ids = []
+    for record in root.iterfind(".//record"):
+        text = record.text or ""
+        match = re.fullmatch(r"ART0*(\d+)", record.get("article-id", ""))
+        if match and year in text and any(t in _norm(text) for t in titles):
+            ids.append(int(match.group(1)))
+    ids = [i for i in dict.fromkeys(ids) if i != own][:max_results]
+    return _papers_by_rowid(ids, "Citation (via KCI)", db_path)
 
 
 def index_cache_signature() -> str:

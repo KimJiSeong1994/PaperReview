@@ -29,11 +29,20 @@ class ReferenceCollector:
 
     @log_search_operation("Reference Collection")
     def get_references(self, paper: Dict[str, Any], max_references: int = 10) -> List[Dict[str, Any]]:
-        paper_id = self._extract_paper_id(paper)
+        cap = 1000 if max_references == -1 else max_references
+        references = []
+        if paper.get('source') == 'KCI':
+            # 로컬 그래프에는 KCI 논문끼리의 인용만 있다. 해외 논문 참고문헌은 아래 Semantic Scholar 가 채운다.
+            from src.collector.paper.kci_searcher import kci_references
+            references = kci_references(paper, cap)
 
-        if not paper_id:
-            return []
-        references = self._fetch_references_from_semantic_scholar(paper_id, max_references)
+        paper_id = self._extract_paper_id(paper) if len(references) < cap else None
+        if paper_id:
+            seen = {ref.get('doi', '').lower() for ref in references if ref.get('doi')}
+            references += [
+                ref for ref in self._fetch_references_from_semantic_scholar(paper_id, max_references)
+                if not ref.get('doi') or ref['doi'].lower() not in seen
+            ][:cap - len(references)]
         return [self._enrich_reference(ref, paper) for ref in references]
 
     def _extract_paper_id(self, paper: Dict[str, Any]) -> Optional[str]:
