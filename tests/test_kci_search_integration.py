@@ -99,6 +99,60 @@ async def search(client, headers, **overrides):
 
 
 @pytest.mark.asyncio
+@pytest.mark.parametrize('fast_mode', [True, False])
+async def test_natural_year_is_enforced_before_and_after_graph_expansion(runtime, corpus, client, auth_headers, monkeypatch, fast_mode):
+    corpus[1](2, year='2026', doi='10.1234/current')
+    rs.query_analyzer.analyze_and_prepare.return_value = {
+        'is_academic': True, 'confidence': .96,
+        'search_filters': {'year_start': 2026, 'category': 'graph machine learning'},
+    }
+    monkeypatch.setattr(rs, '_hybrid_ranker', None)
+    monkeypatch.setattr(rs, '_graphrag_expand', lambda *a, **kw: [dict(title='Old graph paper', year='2019', doi='10.1234/old')])
+    body = await search(client, auth_headers, query='2026년 이후 그래프 신경망 논문', fast_mode=fast_mode, include_related=True)
+    papers = [p for rows in body['results'].values() for p in rows]
+    assert papers and all(str(p['year']) == '2026' for p in papers)
+    assert body['metadata']['effective_filters']['year_start'] == 2026
+    assert body['results']['openalex_korean'][0]['_kci_match_tier'] == 0
+
+
+@pytest.mark.asyncio
+async def test_explicit_year_overrides_natural_language(runtime, corpus, client, auth_headers):
+    corpus[1](2, year='2026', doi='10.1234/current')
+    body = await search(client, auth_headers, query='2026년 이후 그래프 신경망', year_start=2025, year_end=2025)
+    assert [p['year'] for p in body['results']['openalex_korean']] == ['2025']
+
+
+@pytest.mark.asyncio
+async def test_graph_expansion_requires_opt_in(runtime, client, auth_headers, monkeypatch):
+    graph = MagicMock(return_value=[dict(title='International paper', year='2026')])
+    monkeypatch.setattr(rs, '_graphrag_expand', graph)
+    monkeypatch.setattr(rs, '_hybrid_ranker', None)
+    body = await search(client, auth_headers, fast_mode=False)
+    assert set(body['results']) == {'openalex_korean'}
+    graph.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_strict_kci_source_avoids_remote_fallback(runtime, client, auth_headers):
+    body = await search(client, auth_headers, strict_sources=True)
+    assert body['total'] == 1
+    runtime.openalex_searcher.session.get.assert_not_called()
+
+
+@pytest.mark.asyncio
+async def test_natural_latest_is_chronological_and_cache_preserves_filters(cached_runtime, corpus, client, auth_headers):
+    corpus[1](2, year='2026', doi='10.1234/current')
+    for cache_hit in (False, True):
+        body = await search(client, auth_headers, query='최신 그래프 신경망 논문')
+        assert body['cache_hit'] is cache_hit
+        assert [p['year'] for p in body['results']['openalex_korean']] == ['2026', '2025']
+        assert body['metadata']['effective_filters']['sort_by'] == 'submittedDate'
+    explicit = await search(client, auth_headers, query='최신 그래프 신경망 논문', sort_by='relevance')
+    assert explicit['cache_hit'] is False
+    assert explicit['metadata']['effective_filters']['sort_by'] == 'relevance'
+
+
+@pytest.mark.asyncio
 @pytest.mark.parametrize("fast_mode", [True, False])
 async def test_kci_reaches_authenticated_http_response_with_real_ranking(runtime, client, auth_headers, monkeypatch, fast_mode):
     from app.QueryAgent.relevance_filter import LocalRelevanceScorer

@@ -573,7 +573,7 @@ function SearchPage() {
         query: searchQuery,
         max_results: 50,
         sources: ['arxiv', 'connected_papers', 'google_scholar', 'openalex', 'dblp', 'openalex_korean'],
-        sort_by: 'relevance',
+        include_related: true,
         use_llm_search: false,
       }, abortController.signal);
       markSearchPhase(timing, 'api-end');
@@ -614,6 +614,19 @@ function SearchPage() {
       clearTimeout(loadingTimer);
       setLoading(true);
       setQuery(searchQuery);
+
+      if (results.metadata?.partial || results.metadata?.degraded?.length || results.degraded?.length) {
+        const labels: Record<string, string> = {
+          arxiv: 'arXiv', connected_papers: 'Connected Papers', google_scholar: 'Google Scholar',
+          openalex: 'OpenAlex', dblp: 'DBLP', openalex_korean: '국내 논문',
+        };
+        const unavailable = Object.keys(results.metadata?.source_errors ?? {}).map(key => labels[key] ?? key);
+        const detail = unavailable.length ? ` (${unavailable.join(', ')})` : '';
+        const freshness = results.metadata?.effective_filters?.sort_by === 'submittedDate'
+          ? ' 최신 논문이 누락될 수 있습니다.' : '';
+        setGuidanceSticky(true);
+        setGuidanceMessage(`일부 검색 결과를 확인하지 못했습니다${detail}.${freshness} 잠시 후 다시 검색해 주세요.`);
+      }
 
       const allPapers: Paper[] = [];
 

@@ -1,0 +1,45 @@
+Search integrity review and implementation, 2026-11-19
+Base: 1e6456e9a6714ab1ae31be86c31e1f0ec2a2f34a (verified production revision).
+
+Confirmed causes:
+1. Title/fuzzy dedup admitted conflicting KCI IDs and disjoint author/year evidence.
+   DOI-less records acquired another paper's DOI. Explicit DOI identity remains authoritative.
+2. Request filters did not incorporate analyzed time constraints. Category descriptions
+   such as "graph machine learning" must not become arXiv category filters.
+3. KCI URLs entered topic retrieval, truncating the article ID and matching URL pollution.
+4. Chronological KCI timeouts fell through to relevance-selected OpenAlex results.
+5. Graph expansion crossed the selected source boundary without explicit request control.
+6. Partial-result metadata was not explained in the results UI.
+
+Changes:
+Conservative identity matching; KCI URL/ID rowid lookup; grounded natural-language year
+constraints with explicit controls taking precedence; effective filter metadata restored
+on cache hits; date constraints removed from KCI topic tokens; explicit graph opt-in and
+strict-source option; no relevance fallback or partial cache for chronological searches;
+partial-result notice; read/ingestion title sanitation and journaled FTS repair utility.
+The integrated UI and conversation caller explicitly opt into related-paper expansion.
+
+Evidence:
+Initial incident tests: 7 of 8 failed before identity/URL/fallback changes.
+Initial HTTP regressions: 5 of 6 failed before constraints/source changes.
+Current targeted backend suite: 287 passed.
+Results-page tests: 37 passed. TypeScript and production frontend build passed.
+Python repository lint and git diff whitespace check passed.
+Frontend ESLint: 31 errors, 71 warnings; same per-file/rule/severity inventory as base.
+Full frontend first run: 748 passed, one unrelated HomeWorkspace sample telemetry timing
+assertion failed under parallel load. Rerun with two workers: all 749 tests passed (69 files).
+
+Local collected-corpus comparison (read-only, no external transport/reranker):
+Quoted editorial title: old 5 merged outputs -> 8 distinct KCI records, preserving DOI ownership.
+Known KCI URL: old 10 unrelated records -> exactly ART003261978.
+Explicit 2026 query: 10 results remained within 2026.
+Chronological climate query: both runs found 2026 records; timings are warm-cache dependent
+and are not evidence of a general retrieval speedup.
+Local legacy title audit: 77 affected rows, zero mutations during audit.
+
+Limits:
+This is incident regression validation, not a randomized precision/recall benchmark.
+Conservative metadata matching can retain duplicates with spelling/year differences.
+The 3-second local query budget remains; timeouts are reported rather than replaced by
+misleading older results. Google Scholar 403 is a provider access limitation, not cured
+by these integrity changes. Legacy corpus repair requires the journaled --apply command.

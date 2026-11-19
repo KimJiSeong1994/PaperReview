@@ -80,6 +80,12 @@ def _text(node: Optional[ET.Element], path: str) -> str:
     return (found.text or "").strip() if found is not None else ""
 
 
+def _clean_title(value: str) -> str:
+    """A catalog URL accidentally supplied as a title is not title text."""
+    value = (value or '').strip()
+    return '' if re.match(r'^https?://', value, re.I) else value
+
+
 def parse_records(xml_bytes: bytes) -> tuple[List[tuple], Optional[str]]:
     """ListRecords(oai_kci) 응답을 (kci 테이블 행 목록, 다음 resumptionToken) 으로 변환."""
     root = ET.fromstring(xml_bytes)
@@ -97,8 +103,8 @@ def parse_records(xml_bytes: bytes) -> tuple[List[tuple], Optional[str]]:
         doi = re.sub(r"^https?://(dx\.)?doi\.org/", "", _text(info, "{*}doi"))
         rows.append((
             int(match.group(1)),
-            _text(info, "{*}title-group/{*}article-title[@lang='original']"),
-            _text(info, "{*}title-group/{*}article-title[@lang='english']"),
+            _clean_title(_text(info, "{*}title-group/{*}article-title[@lang='original']")),
+            _clean_title(_text(info, "{*}title-group/{*}article-title[@lang='english']")),
             _text(info, "{*}abstract-group/{*}abstract[@lang='original']"),
             _text(info, "{*}abstract-group/{*}abstract[@lang='english']"),
             ", ".join(n for n in names if n),
@@ -283,10 +289,17 @@ def _query(db_path: Path, terms: List[str], max_results: int, *, filters=None,
             conn.create_function("author_matches", 1, author_matches)
             where.append("author_matches(authors)")
         kind = (route or {}).get("kind", "topic")
-        exact = kind in ("doi", "title")
+        exact = kind in ("doi", "title", "kci")
         ids = []
         if exact:
-            if kind == "doi":
+            if kind == "kci":
+                from src.utils.paper_utils import normalize_kci_id
+                identifier = normalize_kci_id(route['value'])
+                if not identifier:
+                    return []
+                where.append('rowid = ?')
+                params.append(int(identifier[3:]))
+            elif kind == "doi":
                 where.append("norm_doi(doi) = ?")
                 params.append(normalize_doi(route["value"]))
                 ids = _lookup_doi(db_path, normalize_doi(route["value"])) if use_lookup else []
@@ -347,15 +360,22 @@ def search_kci(query: str, max_results: int = 10, db_path: Optional[Path] = None
     if not db_path.exists():
         receipt.update(status="error", reason="index_missing")
         return []
+    topic_query = query
+    if (route or {}).get('kind', 'topic') == 'topic' and any(
+        (filters or {}).get(key) is not None for key in ('year_start', 'year_end')
+    ):
+        # Time constraints belong to SQL filters, not OR-expanded topic terms.
+        topic_query = re.sub(r'\b(?:since|from|after|before|to)\s+\d{4}\b', ' ', topic_query, flags=re.I)
+        topic_query = re.sub(r'(?<!\d)\d{4}\s*년?\s*(?:이후|이전|부터|까지|이상|이하)?', ' ', topic_query)
     # ponytail: 형태소 분석 없이 조사 한 글자만 떼고 접두 일치로 찾는다.
     # 합성어 내부("심층신경망" ← "신경망")는 못 찾음 → 필요해지면 형태소 분석기/임베딩 색인.
     terms = [
         t[:-1] if len(t) >= 3 and t[-1] in _PARTICLES else t
-        for t in re.findall(r"[^\W_]+", query, flags=re.UNICODE)
+        for t in re.findall(r"[^\W_]+", topic_query, flags=re.UNICODE)
     ]
     terms = list(dict.fromkeys(t for t in terms if len(t) >= 2))
     terms = ([t for t in terms if t not in _STOPWORDS] or terms)[:_MAX_TERMS]
-    if not terms and (route or {}).get("kind") not in ("doi", "title"):
+    if not terms and (route or {}).get("kind") not in ("doi", "title", "kci"):
         return []
     from src.graph_rag.spectral_retriever import configured_mode, retrieve, MAX_CANDIDATES
     mode = retrieval_mode or configured_mode()
@@ -378,8 +398,8 @@ def search_kci(query: str, max_results: int = 10, db_path: Optional[Path] = None
         {
             "kci_id": f"ART{rowid:09d}",
             "id": f"ART{rowid:09d}",
-            "title": title or title_en,
-            "title_en": title_en,
+            "title": _clean_title(title) or _clean_title(title_en),
+            "title_en": _clean_title(title_en),
             "authors": [a for a in authors.split(", ") if a],
             "abstract": abstract or abstract_en,
             "abstract_en": abstract_en,

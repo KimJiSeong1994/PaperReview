@@ -1,0 +1,843 @@
+{
+  "source": "/Users/jiseong/git/PaperReviewAgent/data/kci.db",
+  "basis": "local harvested corpus, read-only; transport and reranker not involved",
+  "cases": [
+    {
+      "case": "same_title",
+      "before": {
+        "seconds": 0.14,
+        "attempts": [
+          {
+            "provider": "kci",
+            "query": "\"권두언\"",
+            "status": "searched"
+          }
+        ],
+        "papers": [
+          {
+            "kci_id": "ART002646829",
+            "title": "권두언",
+            "authors": [
+              "김상래"
+            ],
+            "venue": "신학과 학문",
+            "year": "2020",
+            "doi": "10.15756/dls.2020.74..7"
+          },
+          {
+            "kci_id": "ART002737400",
+            "title": "권두언",
+            "authors": [
+              "신옥주"
+            ],
+            "venue": "민주법학",
+            "year": "2021",
+            "doi": "10.15756/dls.2021..76.7"
+          },
+          {
+            "kci_id": "ART002895462",
+            "title": "권두언",
+            "authors": [
+              "이은희"
+            ],
+            "venue": "민주법학",
+            "year": "2022",
+            "doi": "10.15756/dls.2022..80.5"
+          },
+          {
+            "kci_id": "ART001974920",
+            "title": "권두언",
+            "authors": [
+              "전현식"
+            ],
+            "venue": "신학논단",
+            "year": "2015",
+            "doi": "10.17301/tf.2015.79..001"
+          },
+          {
+            "kci_id": "ART002935743",
+            "title": "권두언",
+            "authors": [
+              "소기천"
+            ],
+            "venue": "한국개혁신학",
+            "year": "2023",
+            "doi": "10.34271/krts.2023.77..5"
+          }
+        ]
+      },
+      "after": {
+        "seconds": 0.003,
+        "attempts": [
+          {
+            "provider": "kci",
+            "query": "\"권두언\"",
+            "status": "searched"
+          }
+        ],
+        "papers": [
+          {
+            "kci_id": "ART002644428",
+            "title": "권두언",
+            "authors": [
+              "최정학"
+            ],
+            "venue": "민주법학",
+            "year": "2020",
+            "doi": "10.15756/dls.2020.74..7"
+          },
+          {
+            "kci_id": "ART002737400",
+            "title": "권두언",
+            "authors": [
+              "신옥주"
+            ],
+            "venue": "민주법학",
+            "year": "2021",
+            "doi": "10.15756/dls.2021..76.7"
+          },
+          {
+            "kci_id": "ART002895462",
+            "title": "권두언",
+            "authors": [
+              "이은희"
+            ],
+            "venue": "민주법학",
+            "year": "2022",
+            "doi": "10.15756/dls.2022..80.5"
+          },
+          {
+            "kci_id": "ART001974920",
+            "title": "권두언",
+            "authors": [
+              "전현식"
+            ],
+            "venue": "신학논단",
+            "year": "2015",
+            "doi": "10.17301/tf.2015.79..001"
+          },
+          {
+            "kci_id": "ART002935743",
+            "title": "권두언",
+            "authors": [
+              "소기천"
+            ],
+            "venue": "한국개혁신학",
+            "year": "2023",
+            "doi": "10.34271/krts.2023.77..5"
+          },
+          {
+            "kci_id": "ART002437061",
+            "title": "권두언",
+            "authors": [
+              "김창남"
+            ],
+            "venue": "대중음악",
+            "year": "2018",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART002646829",
+            "title": "권두언",
+            "authors": [
+              "김상래"
+            ],
+            "venue": "신학과 학문",
+            "year": "2020",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART002646850",
+            "title": "권두언",
+            "authors": [
+              "김상래"
+            ],
+            "venue": "신학과 학문",
+            "year": "2020",
+            "doi": ""
+          }
+        ]
+      }
+    },
+    {
+      "case": "kci_url",
+      "before": {
+        "seconds": 2.032,
+        "attempts": [
+          {
+            "provider": "kci",
+            "query": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART003261978",
+            "status": "searched"
+          }
+        ],
+        "papers": [
+          {
+            "kci_id": "ART001614098",
+            "title": "‘동아리학급’을 중심으로 한 고등학교 진로교육프로그램 개발",
+            "authors": [
+              "김미연",
+              "금미숙",
+              "신은정"
+            ],
+            "venue": "교육연구",
+            "year": "2011",
+            "doi": "10.17253/swueri.2011.52..006"
+          },
+          {
+            "kci_id": "ART001477033",
+            "title": "Neuroprotective Effects of Constituents of the Root Bark of Dictamnus dasycarpus in Mouse Hippocampal Cells",
+            "authors": [
+              "Gil-Saeng Jeong",
+              "Erisa Byun",
+              "리빈",
+              "이동성",
+              "Ren-Bo An",
+              "Youn-Chul Kim"
+            ],
+            "venue": "Archives of Pharmacal Research",
+            "year": "2010",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART001532102",
+            "title": "고령화 사회(An Aging Society)에서의 소방서비스 문제점 및 개선방안",
+            "authors": [
+              "정거성",
+              "김형두"
+            ],
+            "venue": "한국화재소방학회 논문지",
+            "year": "2011",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART001539310",
+            "title": "Concurrence of Fibrillary Glomerulonephritis and AL Amyloidosis Associated with Monoclonal Gammopathy",
+            "authors": [
+              "Dong Suk Chang",
+              "이강욱",
+              "Won Ik Jang",
+              "최대은",
+              "Ki Ryang Na",
+              "서광선",
+              "신영태"
+            ],
+            "venue": "Kidney Research and Clinical Practice",
+            "year": "2011",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART001542996",
+            "title": "Premature Stiffening of Cement Paste Caused by Secondary Gypsum and Syngenite Formation (False Set)",
+            "authors": [
+              "정철우",
+              "이재용"
+            ],
+            "venue": "Architectural Research",
+            "year": "2011",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART001548378",
+            "title": "가족 간 전화대화의 구조적 양상 분석 - 대학생 자녀와 부모 간의 대화를 중심으로 -",
+            "authors": [
+              "김혜정"
+            ],
+            "venue": "우리말연구",
+            "year": "2011",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART001549425",
+            "title": "다원주 군파일의 침식방지효과에 관한 실험적 연구",
+            "authors": [
+              "이상화",
+              "장은철",
+              "이한승",
+              "정석재"
+            ],
+            "venue": "한국해안·해양공학회논문집",
+            "year": "2011",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART001583282",
+            "title": "Efficacy and Safety of Monthly 150 mg Oral Ibandronate in Women with Postmenopausal Osteoporosis: A Systematic Review and Meta-analysis of Randomized Controlled Trials",
+            "authors": [
+              "이영호",
+              "송관규"
+            ],
+            "venue": "The Korean Journal of Internal Medicine",
+            "year": "2011",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART001586871",
+            "title": "A Novel Air Indexing Scheme forWindow Query in Non-Flat Wireless Spatial Data Broadcast",
+            "authors": [
+              "임석진",
+              "윤희용",
+              "최진탁",
+              "Jinsong Ouyang"
+            ],
+            "venue": "Journal of Communications and Networks",
+            "year": "2011",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART001612743",
+            "title": "A Case of Metachromatic Leukodystrophy Confirmed by Molecular Genetic Analysis",
+            "authors": [
+              "이지현",
+              "민경복",
+              "이영목",
+              "강훈철",
+              "이준수",
+              "김흥동"
+            ],
+            "venue": "대한소아신경학회지",
+            "year": "2011",
+            "doi": ""
+          }
+        ]
+      },
+      "after": {
+        "seconds": 0.001,
+        "attempts": [
+          {
+            "provider": "kci",
+            "query": "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART003261978",
+            "status": "searched"
+          }
+        ],
+        "papers": [
+          {
+            "kci_id": "ART003261978",
+            "title": "그래프 데이터를 위한 딥러닝 기법 탐색: 연속형 그래프 신경망부터 위상학적 신경망까지",
+            "authors": [
+              "윤성민",
+              "김형준",
+              "신승준"
+            ],
+            "venue": "응용통계연구",
+            "year": "2025",
+            "doi": "10.5351/KJAS.2025.38.5.589"
+          }
+        ]
+      }
+    },
+    {
+      "case": "latest",
+      "before": {
+        "seconds": 0.154,
+        "attempts": [
+          {
+            "provider": "kci",
+            "query": "기후변화",
+            "status": "searched"
+          }
+        ],
+        "papers": [
+          {
+            "kci_id": "ART003300460",
+            "title": "북극항로를 둘러싼 ESG 담론과 문화적 지속 가능성",
+            "authors": [
+              "손예령"
+            ],
+            "venue": "한국과학예술융합학회",
+            "year": "2026",
+            "doi": "10.17548/ksaf.2026.01.30.331"
+          },
+          {
+            "kci_id": "ART003301299",
+            "title": "그림책을 통한 인간중심주의 비판:  그림책 「눈보라」를 중심으로",
+            "authors": [
+              "오아름",
+              "김동희",
+              "김지성"
+            ],
+            "venue": "유아교육연구",
+            "year": "2026",
+            "doi": "10.18023/kjece.2026.46.1.002"
+          },
+          {
+            "kci_id": "ART003301182",
+            "title": "비극적 도시사의 문화적 전환과 도시 회복력 : 프랑스 오라두 쉬르 글란과 한국 화성시 매향리 사례 분석을 중심으로",
+            "authors": [
+              "김지선",
+              "장웅조"
+            ],
+            "venue": "한국과 세계",
+            "year": "2026",
+            "doi": "10.22743/kwr.2026.8.1.471"
+          },
+          {
+            "kci_id": "ART003301007",
+            "title": "기후변화 대응을 위한 인공지능 메이커교육이 초등학생의 창의적 문제해결력 및 환경소양에 미치는 영향",
+            "authors": [
+              "윤주혁",
+              "김경태"
+            ],
+            "venue": "초등교육연구",
+            "year": "2026",
+            "doi": "10.23279/eer.41.1.202601.143"
+          },
+          {
+            "kci_id": "ART003300310",
+            "title": "기후위기 시대의 온열질환 취약성과 공중보건 관리체계 연구 :  서울시 공간분석을 중심으로",
+            "authors": [
+              "박현수",
+              "권설아"
+            ],
+            "venue": "한국콘텐츠학회 논문지",
+            "year": "2026",
+            "doi": "10.5392/JKCA.2026.26.01.977"
+          },
+          {
+            "kci_id": "ART003284425",
+            "title": "NbS 시나리오에 따른 유역 유출량 및 유사유출량 저감효과 분석: 용담댐 ‘천천 유역’을 대상으로",
+            "authors": [
+              "이진형",
+              "이기하",
+              "연민호"
+            ],
+            "venue": "한국지반환경공학회 논문집",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003299983",
+            "title": "머신러닝 모형을 이용한 기후변화에 따른 충청권역 생활용수 수요량 예측",
+            "authors": [
+              "강서영",
+              "김민지",
+              "김지영",
+              "김태웅"
+            ],
+            "venue": "한국수자원학회 논문집",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003300017",
+            "title": "EU의 통상정책에 나타난 무역과 지속가능발전(TSD)과 변화에 대한 연구: 규범과 전략적 이해의 절충*",
+            "authors": [
+              "강유덕"
+            ],
+            "venue": "국제지역연구",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003300581",
+            "title": "[부록 1] ‘기후변화에 따른 국가별 관광수요 영향 메타분석’ 논문 수상소감",
+            "authors": [
+              "김태린"
+            ],
+            "venue": "관광학연구",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003300850",
+            "title": "중국의 역사기후학과 데이터베이스, 지도",
+            "authors": [
+              "이석현"
+            ],
+            "venue": "비교중국연구",
+            "year": "2026",
+            "doi": ""
+          }
+        ]
+      },
+      "after": {
+        "seconds": 0.027,
+        "attempts": [
+          {
+            "provider": "kci",
+            "query": "기후변화",
+            "status": "searched"
+          }
+        ],
+        "papers": [
+          {
+            "kci_id": "ART003300460",
+            "title": "북극항로를 둘러싼 ESG 담론과 문화적 지속 가능성",
+            "authors": [
+              "손예령"
+            ],
+            "venue": "한국과학예술융합학회",
+            "year": "2026",
+            "doi": "10.17548/ksaf.2026.01.30.331"
+          },
+          {
+            "kci_id": "ART003301299",
+            "title": "그림책을 통한 인간중심주의 비판:  그림책 「눈보라」를 중심으로",
+            "authors": [
+              "오아름",
+              "김동희",
+              "김지성"
+            ],
+            "venue": "유아교육연구",
+            "year": "2026",
+            "doi": "10.18023/kjece.2026.46.1.002"
+          },
+          {
+            "kci_id": "ART003301182",
+            "title": "비극적 도시사의 문화적 전환과 도시 회복력 : 프랑스 오라두 쉬르 글란과 한국 화성시 매향리 사례 분석을 중심으로",
+            "authors": [
+              "김지선",
+              "장웅조"
+            ],
+            "venue": "한국과 세계",
+            "year": "2026",
+            "doi": "10.22743/kwr.2026.8.1.471"
+          },
+          {
+            "kci_id": "ART003301007",
+            "title": "기후변화 대응을 위한 인공지능 메이커교육이 초등학생의 창의적 문제해결력 및 환경소양에 미치는 영향",
+            "authors": [
+              "윤주혁",
+              "김경태"
+            ],
+            "venue": "초등교육연구",
+            "year": "2026",
+            "doi": "10.23279/eer.41.1.202601.143"
+          },
+          {
+            "kci_id": "ART003300310",
+            "title": "기후위기 시대의 온열질환 취약성과 공중보건 관리체계 연구 :  서울시 공간분석을 중심으로",
+            "authors": [
+              "박현수",
+              "권설아"
+            ],
+            "venue": "한국콘텐츠학회 논문지",
+            "year": "2026",
+            "doi": "10.5392/JKCA.2026.26.01.977"
+          },
+          {
+            "kci_id": "ART003284425",
+            "title": "NbS 시나리오에 따른 유역 유출량 및 유사유출량 저감효과 분석: 용담댐 ‘천천 유역’을 대상으로",
+            "authors": [
+              "이진형",
+              "이기하",
+              "연민호"
+            ],
+            "venue": "한국지반환경공학회 논문집",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003299983",
+            "title": "머신러닝 모형을 이용한 기후변화에 따른 충청권역 생활용수 수요량 예측",
+            "authors": [
+              "강서영",
+              "김민지",
+              "김지영",
+              "김태웅"
+            ],
+            "venue": "한국수자원학회 논문집",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003300017",
+            "title": "EU의 통상정책에 나타난 무역과 지속가능발전(TSD)과 변화에 대한 연구: 규범과 전략적 이해의 절충*",
+            "authors": [
+              "강유덕"
+            ],
+            "venue": "국제지역연구",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003300581",
+            "title": "[부록 1] ‘기후변화에 따른 국가별 관광수요 영향 메타분석’ 논문 수상소감",
+            "authors": [
+              "김태린"
+            ],
+            "venue": "관광학연구",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003300850",
+            "title": "중국의 역사기후학과 데이터베이스, 지도",
+            "authors": [
+              "이석현"
+            ],
+            "venue": "비교중국연구",
+            "year": "2026",
+            "doi": ""
+          }
+        ]
+      }
+    },
+    {
+      "case": "year",
+      "before": {
+        "seconds": 0.014,
+        "attempts": [
+          {
+            "provider": "kci",
+            "query": "그래프 신경망",
+            "status": "searched"
+          }
+        ],
+        "papers": [
+          {
+            "kci_id": "ART003307737",
+            "title": "유튜브 인공지능 담론의 의제 네트워크 구조 분석: 그래프 신경망 기반 플랫폼 내 의제설정 접근",
+            "authors": [
+              "임연수"
+            ],
+            "venue": "산업융합연구",
+            "year": "2026",
+            "doi": "10.22678/JIC.2026.24.02.011"
+          },
+          {
+            "kci_id": "ART003336042",
+            "title": "SBOM 기반 취약점 의존성 그래프와 그래프 신경망을 이용한 의료기기 소프트웨어 위험 평가 및 패치 우선순위 결정 기법",
+            "authors": [
+              "백병재",
+              "이호웅"
+            ],
+            "venue": "한국차세대컴퓨팅학회 논문지",
+            "year": "2026",
+            "doi": "10.23019/kingpc.22.2.202604.008"
+          },
+          {
+            "kci_id": "ART003306183",
+            "title": "그래프 잠재표현 학습을 이용한 우울증 뇌 신경망 규명 연구",
+            "authors": [
+              "김예은",
+              "배한별",
+              "조한규"
+            ],
+            "venue": "스마트미디어저널",
+            "year": "2026",
+            "doi": "10.30693/SMJ.2026.15.2.97"
+          },
+          {
+            "kci_id": "ART003314909",
+            "title": "특징 적응형 그래프 어텐션 신경망 기반 추천 시스템",
+            "authors": [
+              "안진수",
+              "박민철",
+              "오민정",
+              "최도진"
+            ],
+            "venue": "정보과학회논문지",
+            "year": "2026",
+            "doi": "10.5626/JOK.2026.53.3.256"
+          },
+          {
+            "kci_id": "ART003311075",
+            "title": "노이즈 환경에 강건한 유도전동기 고장 진단을 위한 시간적-구조적 그래프 신경망",
+            "authors": [
+              "김용현",
+              "권순호",
+              "김경민"
+            ],
+            "venue": "한국전자통신학회 논문지",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003338737",
+            "title": "TT-GAT: 주제 분류 및 시계열 임베딩을 결합한 그래프 어텐션 신경망 기반 우울증 진단",
+            "authors": [
+              "경민서",
+              "유여은",
+              "오하영"
+            ],
+            "venue": "한국정보통신학회논문지",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003356491",
+            "title": "시공간 그래프 신경망을 활용한 댐 유입량 예측에서의 공간 정보 기여도 평가: 충주댐 및 소양강댐 비교",
+            "authors": [
+              "김태식",
+              "김태웅",
+              "유지영",
+              "김형석"
+            ],
+            "venue": "한국수자원학회 논문집",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003384362",
+            "title": "그래프 신경망 기반 패치 관계 학습을 통한 이미지 결함 영역 탐지 프레임워크",
+            "authors": [
+              "장동건",
+              "오연서",
+              "임아론",
+              "조재형"
+            ],
+            "venue": "한국산업경영시스템학회지",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003399642",
+            "title": "설명 가능한 그래프 신경망과 SHAP를 활용한 팔당호 수질 예측 및 강우 시 비점오염 우심지역 규명",
+            "authors": [
+              "장유경",
+              "오종민",
+              "최이송"
+            ],
+            "venue": "환경영향평가",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003402345",
+            "title": "시공간 그래프 신경망 기반 다중 서브넷 트래픽 예측",
+            "authors": [
+              "한지연",
+              "변규린",
+              "추현승"
+            ],
+            "venue": "인터넷정보학회논문지",
+            "year": "2026",
+            "doi": ""
+          }
+        ]
+      },
+      "after": {
+        "seconds": 0.006,
+        "attempts": [
+          {
+            "provider": "kci",
+            "query": "그래프 신경망",
+            "status": "searched"
+          }
+        ],
+        "papers": [
+          {
+            "kci_id": "ART003307737",
+            "title": "유튜브 인공지능 담론의 의제 네트워크 구조 분석: 그래프 신경망 기반 플랫폼 내 의제설정 접근",
+            "authors": [
+              "임연수"
+            ],
+            "venue": "산업융합연구",
+            "year": "2026",
+            "doi": "10.22678/JIC.2026.24.02.011"
+          },
+          {
+            "kci_id": "ART003336042",
+            "title": "SBOM 기반 취약점 의존성 그래프와 그래프 신경망을 이용한 의료기기 소프트웨어 위험 평가 및 패치 우선순위 결정 기법",
+            "authors": [
+              "백병재",
+              "이호웅"
+            ],
+            "venue": "한국차세대컴퓨팅학회 논문지",
+            "year": "2026",
+            "doi": "10.23019/kingpc.22.2.202604.008"
+          },
+          {
+            "kci_id": "ART003306183",
+            "title": "그래프 잠재표현 학습을 이용한 우울증 뇌 신경망 규명 연구",
+            "authors": [
+              "김예은",
+              "배한별",
+              "조한규"
+            ],
+            "venue": "스마트미디어저널",
+            "year": "2026",
+            "doi": "10.30693/SMJ.2026.15.2.97"
+          },
+          {
+            "kci_id": "ART003314909",
+            "title": "특징 적응형 그래프 어텐션 신경망 기반 추천 시스템",
+            "authors": [
+              "안진수",
+              "박민철",
+              "오민정",
+              "최도진"
+            ],
+            "venue": "정보과학회논문지",
+            "year": "2026",
+            "doi": "10.5626/JOK.2026.53.3.256"
+          },
+          {
+            "kci_id": "ART003311075",
+            "title": "노이즈 환경에 강건한 유도전동기 고장 진단을 위한 시간적-구조적 그래프 신경망",
+            "authors": [
+              "김용현",
+              "권순호",
+              "김경민"
+            ],
+            "venue": "한국전자통신학회 논문지",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003338737",
+            "title": "TT-GAT: 주제 분류 및 시계열 임베딩을 결합한 그래프 어텐션 신경망 기반 우울증 진단",
+            "authors": [
+              "경민서",
+              "유여은",
+              "오하영"
+            ],
+            "venue": "한국정보통신학회논문지",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003356491",
+            "title": "시공간 그래프 신경망을 활용한 댐 유입량 예측에서의 공간 정보 기여도 평가: 충주댐 및 소양강댐 비교",
+            "authors": [
+              "김태식",
+              "김태웅",
+              "유지영",
+              "김형석"
+            ],
+            "venue": "한국수자원학회 논문집",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003384362",
+            "title": "그래프 신경망 기반 패치 관계 학습을 통한 이미지 결함 영역 탐지 프레임워크",
+            "authors": [
+              "장동건",
+              "오연서",
+              "임아론",
+              "조재형"
+            ],
+            "venue": "한국산업경영시스템학회지",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003399642",
+            "title": "설명 가능한 그래프 신경망과 SHAP를 활용한 팔당호 수질 예측 및 강우 시 비점오염 우심지역 규명",
+            "authors": [
+              "장유경",
+              "오종민",
+              "최이송"
+            ],
+            "venue": "환경영향평가",
+            "year": "2026",
+            "doi": ""
+          },
+          {
+            "kci_id": "ART003402345",
+            "title": "시공간 그래프 신경망 기반 다중 서브넷 트래픽 예측",
+            "authors": [
+              "한지연",
+              "변규린",
+              "추현승"
+            ],
+            "venue": "인터넷정보학회논문지",
+            "year": "2026",
+            "doi": ""
+          }
+        ]
+      }
+    }
+  ]
+}

@@ -6,7 +6,7 @@ import logging
 import math
 from typing import Any, Dict, List
 
-from src.utils.paper_utils import generate_result_key, normalize_doi, normalize_title
+from src.utils.paper_utils import generate_result_key, normalize_doi, normalize_title, normalize_kci_id
 
 logger = logging.getLogger(__name__)
 
@@ -52,9 +52,33 @@ class PaperDeduplicator:
         a, b = normalize_doi(left.get("doi")), normalize_doi(right.get("doi"))
         if a and b:
             return a != b
+        # A title (especially an editorial heading) is not an identifier.
+        kci_left = next((identifier for field in ('kci_id', 'id', 'url')
+                         if (identifier := normalize_kci_id(left.get(field)))), '')
+        kci_right = next((identifier for field in ('kci_id', 'id', 'url')
+                          if (identifier := normalize_kci_id(right.get(field)))), '')
+        if kci_left and kci_right:
+            return kci_left != kci_right
         # Distinct explicit identifiers cannot be overridden by title similarity.
         ka, kb = generate_result_key(left), generate_result_key(right)
-        return (ka.startswith("arxiv:") and kb.startswith("arxiv:") and ka != kb)
+        if ka == kb and not ka.startswith('metadata:'):
+            return False
+        if ka.startswith('arxiv:') and kb.startswith('arxiv:'):
+            return ka != kb
+        if ka.startswith('provider:') and kb.startswith('provider:') and ka.split(':')[1] == kb.split(':')[1]:
+            return ka != kb
+        # Do not bridge two different works through a DOI-less catalog record.
+        years = [str(p.get('year') or '')[:4] for p in (left, right)]
+        if all(y.isdigit() for y in years) and years[0] != years[1]:
+            return True
+        def authors(paper):
+            values = paper.get('authors') or []
+            if isinstance(values, str):
+                values = [values]
+            return {normalize_title(v.get('name', '') if isinstance(v, dict) else str(v))
+                    for v in values} - {''}
+        la, ra = authors(left), authors(right)
+        return bool(la and ra and la.isdisjoint(ra))
 
     def deduplicate(self, papers: List[Dict[str, Any]], use_embeddings=False,
                     similarity_calculator=None) -> List[Dict[str, Any]]:
