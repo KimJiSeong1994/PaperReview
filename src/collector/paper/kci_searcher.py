@@ -83,7 +83,7 @@ def _text(node: Optional[ET.Element], path: str) -> str:
 def _clean_title(value: str) -> str:
     """A catalog URL accidentally supplied as a title is not title text."""
     value = (value or '').strip()
-    return '' if re.match(r'^https?://', value, re.I) else value
+    return '' if re.fullmatch(r'https?://\S+', value, re.I) else value
 
 
 def parse_records(xml_bytes: bytes) -> tuple[List[tuple], Optional[str]]:

@@ -127,6 +127,7 @@ def test_legacy_title_repair_is_auditable_idempotent_and_updates_fts(tmp_path):
         conn.executemany('INSERT INTO kci(rowid,title,title_en,doi) VALUES (?,?,?,?)', [
             (1, 'Actual title', KCI_URL, '10.1234/keep'),
             (2, 'HTTP transport protocol', None, ''),
+            (3, 'http://dx.doi.org/10.3345/kjp.2016.59.8.335 Clinical course and prognostic factors', None, ''),
         ])
     assert repair(path)['affected'] == 1
     assert repair(path)['changed'] == 0
@@ -138,5 +139,6 @@ def test_legacy_title_repair_is_auditable_idempotent_and_updates_fts(tmp_path):
         assert conn.execute("SELECT rowid FROM kci WHERE kci MATCH 'https'").fetchall() == []
         assert conn.execute('SELECT title,title_en,doi FROM kci WHERE rowid=1').fetchone() == ('Actual title', '', '10.1234/keep')
         assert conn.execute('SELECT title,title_en FROM kci WHERE rowid=2').fetchone() == ('HTTP transport protocol', None)
+        assert conn.execute('SELECT title FROM kci WHERE rowid=3').fetchone()[0].endswith('Clinical course and prognostic factors')
     with pytest.raises(FileExistsError):
         repair(path, backup=backup)
