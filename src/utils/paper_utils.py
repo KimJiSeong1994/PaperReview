@@ -9,6 +9,7 @@ import hashlib
 import json
 import re
 import unicodedata
+from urllib.parse import urlparse, parse_qs
 from typing import Any, Dict
 
 
@@ -53,6 +54,24 @@ def normalize_doi(doi: str) -> str:
     return d.strip()
 
 
+def normalize_kci_id(value: str) -> str:
+    """Extract an article identifier only from a KCI ID or trusted KCI URL."""
+    value = str(value or '').strip()
+    if value.lower().startswith(('https://', 'http://')):
+        try:
+            parsed = urlparse(value)
+        except ValueError:
+            return ''
+        if parsed.hostname not in {'kci.go.kr', 'www.kci.go.kr'}:
+            return ''
+        values = parse_qs(parsed.query).get('sereArticleSearchBean.artiId', [])
+        if len(values) != 1:
+            return ''
+        value = values[0]
+    match = re.fullmatch(r'(?:kci:\s*)?ART(\d{9})', value, re.I)
+    return f'ART{match.group(1)}' if match else ''
+
+
 def generate_result_key(paper: Dict[str, Any]) -> str:
     """Stable selection identity; never uses historical title-derived doc_id.
 
@@ -71,6 +90,7 @@ def generate_result_key(paper: Dict[str, Any]) -> str:
         if match:
             return f"arxiv:{match.group(1).casefold()}"
     for field, namespace in (
+        ("kci_id", "kci"),
         ("openalex_id", "openalex"), ("semantic_scholar_id", "semantic_scholar"),
         ("paperId", "semantic_scholar"), ("pmid", "pubmed"),
     ):

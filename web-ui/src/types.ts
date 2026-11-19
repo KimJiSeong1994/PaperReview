@@ -79,6 +79,8 @@ export interface SearchRequest {
   category?: string;
   use_llm_search?: boolean;
   fast_mode?: boolean;
+  include_related?: boolean;
+  strict_sources?: boolean;
 }
 
 export interface QueryAnalysis {
@@ -108,6 +110,8 @@ export interface SearchResponse {
     executed_query?: string | null;
     executed_queries?: Record<string, string | string[]>;
     partial?: boolean;
+    source_errors?: Record<string, { reason?: string; http_status?: number }>;
+    effective_filters?: { sort_by?: string; year_start?: number | null; year_end?: number | null };
     degraded?: string[];
     stage_modes?: Record<string, unknown>;
     save_status?: 'accepted' | 'not_admitted_capacity' | 'not_requested' | 'skipped_cache' | 'no_results' | 'not_admitted_shutdown' | 'not_admitted_disconnect';

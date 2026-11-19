@@ -1,0 +1,62 @@
+{
+  "affected": 77,
+  "changed": 0,
+  "concurrent_changes": 0,
+  "samples": [
+    {
+      "rowid": 1477033,
+      "before": [
+        "Neuroprotective Effects of Constituents of the Root Bark of Dictamnus dasycarpus in Mouse Hippocampal Cells",
+        "https://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001477033"
+      ],
+      "after": [
+        "Neuroprotective Effects of Constituents of the Root Bark of Dictamnus dasycarpus in Mouse Hippocampal Cells",
+        ""
+      ]
+    },
+    {
+      "rowid": 1532102,
+      "before": [
+        "고령화 사회(An Aging Society)에서의 소방서비스 문제점 및 개선방안",
+        "http://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001532102"
+      ],
+      "after": [
+        "고령화 사회(An Aging Society)에서의 소방서비스 문제점 및 개선방안",
+        ""
+      ]
+    },
+    {
+      "rowid": 1539310,
+      "before": [
+        "Concurrence of Fibrillary Glomerulonephritis and AL Amyloidosis Associated with Monoclonal Gammopathy",
+        "http://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001539310"
+      ],
+      "after": [
+        "Concurrence of Fibrillary Glomerulonephritis and AL Amyloidosis Associated with Monoclonal Gammopathy",
+        ""
+      ]
+    },
+    {
+      "rowid": 1542996,
+      "before": [
+        "Premature Stiffening of Cement Paste Caused by Secondary Gypsum and Syngenite Formation (False Set)",
+        "http://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001542996"
+      ],
+      "after": [
+        "Premature Stiffening of Cement Paste Caused by Secondary Gypsum and Syngenite Formation (False Set)",
+        ""
+      ]
+    },
+    {
+      "rowid": 1548275,
+      "before": [
+        "금융소비자의 투자 의사결정과 금융소비자 복지 증진 방안 고찰 -행동론적 접근을 중심으로 -",
+        "http://www.kci.go.kr/kciportal/ci/sereArticleSearch/ciSereArtiView.kci?sereArticleSearchBean.artiId=ART001548275"
+      ],
+      "after": [
+        "금융소비자의 투자 의사결정과 금융소비자 복지 증진 방안 고찰 -행동론적 접근을 중심으로 -",
+        ""
+      ]
+    }
+  ]
+}

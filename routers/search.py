@@ -217,11 +217,16 @@ async def _run_legacy_search(function, timeout, *, smart=False):
 def _finalize_results(results, filters, sources):
     """One publication boundary for fresh, graph-added, cached and partial hits."""
     keys = list(
-        dict.fromkeys([*sources, *[key for key in results if not key.startswith("_")]])
+        dict.fromkeys([*sources, *[
+            key for key in results if key == 'graphrag'
+            and filters.get('include_related', True) and not filters.get('strict_sources')
+        ]])
     )
     papers = []
     for source in keys:
         for paper in results.get(source, []):
+            if filters.get('strict_sources') and source == 'openalex_korean' and paper.get('source') != 'KCI':
+                continue
             record = copy.deepcopy(paper)
             record["_result_source"] = source
             papers.append(record)
@@ -503,6 +508,8 @@ class SearchRequest(BaseModel):
     max_references_per_paper: int = 10
     use_llm_search: bool = False
     search_context: str = ""
+    include_related: bool = Field(default=False, description='Include graph-related papers outside the selected providers.')
+    strict_sources: bool = Field(default=False, description='Disable graph expansion and Korean OpenAlex fallback; openalex_korean returns KCI records only.')
 
     @field_validator("sources")
     @classmethod
@@ -540,6 +547,51 @@ class SearchRequest(BaseModel):
         ):
             raise ValueError("Reversed year range")
         return self
+
+
+def _resolve_search_constraints(request, filters, analysis=None):
+    """Keep explicit controls authoritative; only infer grounded year/sort intent.
+
+    Topic/category labels from the LLM are not provider taxonomy filters.
+    Common time constraints also work when analysis is unavailable.
+    """
+    inferred = {}
+    query = request.query
+    if classify_search_route(query)['kind'] != 'topic':
+        return
+    if (analysis and not analysis.get('analysis_status')
+            and analysis.get('confidence', 0) >= .8):
+        proposed = analysis.get('search_filters') or {}
+        if isinstance(proposed, dict):
+            for key in ('year_start', 'year_end'):
+                year = proposed.get(key)
+                if type(year) is int and 1 <= year <= 9999 and re.search(rf'(?<!\d){year}(?!\d)', query):
+                    inferred[key] = year
+    span = re.search(r'(?<!\d)((?:19|20)\d{2})\s*년?\s*(?:부터|[~–—-]|to)\s*((?:19|20)\d{2})\s*년?', query, re.I)
+    if span:
+        inferred.update(year_start=int(span[1]), year_end=int(span[2]))
+    for pattern, key, offset in (
+        (r'((?:19|20)\d{2})\s*년?\s*(?:이후|부터|이상)', 'year_start', 0),
+        (r'((?:19|20)\d{2})\s*년?\s*(?:까지|이하)', 'year_end', 0),
+        (r'((?:19|20)\d{2})\s*년?\s*이전', 'year_end', -1),
+        (r'\b(?:since|from)\s+((?:19|20)\d{2})\b', 'year_start', 0),
+        (r'\bafter\s+((?:19|20)\d{2})\b', 'year_start', 1),
+        (r'\bbefore\s+((?:19|20)\d{2})\b', 'year_end', -1),
+    ):
+        match = re.search(pattern, query, re.I)
+        if match:
+            inferred[key] = int(match[1]) + offset
+    for key in ('year_start', 'year_end'):
+        if getattr(request, key) is None and key in inferred:
+            filters[key] = inferred[key]
+    if (filters.get('year_start') or 1) > (filters.get('year_end') or 9999):
+        # Explicit bounds take precedence over contradictory inferred bounds.
+        if request.year_start is not None or request.year_end is not None:
+            filters.update(year_start=request.year_start, year_end=request.year_end)
+        else:
+            raise HTTPException(status_code=422, detail='검색 연도 범위가 올바르지 않습니다.')
+    if 'sort_by' not in request.model_fields_set and re.search(r'최신|가장\s*최근|최근\s*(?:논문|연구)|\b(?:latest|newest|most recent)\b', query, re.I):
+        filters['sort_by'] = 'submittedDate'
 
 
 class SearchResponse(BaseModel):
@@ -686,7 +738,7 @@ SEARCH_CACHE_DIR.mkdir(parents=True, exist_ok=True)
 
 # BUMP THIS STRING when ranking algorithm, result schema, or source list changes.
 # Old cache entries become unreachable (keys differ) and self-resolve within TTL (1h).
-_CACHE_SCHEMA_VERSION = "v8-dblp-title-seeds"
+_CACHE_SCHEMA_VERSION = "v9-search-integrity"
 
 _search_cache: Dict[str, Dict[str, Any]] = {}
 _cache_lock = threading.Lock()
@@ -805,6 +857,8 @@ def _compute_cache_key(query: str, sources: List[str], filters: Dict[str, Any]) 
         "author": filters.get("author"),
         "category": filters.get("category"),
         "sort_by": filters.get("sort_by", "relevance"),
+        "include_related": filters.get("include_related", False),
+        "strict_sources": filters.get("strict_sources", False),
         "fast_mode": filters.get("fast_mode", False),
         # max_results bounds how many papers each source returns, so a body
         # cached for a small request is a *truncated* answer for a larger one.
@@ -1837,6 +1891,8 @@ async def search_papers(
             "fast_mode",
             "use_llm_search",
             "search_context",
+            "include_related",
+            "strict_sources",
         )
     }
     jev_cache_variant = ranking_cache_variant()
@@ -1846,7 +1902,6 @@ async def search_papers(
         skillopt_policy=namespace,
         jev_ranking_cache_variant=jev_cache_variant,
     )
-    cache_key = _compute_cache_key(request.query, sources, filters)
     timings = {}
     modes = {
         "fast_mode": request.fast_mode,
@@ -1898,6 +1953,8 @@ async def search_papers(
                 _record_timing(aggregate, elapsed)
 
     try:
+        _resolve_search_constraints(request, filters)
+        cache_key = _compute_cache_key(request.query, sources, filters)
         cached = await stage(
             "search_cache_read",
             partial(_get_cached_result, cache_key, require_academic_guard=True),
@@ -1907,6 +1964,7 @@ async def search_papers(
         )
         if cached is not None:
             cached_metadata = cached.pop("_metadata", {})
+            filters.update(cached_metadata.get('effective_filters', {}))
             results = cached
             cache_hit = True
             modes.update(
@@ -1926,7 +1984,7 @@ async def search_papers(
             if (
                 route["kind"] == "topic"
                 and not request.fast_mode
-                and request.sort_by == "relevance"
+                and filters['sort_by'] == "relevance"
                 and _hybrid_ranker is not None
                 and query_analyzer
             ):
@@ -1971,6 +2029,7 @@ async def search_papers(
                 and analysis.get("is_academic") is False
             )
             if not blocked:
+                _resolve_search_constraints(request, filters, analysis)
                 if (
                     route["kind"] == "topic"
                     and analysis
@@ -2000,6 +2059,9 @@ async def search_papers(
                         and query_analyzer
                         and route["kind"] == "topic"
                         and not request.fast_mode
+                        and not request.strict_sources
+                        and not any(filters.get(key) is not None for key in ('year_start', 'year_end', 'author', 'category'))
+                        and filters['sort_by'] == 'relevance'
                     ):
                         modes["source_search_mode"] = "llm_context_search"
                         results = await _run_snapshot_search(
@@ -2041,6 +2103,9 @@ async def search_papers(
                 results = finalize(results)
                 if (
                     not request.fast_mode
+                    and request.include_related
+                    and not request.strict_sources
+                    and filters['sort_by'] == 'relevance'
                     and route["kind"] == "topic"
                     and not stop.is_set()
                     and _remaining_budget(started) >= _MIN_BUDGET_FOR_GRAPHRAG
@@ -2079,7 +2144,7 @@ async def search_papers(
                     _hybrid_ranker
                     and any(results.values())
                     and not stop.is_set()
-                    and request.sort_by == "relevance"
+                    and filters['sort_by'] == "relevance"
                 ):
                     papers = _interleave_source_candidates(
                         results,
@@ -2151,7 +2216,7 @@ async def search_papers(
                         modes["jev_mode"] = "skipped_hybrid_ranker_failure"
                         modes["scored_count"] = 0
                         modes["ranking_variant"] = _base_ranking_variant()
-                elif request.sort_by != "relevance":
+                elif filters['sort_by'] != "relevance":
                     modes["ranking_mode"] = "skipped_non_relevance_sort"
                     modes["jev_mode"] = "skipped_non_relevance_sort"
                     modes["scored_count"] = 0
@@ -2188,7 +2253,8 @@ async def search_papers(
             for mode in source_modes.values()
         )
         # Pipeline-level health gates caching; a failed source only shortens the TTL.
-        cacheable = healthy and not stop.is_set() and not _current_degradation_markers()
+        cacheable = (healthy and not stop.is_set() and not _current_degradation_markers()
+                     and not (unhealthy and filters['sort_by'] != 'relevance'))
         healthy = cacheable and not unhealthy
         executed_queries = cached_metadata.get(
             "executed_queries", source_metadata.get("executed_queries", {})
@@ -2209,6 +2275,9 @@ async def search_papers(
         ):
             search_query = None
         metadata = {
+            'effective_filters': {key: filters.get(key) for key in (
+                'year_start', 'year_end', 'author', 'category', 'sort_by',
+                'include_related', 'strict_sources')},
             "executed_query": search_query,
             "executed_queries": executed_queries,
             "routing": source_metadata.get("routing", route),
@@ -2253,6 +2322,7 @@ async def search_papers(
             partial_cache = bool(metadata["partial"])
             cache_body = copy.deepcopy(results)
             cache_body["_metadata"] = {
+                'effective_filters': metadata['effective_filters'],
                 "partial": partial_cache,
                 "source_errors": source_errors,
                 "executed_query": search_query,

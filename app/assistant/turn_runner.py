@@ -733,7 +733,7 @@ async def run_search(
 
     request = SearchRequest(
         query=query, max_results=MAX_BLOCK_PAPERS, sources=SOURCES, sort_by=sort_by,
-        use_llm_search=False, year_start=year_start, year_end=year_end,
+        use_llm_search=False, year_start=year_start, year_end=year_end, include_related=True,
     )
     return await search_papers(request, username, None)
 

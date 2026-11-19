@@ -63,6 +63,10 @@ _T = TypeVar("_T")
 
 def classify_search_route(query: str) -> Dict[str, str]:
     value = query.strip()
+    from src.utils.paper_utils import normalize_kci_id
+    kci_id = normalize_kci_id(value)
+    if kci_id:
+        return {"kind": "kci", "value": kci_id}
     doi = re.fullmatch(r"(?:https?://(?:dx\.)?doi\.org/|doi:\s*)?(10\.\d{4,9}/\S+)", value, re.I)
     if doi:
         return {"kind": "doi", "value": doi.group(1).casefold()}
@@ -876,7 +880,9 @@ class SearchAgent:
                     publish(kci_papers)
                 korean_q = next((text for text in (original, source_queries.get("openalex_korean"), query)
                                  if text and _contains_korean(text)), None)
-                if len(kci_papers) >= max_results or route["kind"] != "topic" or not korean_q:
+                if (len(kci_papers) >= max_results or route["kind"] != "topic" or not korean_q
+                        or filters.get('sort_by', 'relevance') != 'relevance'
+                        or filters.get('strict_sources')):
                     return kci_papers
                 from src.utils.paper_utils import generate_result_key
                 merged, seen = [], set()
@@ -886,6 +892,8 @@ class SearchAgent:
                         seen.add(key)
                         merged.append(paper)
                 return merged[:max_results]
+            if route["kind"] == "kci":
+                return []
             if route["kind"] in ("doi", "arxiv", "title"):
                 searcher = getattr(self, self._SOURCE_SEARCHER_ATTRS.get(source_name, ""), None)
                 if source_name == "openalex_korean" or searcher is None:

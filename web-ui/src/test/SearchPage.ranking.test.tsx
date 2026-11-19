@@ -173,6 +173,30 @@ describe('SearchPage result ordering', () => {
     vi.mocked(fetchBatchReferences).mockResolvedValue({ references: [] });
   });
 
+  it('shows incomplete latest results instead of silently presenting a complete search', async () => {
+    vi.mocked(searchPapers).mockResolvedValue({
+      results: { openalex_korean: [paper('old', 'Available paper', 0)] }, total: 1,
+      metadata: { partial: true, source_errors: { openalex_korean: { reason: 'index_query_failed' } },
+        effective_filters: { sort_by: 'submittedDate' } },
+    });
+    render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('최신 기후변화 논문');
+    expect(await screen.findByText(/최신 논문이 누락될 수 있습니다/)).toBeInTheDocument();
+    expect(vi.mocked(searchPapers).mock.calls[0][0]).not.toHaveProperty('sort_by');
+    vi.mocked(searchPapers).mockResolvedValue({ results: { openalex_korean: [paper('new', 'Current paper', 0)] }, total: 1 });
+    await submitSearch('기후변화');
+    await waitFor(() => expect(screen.queryByText(/최신 논문이 누락될 수 있습니다/)).not.toBeInTheDocument());
+  });
+
+  it('does not describe a timed-out empty search as no matching papers', async () => {
+    vi.mocked(searchPapers).mockResolvedValue({ results: { openalex_korean: [] }, total: 0,
+      metadata: { partial: true, source_errors: { openalex_korean: { reason: 'index_query_failed' } } } });
+    render(<MemoryRouter><SearchPage /></MemoryRouter>);
+    await submitSearch('기후변화');
+    expect(await screen.findByText(/일부 검색 결과를 확인하지 못했습니다/)).toBeInTheDocument();
+    expect(screen.queryByText(/검색 결과가 없습니다/)).not.toBeInTheDocument();
+  });
+
   it('renders the backend ranking order, not the per-source bucket order', async () => {
     // The API groups papers by source. Walking the buckets yields
     // [arxiv-1, arxiv-2, openalex-1]; the ranker put the openalex paper first.
@@ -552,7 +576,7 @@ describe('SearchPage result ordering', () => {
     }));
     expect(trackSearchEvent).toHaveBeenCalledTimes(1);
     expect(vi.mocked(searchPapers).mock.calls[0][0]).toEqual({
-      query: 'same title', max_results: 50, sort_by: 'relevance', use_llm_search: false,
+      query: 'same title', max_results: 50, include_related: true, use_llm_search: false,
       sources: ['arxiv', 'connected_papers', 'google_scholar', 'openalex', 'dblp', 'openalex_korean'],
     });
   });
@@ -582,14 +606,14 @@ describe('SearchPage result ordering', () => {
     expect(screen.queryByText(/Google Scholar/)).not.toBeInTheDocument();
   });
 
-  it('keeps executed query, partial-result, and save metadata out of the empty state', async () => {
+  it('explains incomplete empty results without exposing internal query or save metadata', async () => {
     vi.mocked(searchPapers).mockResolvedValue({
       results: {}, total: 0,
       metadata: { executed_query: 'executed empty query', partial: true, save_status: 'no_results' },
     });
     render(<MemoryRouter><SearchPage /></MemoryRouter>);
     await submitSearch('empty');
-    expect(screen.getByText('검색 결과가 없습니다. 잠시 후 다시 시도하거나 검색어를 바꿔보세요.')).toBeInTheDocument();
+    expect(screen.getByText(/일부 검색 결과를 확인하지 못했습니다/)).toBeInTheDocument();
     expect(screen.queryByText('executed empty query')).not.toBeInTheDocument();
     expect(screen.queryByText(/실제 검색어:|일부 검색만 완료|저장할 검색 결과가 없어/)).not.toBeInTheDocument();
   });
