@@ -164,3 +164,35 @@ def test_oai_error_is_not_silently_skipped():
     assert kci_searcher.parse_records(
         b'<OAI-PMH xmlns="http://www.openarchives.org/OAI/2.0/"><error code="noRecordsMatch">x</error></OAI-PMH>'
     ) == ([], None)
+
+
+def test_kci_citing_keeps_only_references_to_this_paper(tmp_path, monkeypatch):
+    """referenceSearch 의 실제 응답 형식(공개 미리보기에서 확인): record@article-id = 인용한 논문."""
+    db = tmp_path / "kci.db"
+    monkeypatch.setattr(kci_searcher.time, "sleep", lambda _: None)
+    pages = iter([_page("ART003031983", "인용한 논문", token="t"), _page("ART000000005", "다른 논문")])
+    monkeypatch.setattr(kci_searcher, "_fetch", lambda params: next(pages))
+    kci_searcher.harvest(db, "2026-11-01", "2026-11-01")
+
+    body = """<?xml version="1.0" encoding="UTF-8"?><MetaData><outputData><result><total>3</total></result>
+<record article-id="ART003031983">현우창. (2023). 그래프 신경망을활용한 온라인 의견 사기 탐지. 정보과학회논문지.</record>
+<record article-id="ART000000005">현우창. (2019). 그래프 신경망을활용한 온라인 의견 사기 탐지. 다른 해.</record>
+<record article-id="ART000000005">홍길동. (2023). 그래프 신경망 개론.</record>
+</outputData></MetaData>""".encode()
+    calls = []
+
+    class Response:
+        content = body
+        def raise_for_status(self):
+            pass
+
+    monkeypatch.setattr(kci_searcher.requests, "get", lambda url, **kw: calls.append(kw["params"]) or Response())
+    paper = {"title": "그래프 신경망을 활용한 온라인 의견 사기 탐지", "year": "2023", "kci_id": "ART003000001", "source": "KCI"}
+
+    monkeypatch.delenv("KCI_API_KEY", raising=False)
+    assert kci_searcher.kci_citing(paper, db_path=db) == [] and not calls  # 키 없으면 호출 안 함
+
+    monkeypatch.setenv("KCI_API_KEY", "k")
+    (citing,) = kci_searcher.kci_citing(paper, db_path=db)
+    assert citing["kci_id"] == "ART003031983" and citing["title"] == "인용한 논문"
+    assert calls[0]["apiCode"] == "referenceSearch" and calls[0]["key"] == "k"

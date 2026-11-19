@@ -176,6 +176,12 @@ class ReferenceCollector:
         Returns:
             인용 논문 리스트 (title, authors, year, citationCount, abstract, url, externalIds, isInfluential 포함)
         """
+        if paper.get('source') == 'KCI':
+            from src.collector.paper.kci_searcher import kci_citing
+            citations = kci_citing(paper, 100 if max_citations == -1 else max_citations)
+            if citations:
+                return [self._enrich_reference(cit, paper) for cit in citations]
+
         paper_id = self._extract_paper_id(paper)
         if not paper_id:
             return []
