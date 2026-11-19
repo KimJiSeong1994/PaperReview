@@ -31,6 +31,7 @@ _MIN_KEY = 8  # 정규화한 제목이 이보다 짧으면("서론", "권두언"
 _GENERIC = 3  # 같은 제목이 이만큼 이상이면 흔한 제목으로 보고 쓰지 않는다
 # Crossref 공개 풀: 초당 5건, 동시 1건 (응답 헤더 x-rate-limit-*, x-concurrency-limit)
 _MIN_INTERVAL = 0.2
+_BATCH = 100  # 요청 하나에 묶는 DOI 수
 
 _SCHEMA = """
 CREATE TABLE IF NOT EXISTS title_key (key TEXT NOT NULL, year TEXT, rowid_ INTEGER NOT NULL);
@@ -108,26 +109,45 @@ def match_reference(conn: sqlite3.Connection, doi_conn: Optional[sqlite3.Connect
     return (found.pop(), "title") if len(found) == 1 else (None, "")
 
 
-def _fetch_refs(session: requests.Session, doi: str) -> Tuple[int, List[Dict]]:
-    for attempt in range(1, 6):
+def _get(session: requests.Session, url: str, params: Optional[Dict] = None) -> Optional[Dict]:
+    """Crossref GET. 404 면 None, 일시 오류(429·5xx·연결)는 기다렸다 다시."""
+    for attempt in range(1, 8):
         try:
-            response = session.get(CROSSREF_URL + doi, timeout=30)
+            response = session.get(url, params=params, timeout=120)
         except requests.RequestException as error:
             logger.warning("Crossref 요청 실패(%s), 재시도 %d", error, attempt)
             time.sleep(5 * attempt)
             continue
         if response.status_code == 404:
-            return 404, []
+            return None
         if response.status_code in (429, 500, 502, 503, 504):
             time.sleep(5 * attempt)
             continue
         response.raise_for_status()
-        return 200, response.json()["message"].get("reference") or []
-    raise RuntimeError(f"Crossref 응답 없음: {doi}")
+        return response.json()["message"]
+    raise RuntimeError(f"Crossref 응답 없음: {url}")
+
+
+def _fetch_batch(session: requests.Session, dois: List[str]) -> Dict[str, List[Dict]]:
+    """DOI 여러 개의 참고문헌을 요청 하나로 받는다(같은 필터를 여러 번 주면 Crossref 가 OR 로 묶는다).
+
+    Crossref 에 없는 DOI 는 결과에서 빠진다. 쉼표가 든 DOI 는 필터를 깨므로 한 건씩 받는다.
+    """
+    found: Dict[str, List[Dict]] = {}
+    plain = [d for d in dois if "," not in d]
+    if plain:
+        message = _get(session, CROSSREF_URL.rstrip("/"), {
+            "filter": ",".join("doi:" + d for d in plain), "rows": len(plain), "select": "DOI,reference"})
+        for item in (message or {}).get("items", []):
+            found[normalize_doi(item.get("DOI") or "")] = item.get("reference") or []
+    for doi in dois:
+        if "," in doi and (message := _get(session, CROSSREF_URL + doi)) is not None:
+            found[doi] = message.get("reference") or []
+    return found
 
 
 def harvest(limit: Optional[int] = None, db_path: Optional[Path] = None) -> int:
-    """DOI 가 있는 KCI 논문의 참고문헌을 rowid 순서대로 받는다(중단 후 이어받기)."""
+    """DOI 가 있는 KCI 논문의 참고문헌을 rowid 순서대로 100편씩 받는다(중단 후 이어받기)."""
     db_path = db_path or _default_db_path()
     doi_db = Path(str(db_path) + ".doi.db")
     session = requests.Session()
@@ -139,23 +159,28 @@ def harvest(limit: Optional[int] = None, db_path: Optional[Path] = None) -> int:
         last = conn.execute("SELECT COALESCE(MAX(rowid), 0) FROM refs_done").fetchone()[0]
         todo = doi_conn.execute("SELECT rowid, doi FROM doi_lookup WHERE rowid > ? ORDER BY rowid LIMIT ?",
                                 (last, limit or -1)).fetchall()
-        for rowid, doi in todo:
+        for i in range(0, len(todo), _BATCH):
             started = time.monotonic()
-            status, refs = _fetch_refs(session, doi)
-            edges, by = {}, {"doi": 0, "title": 0}
-            for ref in refs:
-                cited, how = match_reference(conn, doi_conn, ref)
-                if cited and cited != rowid and cited not in edges:
-                    edges[cited] = how
-                    by[how] += 1
+            batch = todo[i:i + _BATCH]
+            found = _fetch_batch(session, [doi for _, doi in batch])
+            cites, done_rows = [], []
+            for rowid, doi in batch:
+                refs = found.get(doi)
+                edges, by = {}, {"doi": 0, "title": 0}
+                for ref in refs or []:
+                    cited, how = match_reference(conn, doi_conn, ref)
+                    if cited and cited != rowid and cited not in edges:
+                        edges[cited] = how
+                        by[how] += 1
+                cites += [(rowid, cited, how) for cited, how in edges.items()]
+                done_rows.append((rowid, 404 if refs is None else 200, len(refs or []),
+                                  sum(1 for r in refs or [] if r.get("DOI")),
+                                  sum(1 for r in refs or [] if not r.get("DOI")), by["doi"], by["title"]))
             with conn:
-                conn.executemany("INSERT OR IGNORE INTO kci_cites VALUES (?, ?, ?)",
-                                 [(rowid, cited, how) for cited, how in edges.items()])
-                conn.execute("INSERT OR REPLACE INTO refs_done VALUES (?, ?, ?, ?, ?, ?, ?)", (
-                    rowid, status, len(refs), sum(1 for r in refs if r.get("DOI")),
-                    sum(1 for r in refs if not r.get("DOI")), by["doi"], by["title"]))
-            done += 1
-            if done % 500 == 0:
+                conn.executemany("INSERT OR IGNORE INTO kci_cites VALUES (?, ?, ?)", cites)
+                conn.executemany("INSERT OR REPLACE INTO refs_done VALUES (?, ?, ?, ?, ?, ?, ?)", done_rows)
+            done += len(batch)
+            if done % 10_000 < _BATCH:
                 logger.info("Crossref 참고문헌: %d/%d편", done, len(todo))
             time.sleep(max(0.0, _MIN_INTERVAL - (time.monotonic() - started)))
     return done

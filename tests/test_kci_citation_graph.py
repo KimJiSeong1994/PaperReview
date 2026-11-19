@@ -43,13 +43,18 @@ def test_reference_is_linked_by_doi_or_exact_title_and_year(tmp_path, monkeypatc
 def test_harvest_records_edges_and_lookups_use_them(tmp_path, monkeypatch):
     db = _index(tmp_path, monkeypatch)
     monkeypatch.setattr(graph, "_MIN_INTERVAL", 0)
-    refs = {
-        "10.1234/kci.art000000001": (404, []),
-        "10.1234/kci.art000000002": (200, [{"DOI": "10.1234/kci.art000000001"}, {"DOI": "10.9999/elsewhere"},
-                                           {"unstructured": "Kim. (2025). 그래프 신경망을 활용한 온라인 의견 사기 탐지."}]),
-    }
-    monkeypatch.setattr(graph, "_fetch_refs", lambda session, doi: refs[doi])
+    calls = []
+
+    def fake_get(session, url, params=None):
+        calls.append(params)
+        # Crossref 는 없는 DOI(…001)를 결과에서 뺀다. 응답 DOI 는 대문자일 수 있다.
+        return {"items": [{"DOI": "10.1234/KCI.ART000000002", "reference": [
+            {"DOI": "10.1234/kci.art000000001"}, {"DOI": "10.9999/elsewhere"},
+            {"unstructured": "Kim. (2025). 그래프 신경망을 활용한 온라인 의견 사기 탐지."}]}]}
+
+    monkeypatch.setattr(graph, "_get", fake_get)
     assert graph.harvest(db_path=db) == 2
+    assert len(calls) == 1 and calls[0]["filter"] == "doi:10.1234/kci.art000000001,doi:10.1234/kci.art000000002"
     assert graph.harvest(db_path=db) == 0  # 이어받기: 끝난 논문은 다시 받지 않는다
 
     assert graph.edges_for(2, db) == ([1], [])
