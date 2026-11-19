@@ -35,7 +35,10 @@ Known KCI URL: old 10 unrelated records -> exactly ART003261978.
 Explicit 2026 query: 10 results remained within 2026.
 Chronological climate query: both runs found 2026 records; timings are warm-cache dependent
 and are not evidence of a general retrieval speedup.
-Local legacy title audit: 77 affected rows, zero mutations during audit.
+Local legacy title audit: 77 URL-prefixed rows; 76 contain pure URL fields.
+One record starts with a DOI URL followed by actual title text and is preserved.
+No mutations occurred during the audit. The initial main deployment was cancelled
+before release to narrow sanitation to whole-field URLs; the mixed-title case is tested.
 
 Limits:
 This is incident regression validation, not a randomized precision/recall benchmark.
