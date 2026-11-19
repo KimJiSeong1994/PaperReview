@@ -403,6 +403,73 @@ def search_kci(query: str, max_results: int = 10, db_path: Optional[Path] = None
     return papers
 
 
+KCI_API_URL = "https://open.kci.go.kr/po/openapi/openApiSearch.kci"
+
+
+def _norm(text: str) -> str:
+    return re.sub(r"[\W_]+", "", text or "").lower()
+
+
+def kci_citing(paper: Dict[str, Any], max_results: int = 20, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """이 논문을 참고문헌에 올린 KCI 논문 (KCI Open API referenceSearch, `KCI_API_KEY` 필요).
+
+    referenceSearch 는 참고문헌 원문을 제목으로 검색하고 그 참고문헌을 가진 논문 ID 를 준다.
+    부분 일치 결과라 제목 전체와 발행연도가 참고문헌 원문에 들어 있는 것만 인용으로 본다.
+    키가 없거나 호출이 실패하면 빈 목록(호출 측이 다른 출처로 넘어간다).
+    """
+    key = os.getenv("KCI_API_KEY", "").strip()
+    titles = {t for t in (_norm(paper.get("title")), _norm(paper.get("title_en"))) if len(t) >= 6}
+    if not key or not titles:
+        return []
+    year = str(paper.get("year") or "")
+    try:
+        # ponytail: 첫 페이지(100건)만 본다. 그보다 많이 인용된 논문은 page 를 넘겨 받으면 된다.
+        response = requests.get(KCI_API_URL, timeout=30, params={
+            "apiCode": "referenceSearch", "key": key, "title": paper.get("title") or paper.get("title_en"),
+            "displayCount": 100,
+        })
+        response.raise_for_status()
+        root = ET.fromstring(response.content)
+    except (requests.RequestException, ET.ParseError) as error:
+        logger.warning("KCI 참고문헌 조회 실패: %s", error)
+        return []
+    own = re.fullmatch(r"ART0*(\d+)", paper.get("kci_id") or "")
+    ids = []
+    for record in root.iterfind(".//record"):
+        text = record.text or ""
+        match = re.fullmatch(r"ART0*(\d+)", record.get("article-id", ""))
+        if match and year in text and any(t in _norm(text) for t in titles):
+            ids.append(int(match.group(1)))
+    ids = [i for i in dict.fromkeys(ids) if not own or i != int(own.group(1))][:max_results]
+    db_path = db_path or _default_db_path()
+    if not ids or not db_path.exists():
+        return []
+    try:
+        with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)) as conn:
+            rows = {row[0]: row for row in conn.execute(
+                f"SELECT rowid, title, title_en, abstract, abstract_en, authors, venue, year, doi, url, citations "
+                f"FROM kci WHERE rowid IN ({','.join('?' * len(ids))})", ids)}
+    except sqlite3.Error as error:
+        logger.warning("KCI 색인 조회 실패: %s", error)
+        return []
+    return [
+        {
+            "kci_id": f"ART{rowid:09d}",
+            "title": title or title_en,
+            "authors": [a for a in authors.split(", ") if a],
+            "year": year,
+            "citations": citations,
+            "abstract": abstract or abstract_en,
+            "url": url,
+            "doi": doi,
+            "venue": venue,
+            "source": "Citation (via KCI)",
+        }
+        for rowid, title, title_en, abstract, abstract_en, authors, venue, year, doi, url, citations
+        in (rows[i] for i in ids if i in rows)
+    ]
+
+
 def index_cache_signature() -> str:
     """Include WAL commits as well as DB replacement in search-cache identity."""
     from src.graph_rag.spectral_retriever import VERSION, configured_mode
