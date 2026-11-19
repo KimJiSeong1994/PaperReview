@@ -67,3 +67,19 @@ def test_harvest_records_edges_and_lookups_use_them(tmp_path, monkeypatch):
     (cited,) = kci_searcher.kci_references({"kci_id": "ART000000002"}, db_path=db)
     (citing,) = kci_searcher.kci_citing({"kci_id": "ART000000001", "title": "그래프 신경망을 활용한 온라인 의견 사기 탐지"}, db_path=db)
     assert (cited["kci_id"], citing["kci_id"]) == ("ART000000001", "ART000000002")
+
+
+def test_malformed_doi_does_not_break_the_batch(monkeypatch):
+    """KCI 에 "/" 없는 DOI 가 있다(실제: 10.1007-012-0015-5). 묶음에 넣으면 Crossref 가 묶음 전체를 400 으로 거부한다."""
+    calls = []
+
+    def fake_get(session, url, params=None):
+        calls.append(params["filter"] if params else url)
+        if params and "-012-" in params["filter"]:
+            return None  # 400
+        return {"items": [{"DOI": "10.1/a", "reference": [{"DOI": "10.1/x"}]}]} if params else {"reference": []}
+
+    monkeypatch.setattr(graph, "_get", fake_get)
+    found = graph._fetch_batch(None, ["10.1/a", "10.1007-012-0015-5"])
+    assert found == {"10.1/a": [{"DOI": "10.1/x"}], "10.1007-012-0015-5": []}
+    assert calls[0] == "doi:10.1/a"  # 잘못된 DOI 는 묶음에서 빠진다

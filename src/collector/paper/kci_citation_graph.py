@@ -110,7 +110,7 @@ def match_reference(conn: sqlite3.Connection, doi_conn: Optional[sqlite3.Connect
 
 
 def _get(session: requests.Session, url: str, params: Optional[Dict] = None) -> Optional[Dict]:
-    """Crossref GET. 404 면 None, 일시 오류(429·5xx·연결)는 기다렸다 다시."""
+    """Crossref GET. 400·404 면 None, 일시 오류(429·5xx·연결)는 기다렸다 다시."""
     for attempt in range(1, 8):
         try:
             response = session.get(url, params=params, timeout=120)
@@ -118,7 +118,7 @@ def _get(session: requests.Session, url: str, params: Optional[Dict] = None) -> 
             logger.warning("Crossref 요청 실패(%s), 재시도 %d", error, attempt)
             time.sleep(5 * attempt)
             continue
-        if response.status_code == 404:
+        if response.status_code in (400, 404):  # 400: 잘못된 DOI(예: "/" 없음)
             return None
         if response.status_code in (429, 500, 502, 503, 504):
             time.sleep(5 * attempt)
@@ -131,18 +131,19 @@ def _get(session: requests.Session, url: str, params: Optional[Dict] = None) -> 
 def _fetch_batch(session: requests.Session, dois: List[str]) -> Dict[str, List[Dict]]:
     """DOI 여러 개의 참고문헌을 요청 하나로 받는다(같은 필터를 여러 번 주면 Crossref 가 OR 로 묶는다).
 
-    Crossref 에 없는 DOI 는 결과에서 빠진다. 쉼표가 든 DOI 는 필터를 깨므로 한 건씩 받는다.
+    Crossref 에 없는 DOI 는 결과에서 빠진다. 필터를 깨는 DOI(쉼표, "/" 없음)는 한 건씩 받고,
+    묶음 요청이 거부되면(400) 묶음 전체를 한 건씩 받는다.
     """
     found: Dict[str, List[Dict]] = {}
-    plain = [d for d in dois if "," not in d]
-    if plain:
-        message = _get(session, CROSSREF_URL.rstrip("/"), {
-            "filter": ",".join("doi:" + d for d in plain), "rows": len(plain), "select": "DOI,reference"})
-        for item in (message or {}).get("items", []):
-            found[normalize_doi(item.get("DOI") or "")] = item.get("reference") or []
-    for doi in dois:
-        if "," in doi and (message := _get(session, CROSSREF_URL + doi)) is not None:
-            found[doi] = message.get("reference") or []
+    plain = [d for d in dois if "," not in d and re.fullmatch(r"10\.\d+/\S+", d)]
+    message = _get(session, CROSSREF_URL.rstrip("/"), {
+        "filter": ",".join("doi:" + d for d in plain), "rows": len(plain), "select": "DOI,reference"}) if plain else None
+    for item in (message or {}).get("items", []):
+        found[normalize_doi(item.get("DOI") or "")] = item.get("reference") or []
+    single = [d for d in dois if d not in plain] + (plain if plain and message is None else [])
+    for doi in single:
+        if (one := _get(session, CROSSREF_URL + doi)) is not None:
+            found[doi] = one.get("reference") or []
     return found
 
 
