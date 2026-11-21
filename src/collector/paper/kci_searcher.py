@@ -346,6 +346,15 @@ def _query(db_path: Path, terms: List[str], max_results: int, *, filters=None,
     return rows
 
 
+def _topic_terms(query: str) -> List[str]:
+    terms = [
+        t[:-1] if len(t) >= 3 and t[-1] in _PARTICLES else t
+        for t in re.findall(r"[^\W_]+", query, flags=re.UNICODE)
+    ]
+    terms = list(dict.fromkeys(t for t in terms if len(t) >= 2))
+    return ([t for t in terms if t not in _STOPWORDS] or terms)[:_MAX_TERMS]
+
+
 def search_kci(query: str, max_results: int = 10, db_path: Optional[Path] = None, *,
                filters=None, route=None, deadline=None, stop_event=None, attempts=None,
                retrieval_mode=None) -> List[Dict[str, Any]]:
@@ -369,12 +378,7 @@ def search_kci(query: str, max_results: int = 10, db_path: Optional[Path] = None
         topic_query = re.sub(r'(?<!\d)\d{4}\s*년?\s*(?:이후|이전|부터|까지|이상|이하)?', ' ', topic_query)
     # ponytail: 형태소 분석 없이 조사 한 글자만 떼고 접두 일치로 찾는다.
     # 합성어 내부("심층신경망" ← "신경망")는 못 찾음 → 필요해지면 형태소 분석기/임베딩 색인.
-    terms = [
-        t[:-1] if len(t) >= 3 and t[-1] in _PARTICLES else t
-        for t in re.findall(r"[^\W_]+", topic_query, flags=re.UNICODE)
-    ]
-    terms = list(dict.fromkeys(t for t in terms if len(t) >= 2))
-    terms = ([t for t in terms if t not in _STOPWORDS] or terms)[:_MAX_TERMS]
+    terms = _topic_terms(topic_query)
     if not terms and (route or {}).get("kind") not in ("doi", "title", "kci"):
         return []
     from src.graph_rag.spectral_retriever import configured_mode, retrieve, MAX_CANDIDATES
@@ -430,13 +434,83 @@ def _norm(text: str) -> str:
     return re.sub(r"[\W_]+", "", text or "").lower()
 
 
-def kci_citing(paper: Dict[str, Any], max_results: int = 20, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
-    """이 논문을 참고문헌에 올린 KCI 논문 (KCI Open API referenceSearch, `KCI_API_KEY` 필요).
+def _papers_by_rowid(ids: List[int], source: str, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """KCI 색인 rowid 목록 → 논문 dict (순서 유지, 색인에 없는 건 뺀다)."""
+    db_path = db_path or _default_db_path()
+    if not ids or not db_path.exists():
+        return []
+    try:
+        with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)) as conn:
+            rows = {row[0]: row for row in conn.execute(
+                f"SELECT rowid, title, title_en, abstract, abstract_en, authors, venue, year, doi, url, citations "
+                f"FROM kci WHERE rowid IN ({','.join('?' * len(ids))})", ids)}
+    except sqlite3.Error as error:
+        logger.warning("KCI 색인 조회 실패: %s", error)
+        return []
+    return [
+        {
+            "kci_id": f"ART{rowid:09d}",
+            "id": f"ART{rowid:09d}",
+            "title": title or title_en,
+            "authors": [a for a in authors.split(", ") if a],
+            "year": year,
+            "citations": citations,
+            "abstract": abstract or abstract_en,
+            "url": url,
+            "doi": doi,
+            "venue": venue,
+            "source": source,
+        }
+        for rowid, title, title_en, abstract, abstract_en, authors, venue, year, doi, url, citations
+        in (rows[i] for i in ids if i in rows)
+    ]
 
-    referenceSearch 는 참고문헌 원문을 제목으로 검색하고 그 참고문헌을 가진 논문 ID 를 준다.
-    부분 일치 결과라 제목 전체와 발행연도가 참고문헌 원문에 들어 있는 것만 인용으로 본다.
-    키가 없거나 호출이 실패하면 빈 목록(호출 측이 다른 출처로 넘어간다).
+
+def _own_rowid(paper: Dict[str, Any]) -> Optional[int]:
+    match = re.fullmatch(r"ART0*(\d+)", paper.get("kci_id") or "")
+    return int(match.group(1)) if match else None
+
+
+def kci_related(query: str, papers: List[Dict[str, Any]], max_results: int = 15,
+                db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """검색 결과 상위 KCI 논문과 인용으로 이어진 KCI 논문 중 질의어가 제목·초록에 있는 것.
+
+    여러 결과와 이어진 논문, 피인용이 많은 논문 순. 검색 결과에 이미 있는 논문은 뺀다.
     """
+    from src.collector.paper.kci_citation_graph import neighbor_counts
+    own = [_own_rowid(p) for p in papers if p.get("source") == "KCI"]
+    seeds = list(dict.fromkeys(r for r in own if r))[:10]
+    links = neighbor_counts(seeds, db_path)
+    known = {_own_rowid(p) for p in papers}
+    ids = sorted((i for i in links if i not in known), key=lambda i: (-links[i], i))[:200]
+    terms = [t.lower() for t in _topic_terms(query)]
+    related = [p for p in _papers_by_rowid(ids, "KCI", db_path)
+               if any(t in f"{p['title']} {p['abstract']}".lower() for t in terms)]
+    related.sort(key=lambda p: (-links[_own_rowid(p)], -int(p.get("citations") or 0)))
+    return related[:max_results]
+
+
+def kci_references(paper: Dict[str, Any], max_results: int = 20, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """이 논문이 참고문헌에 올린 KCI 논문 (Crossref 로 만든 로컬 인용 그래프)."""
+    from src.collector.paper.kci_citation_graph import edges_for
+    own = _own_rowid(paper)
+    cited = edges_for(own, db_path)[0] if own else []
+    return _papers_by_rowid(cited[:max_results], "Reference (via KCI)", db_path)
+
+
+def kci_citing(paper: Dict[str, Any], max_results: int = 20, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """이 논문을 참고문헌에 올린 KCI 논문.
+
+    로컬 인용 그래프(Crossref, `kci_citation_graph`)를 먼저 보고, 없으면 KCI Open API
+    referenceSearch(`KCI_API_KEY` 필요)를 쓴다. referenceSearch 는 참고문헌 원문을 제목으로
+    검색하고 그 참고문헌을 가진 논문 ID 를 준다. 부분 일치 결과라 제목 전체와 발행연도가
+    참고문헌 원문에 들어 있는 것만 인용으로 본다. 둘 다 없으면 빈 목록.
+    """
+    from src.collector.paper.kci_citation_graph import edges_for
+    own = _own_rowid(paper)
+    citing = edges_for(own, db_path)[1] if own else []
+    if citing:
+        return _papers_by_rowid(citing[:max_results], "Citation (via KCI)", db_path)
     key = os.getenv("KCI_API_KEY", "").strip()
     titles = {t for t in (_norm(paper.get("title")), _norm(paper.get("title_en"))) if len(t) >= 6}
     if not key or not titles:
@@ -453,41 +527,14 @@ def kci_citing(paper: Dict[str, Any], max_results: int = 20, db_path: Optional[P
     except (requests.RequestException, ET.ParseError) as error:
         logger.warning("KCI 참고문헌 조회 실패: %s", error)
         return []
-    own = re.fullmatch(r"ART0*(\d+)", paper.get("kci_id") or "")
     ids = []
     for record in root.iterfind(".//record"):
         text = record.text or ""
         match = re.fullmatch(r"ART0*(\d+)", record.get("article-id", ""))
         if match and year in text and any(t in _norm(text) for t in titles):
             ids.append(int(match.group(1)))
-    ids = [i for i in dict.fromkeys(ids) if not own or i != int(own.group(1))][:max_results]
-    db_path = db_path or _default_db_path()
-    if not ids or not db_path.exists():
-        return []
-    try:
-        with closing(sqlite3.connect(f"file:{db_path}?mode=ro", uri=True)) as conn:
-            rows = {row[0]: row for row in conn.execute(
-                f"SELECT rowid, title, title_en, abstract, abstract_en, authors, venue, year, doi, url, citations "
-                f"FROM kci WHERE rowid IN ({','.join('?' * len(ids))})", ids)}
-    except sqlite3.Error as error:
-        logger.warning("KCI 색인 조회 실패: %s", error)
-        return []
-    return [
-        {
-            "kci_id": f"ART{rowid:09d}",
-            "title": title or title_en,
-            "authors": [a for a in authors.split(", ") if a],
-            "year": year,
-            "citations": citations,
-            "abstract": abstract or abstract_en,
-            "url": url,
-            "doi": doi,
-            "venue": venue,
-            "source": "Citation (via KCI)",
-        }
-        for rowid, title, title_en, abstract, abstract_en, authors, venue, year, doi, url, citations
-        in (rows[i] for i in ids if i in rows)
-    ]
+    ids = [i for i in dict.fromkeys(ids) if i != own][:max_results]
+    return _papers_by_rowid(ids, "Citation (via KCI)", db_path)
 
 
 def index_cache_signature() -> str:

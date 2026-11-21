@@ -373,6 +373,26 @@ def _graphrag_expand(
     max_expand: int = 15,
     *, deadline=None, stop_event=None,
 ) -> List[Dict[str, Any]]:
+    """관련 논문: 검색 결과 KCI 논문의 인용 이웃(로컬 KCI 인용 그래프) + GraphRAG 그래프 이웃."""
+    from src.collector.paper.kci_searcher import kci_related
+    from src.graph_rag.search_engine import _expired
+
+    related = []
+    if not _expired(deadline, stop_event):
+        try:
+            related = kci_related(query, initial_papers, max_expand)
+        except Exception as exc:  # KCI 색인 문제가 GraphRAG 확장까지 막지 않게
+            logger.warning("[KCI] 인용 이웃 조회 실패: %s", exc)
+    expanded = _graph_file_expand(query, initial_papers, max_expand, deadline=deadline, stop_event=stop_event)
+    return [*related, *expanded][:max_expand]
+
+
+def _graph_file_expand(
+    query: str,
+    initial_papers: List[Dict[str, Any]],
+    max_expand: int = 15,
+    *, deadline=None, stop_event=None,
+) -> List[Dict[str, Any]]:
     """검색 결과의 논문들을 기반으로 GraphRAG hybrid_deep 확장.
 
     1-hop: SIMILAR_TO + CITES 모두, 2-hop: CITES만 (인용 기반 안전 탐색).
