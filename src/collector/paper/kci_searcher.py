@@ -346,6 +346,15 @@ def _query(db_path: Path, terms: List[str], max_results: int, *, filters=None,
     return rows
 
 
+def _topic_terms(query: str) -> List[str]:
+    terms = [
+        t[:-1] if len(t) >= 3 and t[-1] in _PARTICLES else t
+        for t in re.findall(r"[^\W_]+", query, flags=re.UNICODE)
+    ]
+    terms = list(dict.fromkeys(t for t in terms if len(t) >= 2))
+    return ([t for t in terms if t not in _STOPWORDS] or terms)[:_MAX_TERMS]
+
+
 def search_kci(query: str, max_results: int = 10, db_path: Optional[Path] = None, *,
                filters=None, route=None, deadline=None, stop_event=None, attempts=None,
                retrieval_mode=None) -> List[Dict[str, Any]]:
@@ -369,12 +378,7 @@ def search_kci(query: str, max_results: int = 10, db_path: Optional[Path] = None
         topic_query = re.sub(r'(?<!\d)\d{4}\s*년?\s*(?:이후|이전|부터|까지|이상|이하)?', ' ', topic_query)
     # ponytail: 형태소 분석 없이 조사 한 글자만 떼고 접두 일치로 찾는다.
     # 합성어 내부("심층신경망" ← "신경망")는 못 찾음 → 필요해지면 형태소 분석기/임베딩 색인.
-    terms = [
-        t[:-1] if len(t) >= 3 and t[-1] in _PARTICLES else t
-        for t in re.findall(r"[^\W_]+", topic_query, flags=re.UNICODE)
-    ]
-    terms = list(dict.fromkeys(t for t in terms if len(t) >= 2))
-    terms = ([t for t in terms if t not in _STOPWORDS] or terms)[:_MAX_TERMS]
+    terms = _topic_terms(topic_query)
     if not terms and (route or {}).get("kind") not in ("doi", "title", "kci"):
         return []
     from src.graph_rag.spectral_retriever import configured_mode, retrieve, MAX_CANDIDATES
@@ -446,6 +450,7 @@ def _papers_by_rowid(ids: List[int], source: str, db_path: Optional[Path] = None
     return [
         {
             "kci_id": f"ART{rowid:09d}",
+            "id": f"ART{rowid:09d}",
             "title": title or title_en,
             "authors": [a for a in authors.split(", ") if a],
             "year": year,
@@ -464,6 +469,25 @@ def _papers_by_rowid(ids: List[int], source: str, db_path: Optional[Path] = None
 def _own_rowid(paper: Dict[str, Any]) -> Optional[int]:
     match = re.fullmatch(r"ART0*(\d+)", paper.get("kci_id") or "")
     return int(match.group(1)) if match else None
+
+
+def kci_related(query: str, papers: List[Dict[str, Any]], max_results: int = 15,
+                db_path: Optional[Path] = None) -> List[Dict[str, Any]]:
+    """검색 결과 상위 KCI 논문과 인용으로 이어진 KCI 논문 중 질의어가 제목·초록에 있는 것.
+
+    여러 결과와 이어진 논문, 피인용이 많은 논문 순. 검색 결과에 이미 있는 논문은 뺀다.
+    """
+    from src.collector.paper.kci_citation_graph import neighbor_counts
+    own = [_own_rowid(p) for p in papers if p.get("source") == "KCI"]
+    seeds = list(dict.fromkeys(r for r in own if r))[:10]
+    links = neighbor_counts(seeds, db_path)
+    known = {_own_rowid(p) for p in papers}
+    ids = sorted((i for i in links if i not in known), key=lambda i: (-links[i], i))[:200]
+    terms = [t.lower() for t in _topic_terms(query)]
+    related = [p for p in _papers_by_rowid(ids, "KCI", db_path)
+               if any(t in f"{p['title']} {p['abstract']}".lower() for t in terms)]
+    related.sort(key=lambda p: (-links[_own_rowid(p)], -int(p.get("citations") or 0)))
+    return related[:max_results]
 
 
 def kci_references(paper: Dict[str, Any], max_results: int = 20, db_path: Optional[Path] = None) -> List[Dict[str, Any]]:

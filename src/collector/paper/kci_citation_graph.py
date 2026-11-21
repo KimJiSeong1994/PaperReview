@@ -17,7 +17,7 @@ import sqlite3
 import time
 from contextlib import closing
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
 import requests
 
@@ -219,13 +219,52 @@ def edges_for(rowid: int, db_path: Optional[Path] = None) -> Tuple[List[int], Li
         return [], []
 
 
+def neighbor_counts(rowids: List[int], db_path: Optional[Path] = None) -> Dict[int, int]:
+    """rowids 와 인용으로 이어진(인용했거나 인용된) 논문 → 이어진 rowids 수."""
+    path = graph_path(db_path)
+    if not rowids or not path.is_file():
+        return {}
+    marks = ",".join("?" * len(rowids))
+    try:
+        with closing(sqlite3.connect(f"file:{path}?mode=ro", uri=True)) as conn:
+            return dict(conn.execute(
+                f"SELECT other, COUNT(*) FROM (SELECT cited AS other FROM kci_cites WHERE citing IN ({marks})"
+                f" UNION ALL SELECT citing FROM kci_cites WHERE cited IN ({marks})) GROUP BY other",
+                [*rowids, *rowids]).fetchall())
+    except sqlite3.Error as error:
+        logger.warning("KCI 인용 그래프 조회 실패: %s", error)
+        return {}
+
+
+def export_edges(output: Path, db_path: Optional[Path] = None) -> int:
+    """운영 배포용: 인용 관계만 담은 작은 그래프 파일(제목 색인·수집 기록 제외)."""
+    if output.resolve() == graph_path(db_path).resolve():
+        raise ValueError("내보낼 파일이 원본 그래프와 같다")
+    output.unlink(missing_ok=True)
+    with closing(sqlite3.connect(str(output), uri=True)) as out:
+        out.execute("ATTACH DATABASE ? AS src", (f"file:{graph_path(db_path)}?mode=ro",))
+        out.executescript("""
+            CREATE TABLE kci_cites (citing INTEGER, cited INTEGER, how TEXT, PRIMARY KEY (citing, cited)) WITHOUT ROWID;
+            INSERT INTO kci_cites SELECT citing, cited, how FROM src.kci_cites;
+            CREATE INDEX kci_cites_cited ON kci_cites(cited);
+        """)
+        out.commit()
+        out.execute("DETACH DATABASE src")
+        out.execute("VACUUM")
+        return out.execute("SELECT COUNT(*) FROM kci_cites").fetchone()[0]
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="KCI 인용 관계 수집(Crossref)")
     parser.add_argument("--titles", action="store_true", help="제목 색인 만들기")
     parser.add_argument("--limit", type=int, help="이번에 처리할 논문 수(생략 시 끝까지)")
     parser.add_argument("--report", action="store_true", help="매칭률 출력")
+    parser.add_argument("--export", type=Path, help="인용 관계만 담은 배포용 파일로 내보내기")
     args = parser.parse_args()
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
+    if args.export:
+        logger.info("내보낸 인용 관계: %d건 → %s", export_edges(args.export), args.export)
+        raise SystemExit
     if args.titles:
         logger.info("제목 색인: %d편", build_title_keys())
     if args.report:

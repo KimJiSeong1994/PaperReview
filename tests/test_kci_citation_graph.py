@@ -83,3 +83,29 @@ def test_malformed_doi_does_not_break_the_batch(monkeypatch):
     found = graph._fetch_batch(None, ["10.1/a", "10.1007-012-0015-5"])
     assert found == {"10.1/a": [{"DOI": "10.1/x"}], "10.1007-012-0015-5": []}
     assert calls[0] == "doi:10.1/a"  # 잘못된 DOI 는 묶음에서 빠진다
+
+
+def test_search_results_gain_relevant_citation_neighbors_and_export_keeps_edges(tmp_path, monkeypatch):
+    db = _index(tmp_path, monkeypatch)
+    with sqlite3.connect(graph.graph_path(db)) as conn:
+        conn.executemany("INSERT INTO kci_cites VALUES (?, ?, 'doi')", [(2, 1), (2, 3)])
+    seed = {"source": "KCI", "kci_id": "ART000000002"}
+    # 인용으로 이어진 1·3 중 질의어("사기")가 제목·초록에 있는 1만, 이미 결과에 있는 논문은 빼고
+    (related,) = kci_searcher.kci_related("사기 탐지", [seed], db_path=db)
+    assert (related["kci_id"], related["source"]) == ("ART000000001", "KCI")
+    assert kci_searcher.kci_related("사기 탐지", [seed, related], db_path=db) == []
+    assert kci_searcher.kci_related("사기 탐지", [{"source": "arXiv", "title": "x"}], db_path=db) == []
+
+    exported = tmp_path / "deploy" / "kci.db.cites.db"
+    exported.parent.mkdir()
+    assert graph.export_edges(exported, db) == 2
+    assert graph.neighbor_counts([2], exported.parent / "kci.db") == {1: 1, 3: 1}
+
+
+def test_export_refuses_to_overwrite_the_source_graph(tmp_path):
+    import pytest
+    db = tmp_path / "kci.db"
+    graph._connect(db).close()
+    with pytest.raises(ValueError):
+        graph.export_edges(graph.graph_path(db), db)
+    assert graph.graph_path(db).exists()
